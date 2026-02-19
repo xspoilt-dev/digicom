@@ -6,7 +6,7 @@ import { ProductDetails } from '@/components/ProductDetails'
 import { ProductCard } from '@/components/ProductCard'
 import { Product, Media } from '@/payload-types'
 
-export const revalidate = 3600 // Revalidate this page every hour
+export const revalidate = 60 // Revalidate this page every hour
 
 interface PageProps {
   params: Promise<{ id: string }>

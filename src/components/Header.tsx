@@ -1,13 +1,14 @@
 'use client'
 
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Search, ShoppingCart, Phone, Menu, X } from 'lucide-react'
+import { Search, ShoppingCart, Phone, Menu } from 'lucide-react'
 import Link from 'next/link'
 
 import { useState, useRef, useEffect } from 'react'
 import { Logo } from './Logo'
 import { useCart } from './CartContext'
 import CartDrawer from './CartDrawer'
+import { MobileMenu } from './MobileMenu'
 import type { Category } from '@/payload-types'
 
 export const Header = ({
@@ -161,50 +162,11 @@ export const Header = ({
         )}
 
         {/* Mobile Category Menu - Side Drawer */}
-        <>
-          <div
-            className={`fixed inset-0 z-50 bg-background/80 backdrop-blur-sm transition-opacity duration-300 md:hidden ${
-              isMenuOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-            }`}
-            onClick={() => setIsMenuOpen(false)}
-          />
-          <div
-            className={`fixed top-0 left-0 z-50 h-screen w-[85vw] max-w-xs bg-background p-6 shadow-xl transition-transform duration-300 ease-in-out md:hidden ${
-              isMenuOpen ? 'translate-x-0' : '-translate-x-full'
-            }`}
-          >
-            <div className="flex items-center justify-between mb-8">
-              <span className="text-xl font-bold text-foreground">Categories</span>
-              <button
-                onClick={() => setIsMenuOpen(false)}
-                className="rounded-full p-2 hover:bg-muted text-foreground transition-colors"
-              >
-                <X className="h-6 w-6" />
-                <span className="sr-only">Close</span>
-              </button>
-            </div>
-
-            <nav className="flex flex-col space-y-4">
-              <Link
-                href="/product"
-                className="block text-lg font-medium text-foreground hover:text-primary transition-colors border-b border-muted pb-3"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                All Products
-              </Link>
-              {categories?.map((cat) => (
-                <Link
-                  key={cat.id}
-                  href={`/product?category=${cat.id}`}
-                  className="block text-lg font-medium text-foreground hover:text-primary transition-colors border-b border-muted pb-3"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {cat.name}
-                </Link>
-              ))}
-            </nav>
-          </div>
-        </>
+        <MobileMenu
+          isOpen={isMenuOpen}
+          onClose={() => setIsMenuOpen(false)}
+          categories={categories}
+        />
 
         {/* Cart Drawer - Side Drawer (Right) */}
         <div className="max-w-screen overflow-hidden">

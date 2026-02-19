@@ -1,3 +1,4 @@
+/* eslint-disable @next/next/no-img-element */
 'use client'
 
 import { useConfig, useNav } from '@payloadcms/ui'
@@ -43,7 +44,8 @@ export const CustomNav = () => {
     <nav className="custom-nav">
       <div className="custom-nav__header">
         <div className="custom-nav__brand">
-          <Logo className="custom-nav__logo" />
+          <img src="/logo.png" alt="Site Logo" className="custom-nav__logo_img" />
+          <span className="custom-nav__logo_text">Facevaly</span>
         </div>
         <button
           className="custom-nav__toggle"

@@ -23,7 +23,9 @@ export async function Footer() {
           {/* Brand & Description */}
           <div className="space-y-4">
             <Logo imgSize="w-auto h-8" textSize='text-2xl'/>
-            <p className="text-muted-foreground text-sm">YOUR IDENTITY</p>
+            <p className="text-muted-foreground text-sm">
+              Your one-stop destination for the latest and greatest in fashion.
+            </p>
           </div>
 
           {/* Quick Links */}

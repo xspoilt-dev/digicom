@@ -19,14 +19,14 @@ export default function CartDrawer({ isOpen, setIsOpen }: CartDrawerProps) {
   return (
     <>
       <div
-        className={`fixed inset-0 z-50 bg-background/80 backdrop-blur-sm transition-opacity duration-300 ${
+        className={`fixed inset-0 z-50 ${
           isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
         onClick={() => setIsOpen(false)}
       />
       <div
-        className={`fixed top-0 right-0 z-50 h-screen  bg-background shadow-xl w-[85vw] sm:w-full max-w-md flex-col ${
-          isOpen ? 'flex' : 'hidden'
+        className={`fixed top-0 right-0 z-50 h-screen bg-background shadow-xl w-[85vw] sm:w-full max-w-md flex-col flex transition-transform duration-200 ease-in-out ${
+          isOpen ? 'translate-x-0' : 'translate-x-full'
         }`}
       >
         {/* Cart Header */}

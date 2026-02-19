@@ -1,6 +1,6 @@
 'use client'
 
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import { Search, ShoppingCart, Phone, Menu } from 'lucide-react'
 import Link from 'next/link'
 
@@ -19,13 +19,21 @@ export const Header = ({
   categories?: Category[]
 }) => {
   const router = useRouter()
-  const searchParams = useSearchParams()
   const { cartCount } = useCart()
   const [isSearchOpen, setIsSearchOpen] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
-  const [searchValue, setSearchValue] = useState(searchParams.get('q') || '')
+  const [searchValue, setSearchValue] = useState('')
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Only read searchParams on mount to initialize searchValue
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      const q = params.get('q') || ''
+      setSearchValue(q)
+    }
+  }, [])
 
   // Prevent scroll when menu or cart is open
   useEffect(() => {

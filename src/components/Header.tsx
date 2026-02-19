@@ -77,7 +77,7 @@ export const Header = ({
             </button>
 
             <Link href="/" className="flex items-center gap-2">
-              <Logo className="w-auto h-8" />
+              <Logo imgSize='w-10 h-10' textSize='text-3xl' />
             </Link>
           </div>
 

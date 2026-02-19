@@ -22,7 +22,7 @@ export async function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Brand & Description */}
           <div className="space-y-4">
-            <Logo className="w-auto h-8" />
+            <Logo imgSize="w-auto h-8" textSize='text-2xl'/>
             <p className="text-muted-foreground text-sm">YOUR IDENTITY</p>
           </div>
 

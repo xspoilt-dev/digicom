@@ -1,6 +1,6 @@
-CREATE USER ecom2 WITH PASSWORD 'ecom2';
-CREATE DATABASE ecom2 OWNER ecom2;
-GRANT ALL PRIVILEGES ON DATABASE ecom2 TO ecom2;
+CREATE USER facevaly WITH PASSWORD 'facevaly';
+CREATE DATABASE facevaly OWNER facevaly;
+GRANT ALL PRIVILEGES ON DATABASE facevaly TO facevaly;
 
-\c ecom2
-GRANT ALL ON SCHEMA public TO ecom2;
+\c facevaly
+GRANT ALL ON SCHEMA public TO facevaly;

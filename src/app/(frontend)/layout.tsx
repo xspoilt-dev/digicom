@@ -10,8 +10,8 @@ import CallButton from '@/components/CallButton'
 
 export const metadata = {
   description:
-    'Helloman is your go-to online store for high-quality products that combine functionality and style. Explore our diverse range of items designed to meet your everyday needs.',
-  title: 'Helloman',
+    'Facevaly is your go-to online store for high-quality products that combine functionality and style. Explore our diverse range of items designed to meet your everyday needs.',
+  title: 'Facevaly',
 }
 
 export default async function RootLayout(props: { children: React.ReactNode }) {

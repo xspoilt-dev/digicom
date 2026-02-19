@@ -43,5 +43,5 @@ bun install
 bun run build
 
 # 3. Restart PM2
-pm2 restart helloman
+pm2 restart facevaly
 ```

@@ -1,7 +1,7 @@
 {
-  "name": "helloman",
+  "name": "facevaly",
   "version": "1.0.0",
-  "description": "Helloman",
+  "description": "Facevaly",
   "type": "module",
   "scripts": {
     "build": "NODE_OPTIONS=--max-old-space-size=8000 next build",

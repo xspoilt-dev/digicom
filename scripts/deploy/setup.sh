@@ -4,7 +4,7 @@
 set -e
 
 # Configuration
-APP_NAME="helloman"
+APP_NAME="facevaly"
 APP_DIR="$(pwd)"
 NGINX_CONF_PATH="/etc/nginx/sites-available/$APP_NAME"
 NGINX_TEMPLATE_PATH="$APP_DIR/scripts/deploy/nginx.template.conf"
@@ -15,7 +15,7 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}Starting deployment setup for $APP_NAME...${NC}"
 
-DOMAIN=hellomanbd.com
+DOMAIN=facevaly.com
 EMAIL=contact@sunpodder.com
 
 # 5. Install Project Dependencies & Build

@@ -146,12 +146,12 @@ export async function generateMetadata({ params }: PageProps) {
       id: parseInt(id),
     })
     return {
-      title: `${product.name} | Helloman`,
-      description: `Buy ${product.name} at Helloman`,
+      title: `${product.name} | Facevaly`,
+      description: `Buy ${product.name} at Facevaly. Explore features, pricing, and reviews for this high-quality product. Shop now and enjoy great deals!`,
     }
   } catch (_) {
     return {
-      title: 'Product Not Found | Helloman',
+      title: 'Product Not Found | Facevaly',
     }
   }
 }

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "helloman",
+      "name": "facevaly",
       "dependencies": {
         "@payloadcms/db-postgres": "3.72.0",
         "@payloadcms/next": "3.72.0",

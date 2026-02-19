@@ -130,7 +130,7 @@ export default function CheckoutClient({
       <div className="container mx-auto px-4 py-16 text-center max-w-lg">
         <div className="flex justify-center mb-6">
           <div className="h-24 w-24 bg-green-100 rounded-full flex items-center justify-center">
-            <CheckCircle className="h-12 w-12 text-green-600" />
+            <CheckCircle className="h-12 w-12 text-primary" />
           </div>
         </div>
         <h1 className="text-3xl font-bold mb-4">Order Placed Successfully!</h1>

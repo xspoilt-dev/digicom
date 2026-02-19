@@ -7,6 +7,7 @@ import Link from 'next/link'
 import type { Media } from '@/payload-types'
 import { ProductCard } from '@/components/ProductCard'
 import Image from 'next/image'
+import { ArrowRight } from 'lucide-react'
 
 export const revalidate = 60
 
@@ -99,7 +100,7 @@ export default async function HomePage() {
       {/* Featured Products */}
       <div className="py-8">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold tracking-tight">Browse Products</h2>
+          <h2 className="text-xl font-bold tracking-tight">Browse Products</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -121,6 +122,15 @@ export default async function HomePage() {
               />
             )
           })}
+        </div>
+        <div className='flex justify-center mt-8'>
+          <Link
+            href="/product"
+            className=" inline-block text-xl hover:text-2xl transition-all duration-200 font-medium text-foreground"
+          >
+            View All Products
+            <ArrowRight className="w-5 h-5 inline-block ml-2" />
+          </Link>
         </div>
       </div>
     </div>

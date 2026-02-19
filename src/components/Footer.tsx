@@ -99,7 +99,7 @@ export async function Footer() {
                   href={socialLinks.facebook}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-secondary hover:bg-primary hover:text-primary-foreground text-foreground p-2 rounded-full transition-all"
+                  className="bg-primary hover:bg-primary hover:text-primary-foreground text-secondary p-2 rounded-full transition-all"
                   aria-label="Facebook"
                 >
                   <Facebook className="w-5 h-5" />
@@ -110,7 +110,7 @@ export async function Footer() {
                   href={socialLinks.instagram}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-secondary hover:bg-primary hover:text-primary-foreground text-foreground p-2 rounded-full transition-all"
+                  className="bg-primary hover:bg-primary hover:text-primary-foreground text-secondary p-2 rounded-full transition-all"
                   aria-label="Instagram"
                 >
                   <Instagram className="w-5 h-5" />
@@ -121,7 +121,7 @@ export async function Footer() {
                   href={`https://wa.me/${socialLinks.whatsapp}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-secondary hover:bg-primary hover:text-primary-foreground text-foreground p-2 rounded-full transition-all"
+                  className="bg-primary hover:bg-primary hover:text-primary-foreground text-secondary p-2 rounded-full transition-all"
                   aria-label="WhatsApp"
                 >
                   <MessageCircle className="w-5 h-5" />
@@ -132,7 +132,7 @@ export async function Footer() {
                   href={socialLinks.tiktok}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-secondary hover:bg-primary hover:text-primary-foreground text-foreground p-2 rounded-full transition-all"
+                  className="bg-primary hover:bg-primary hover:text-primary-foreground text-secondary p-2 rounded-full transition-all"
                   aria-label="TikTok"
                 >
                   <TikTokIcon className="w-5 h-5" />

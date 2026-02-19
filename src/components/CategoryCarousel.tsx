@@ -45,12 +45,6 @@ export function CategoryCarousel({ categories }: CategoryCarouselProps) {
       {/* Header */}
       <div className="flex justify-between items-center mb-4 px-1">
         <h2 className="text-xl font-bold tracking-tight">Shop by Category</h2>
-        <Link
-          href="/product"
-          className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
-        >
-          View All
-        </Link>
       </div>
 
       <div className="relative">

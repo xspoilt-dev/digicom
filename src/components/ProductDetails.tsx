@@ -158,7 +158,7 @@ export const ProductDetails = ({ product }: ProductDetailsProps) => {
             {product.name}
           </h1>
           <div className="flex items-center gap-4 mb-4">
-            <span className="text-2xl font-semibold text-green-800">
+            <span className="text-2xl font-semibold text-foreground">
               Tk {product.price.toLocaleString()}.00
             </span>
             {product.price_before && (

@@ -9,7 +9,7 @@ import type { Media } from '@/payload-types'
 
 interface Banner {
   id?: string | null
-  image?: number | Media
+  image?: string | number | Media
   link?: string | null
 }
 

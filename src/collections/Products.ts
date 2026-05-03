@@ -73,5 +73,47 @@ export const Products: CollectionConfig = {
       label: 'Out of Stock',
       defaultValue: false,
     },
+    {
+      name: 'digitalDelivery',
+      type: 'group',
+      label: 'Digital Delivery Configuration',
+      fields: [
+        {
+          name: 'deliveryMethod',
+          type: 'select',
+          options: [
+            { label: 'File Link', value: 'file_link' },
+            { label: 'Credentials (Email/Password)', value: 'credentials' },
+            { label: 'PDF Upload', value: 'pdf_upload' },
+          ],
+        },
+        {
+          name: 'fileLink',
+          type: 'text',
+          admin: {
+            condition: (data, siblingData) => siblingData?.deliveryMethod === 'file_link',
+          },
+        },
+        {
+          name: 'credentials',
+          type: 'group',
+          admin: {
+            condition: (data, siblingData) => siblingData?.deliveryMethod === 'credentials',
+          },
+          fields: [
+            { name: 'email', type: 'text' },
+            { name: 'password', type: 'text' },
+          ],
+        },
+        {
+          name: 'pdfUpload',
+          type: 'upload',
+          relationTo: 'media',
+          admin: {
+            condition: (data, siblingData) => siblingData?.deliveryMethod === 'pdf_upload',
+          },
+        },
+      ],
+    },
   ],
 }

@@ -19,7 +19,7 @@ export const RichTextParser = ({ content }: { content: any }) => {
   if (!root?.children) return null
 
   return (
-    <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none text-muted-foreground">
+    <div className="prose prose-sm sm:prose-base dark:prose-invert max-w-none text-foreground break-words overflow-hidden">
       {serialize(root.children)}
     </div>
   )

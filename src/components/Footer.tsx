@@ -24,32 +24,32 @@ export async function Footer() {
           <div className="space-y-4">
             <Logo imgSize="w-auto h-8" textSize='text-2xl'/>
             <p className="text-muted-foreground text-sm">
-              Your one-stop destination for the latest and greatest in fashion.
+              ডিজিটাল প্রোডাক্টের নির্ভরযোগ্য স্টোর।
             </p>
           </div>
 
           {/* Quick Links */}
           <div>
-            <h3 className="font-semibold text-foreground mb-4">Quick Links</h3>
+            <h3 className="font-semibold text-foreground mb-4">প্রয়োজনীয় লিংক</h3>
             <ul className="space-y-2 text-sm text-muted-foreground">
               <li>
                 <Link href="/" className="hover:text-primary transition-colors">
-                  About Us
+                  আমাদের সম্পর্কে
                 </Link>
               </li>
               <li>
                 <Link href="/" className="hover:text-primary transition-colors">
-                  Privacy Policy
+                  প্রাইভেসি পলিসি
                 </Link>
               </li>
               <li>
                 <Link href="/" className="hover:text-primary transition-colors">
-                  Terms and Conditions
+                  শর্তাবলী
                 </Link>
               </li>
               <li>
                 <Link href="/" className="hover:text-primary transition-colors">
-                  Return and Cancelation Policy
+                  রিটার্ন এবং ক্যান্সেলেশন পলিসি
                 </Link>
               </li>
             </ul>
@@ -57,7 +57,7 @@ export async function Footer() {
 
           {/* Contact Info */}
           <div>
-            <h3 className="font-semibold text-foreground mb-4">Contact</h3>
+            <h3 className="font-semibold text-foreground mb-4">যোগাযোগ</h3>
             <ul className="space-y-3 text-sm text-muted-foreground">
               {contactInfo?.address && (
                 <li className="flex items-start gap-3">
@@ -92,7 +92,7 @@ export async function Footer() {
 
           {/* Social Links */}
           <div>
-            <h3 className="font-semibold text-foreground mb-4">Follow Us</h3>
+            <h3 className="font-semibold text-foreground mb-4">ফলো করুন</h3>
             <div className="flex gap-4">
               {socialLinks?.facebook && (
                 <a

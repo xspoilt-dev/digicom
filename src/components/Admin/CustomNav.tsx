@@ -45,7 +45,7 @@ export const CustomNav = () => {
       <div className="custom-nav__header">
         <div className="custom-nav__brand">
           <img src="/logo.png" alt="Site Logo" className="custom-nav__logo_img" />
-          <span className="custom-nav__logo_text">Facevaly</span>
+          <span className="custom-nav__logo_text">DigiCom</span>
         </div>
         <button
           className="custom-nav__toggle"

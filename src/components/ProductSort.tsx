@@ -28,16 +28,16 @@ export const ProductSort = () => {
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-sm text-muted-foreground whitespace-nowrap">Sort by</span>
+      <span className="text-sm text-muted-foreground whitespace-nowrap">সর্ট করুন</span>
       <select
         value={currentSort}
         onChange={handleSortChange}
         className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none cursor-pointer"
         aria-label="Sort products"
       >
-        <option value="latest">Latest</option>
-        <option value="price_asc">Price: Low to High</option>
-        <option value="price_desc">Price: High to Low</option>
+        <option value="latest">সর্বশেষ</option>
+        <option value="price_asc">মূল্য: কম থেকে বেশি</option>
+        <option value="price_desc">মূল্য: বেশি থেকে কম</option>
       </select>
     </div>
   )

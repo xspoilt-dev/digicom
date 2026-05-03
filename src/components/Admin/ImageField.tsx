@@ -32,7 +32,7 @@ export default function ImageField({ path, label }: Props) {
   useEffect(() => {
     if (value && (typeof value === 'number' || typeof value === 'string')) {
       // If we already have the media loaded and it matches the value, skipping fetch
-      if (media?.id === value) return
+      if (String(media?.id) === String(value)) return
 
       setIsLoading(true)
       const cachedMedia = value as unknown as Media

@@ -48,24 +48,24 @@ export default async function HomePage() {
   }))
 
   return (
-    <div className="container mx-auto px-4 pt-4 pb-12">
+    <div className="container mx-auto px-4 md:px-6 pt-2 md:pt-4 pb-12">
       {/* Hero Banner */}
       {heroBanners.length > 0 && (
-        <div className="mb-8">
+        <div className="mb-4 md:mb-8 -mx-4 md:mx-0">
           <BannerCarousel banners={heroBanners} />
         </div>
       )}
 
       {/* Category Carousel */}
       {categoriesResult.docs.length > 0 && (
-        <div className="mb-12">
+        <div className="mb-6 md:mb-10">
           <CategoryCarousel categories={categoriesResult.docs} />
         </div>
       )}
 
       {/* Banner Images Grid */}
       {bannerImages.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8 md:mb-12">
           {bannerImages.map((banner, index) => {
             const media = banner.image as Media
             const imageUrl = media?.url
@@ -98,9 +98,9 @@ export default async function HomePage() {
       )}
 
       {/* Featured Products */}
-      <div className="py-8">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold tracking-tight">Browse Products</h2>
+      <div className="py-4 md:py-8">
+        <div className="flex justify-between items-center mb-4 md:mb-6">
+          <h2 className="text-xl font-bold tracking-tight">পণ্যসমূহ</h2>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -124,13 +124,13 @@ export default async function HomePage() {
             )
           })}
         </div>
-        <div className='flex justify-center mt-8'>
+        <div className='flex justify-center mt-6 md:mt-8'>
           <Link
             href="/product"
-            className=" inline-block text-xl hover:text-2xl transition-all duration-200 font-medium text-foreground"
+            className=" inline-flex items-center text-lg md:text-xl hover:scale-105 transition-all duration-200 font-semibold text-primary bg-primary/10 px-6 py-2 rounded-full"
           >
-            View All Products
-            <ArrowRight className="w-5 h-5 inline-block ml-2" />
+            সকল পণ্য দেখুন
+            <ArrowRight className="w-5 h-5 ml-2" />
           </Link>
         </div>
       </div>

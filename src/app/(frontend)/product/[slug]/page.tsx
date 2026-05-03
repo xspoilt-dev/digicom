@@ -151,12 +151,12 @@ export async function generateMetadata({ params }: PageProps) {
     const product = docs[0]
     if (!product) return { title: 'Product Not Found' }
     return {
-      title: `${product.name} | Facevaly`,
-      description: `Buy ${product.name} at Facevaly. Explore features, pricing, and reviews for this high-quality product. Shop now and enjoy great deals!`,
+      title: `${product.name} | DigiCom`,
+      description: `Buy ${product.name} at DigiCom. Explore features, pricing, and reviews for this high-quality product. Shop now and enjoy great deals!`,
     }
   } catch (_) {
     return {
-      title: 'Product Not Found | Facevaly',
+      title: 'Product Not Found | DigiCom',
     }
   }
 }

@@ -12,7 +12,7 @@ export const CategorySidebar = ({ categories, activeCategoryId }: CategorySelect
   return (
     <div className="w-full bg-card border border-border rounded-lg overflow-hidden">
       <div className="p-4 border-b border-border bg-muted/50">
-        <h2 className="font-bold text-card-foreground">Categories</h2>
+        <h2 className="font-bold text-card-foreground">ক্যাটাগরি</h2>
       </div>
       <div className="flex flex-col">
         {/* All Categories Option */}
@@ -25,7 +25,7 @@ export const CategorySidebar = ({ categories, activeCategoryId }: CategorySelect
               : 'text-muted-foreground border-l-4 border-l-transparent hover:border-l-border',
           )}
         >
-          All Products
+          সকল পণ্য
         </Link>
         {categories.map((cat) => (
           <Link
@@ -33,7 +33,7 @@ export const CategorySidebar = ({ categories, activeCategoryId }: CategorySelect
             href={`/product?category=${cat.id}`}
             className={cn(
               'text-left px-4 py-3 border-b border-border last:border-0 hover:bg-muted transition-colors text-sm font-medium',
-              activeCategoryId === cat.id
+              String(activeCategoryId) === String(cat.id)
                 ? 'bg-muted font-bold border-l-4 border-l-primary'
                 : 'text-muted-foreground border-l-4 border-l-transparent hover:border-l-border',
             )}
@@ -58,7 +58,7 @@ export const CategoryMobileNav = ({ categories, activeCategoryId }: CategorySele
             : 'bg-card text-muted-foreground border-border',
         )}
       >
-        All Products
+        সকল পণ্য
       </Link>
       {categories.map((cat) => (
         <Link
@@ -66,7 +66,7 @@ export const CategoryMobileNav = ({ categories, activeCategoryId }: CategorySele
           href={`/product?category=${cat.id}`}
           className={cn(
             'whitespace-nowrap px-4 py-2 rounded-full border text-sm font-medium',
-            activeCategoryId === cat.id
+            String(activeCategoryId) === String(cat.id)
               ? 'bg-primary text-primary-foreground border-primary'
               : 'bg-card text-muted-foreground border-border',
           )}

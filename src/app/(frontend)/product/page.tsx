@@ -137,7 +137,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
           <div className="md:hidden mb-6 space-y-4">
             <CategoryMobileNav categories={categories} activeCategoryId={activeCategoryId} />
             <details className="bg-card border border-border rounded-lg p-4">
-              <summary className="font-medium cursor-pointer">Filters</summary>
+              <summary className="font-medium cursor-pointer">ফিল্টার</summary>
               <div className="mt-4">
                 <ProductFilters />
               </div>
@@ -145,7 +145,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
           </div>
 
           <div className="flex justify-between items-center mb-4">
-            <p className="text-sm text-muted-foreground">Showing {products.length} products</p>
+            <p className="text-sm text-muted-foreground">{products.length} টি পণ্য দেখাচ্ছে</p>
             <ProductSort />
           </div>
 
@@ -153,7 +153,7 @@ export default async function ProductPage({ searchParams }: PageProps) {
           <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {products.length === 0 ? (
               <div className="col-span-full text-center py-10 text-muted-foreground">
-                No products found matching your criteria.
+                আপনার অনুসন্ধানের সাথে মিলে এমন কোনো পণ্য পাওয়া যায়নি।
               </div>
             ) : (
               products.map((product) => {

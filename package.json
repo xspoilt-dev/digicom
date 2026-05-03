@@ -9,9 +9,6 @@
     "generate:importmap": "payload generate:importmap",
     "generate:types": "payload generate:types",
     "lint": "next lint",
-    "seed": "bun src/scripts/seed.ts",
-    "seed:clean": "bun src/scripts/seed.ts --clean",
-    "seed:reset": "bun src/scripts/seed.ts --reset",
     "start": "next start"
   },
   "dependencies": {
@@ -20,8 +17,10 @@
     "@payloadcms/richtext-lexical": "3.72.0",
     "@payloadcms/ui": "3.72.0",
     "@tailwindcss/postcss": "^4.1.18",
+    "axios": "^1.16.0",
     "clsx": "^2.1.1",
     "dotenv": "16.4.7",
+    "framer-motion": "^12.38.0",
     "lucide-react": "^0.562.0",
     "next": "15.4.10",
     "nextjs-toploader": "^3.9.17",
@@ -29,6 +28,7 @@
     "postcss": "^8.5.6",
     "react": "19.2.1",
     "react-dom": "19.2.1",
+    "resend": "^6.12.2",
     "sharp": "0.34.2",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.18"

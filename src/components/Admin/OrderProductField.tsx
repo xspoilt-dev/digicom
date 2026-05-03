@@ -55,8 +55,8 @@ export default function OrderProductField({ path }: Props) {
   const imageObj = product.images?.[0]?.image
   let imageUrl: string | null = null
 
-  if (imageObj && typeof imageObj !== 'number') {
-    imageUrl = imageObj.thumbnailURL || imageObj.url || null
+  if (imageObj && typeof imageObj === 'object' && 'url' in imageObj) {
+    imageUrl = (imageObj as Media).thumbnailURL || (imageObj as Media).url || null
   }
 
   return (

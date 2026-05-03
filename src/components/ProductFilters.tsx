@@ -54,14 +54,14 @@ export function ProductFilters() {
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="mb-4 text-lg font-semibold">Price</h3>
+        <h3 className="mb-4 text-lg font-semibold">মূল্য</h3>
         <div className="flex items-center gap-2">
           <div className="grid w-full items-center gap-1.5">
             <label
               htmlFor="min-price"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              Min
+              সর্বনিম্ন
             </label>
             <input
               type="number"
@@ -77,7 +77,7 @@ export function ProductFilters() {
               htmlFor="max-price"
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
-              Max
+              সর্বোচ্চ
             </label>
             <input
               type="number"
@@ -92,7 +92,7 @@ export function ProductFilters() {
       </div>
 
       <div>
-        <h3 className="mb-4 text-lg font-semibold">Availability</h3>
+        <h3 className="mb-4 text-lg font-semibold">প্রাপ্যতা</h3>
         <div className="flex items-center space-x-2">
           <input
             type="checkbox"
@@ -105,7 +105,7 @@ export function ProductFilters() {
             htmlFor="in-stock"
             className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
           >
-            In Stock Only
+            শুধুমাত্র স্টকে আছে
           </label>
         </div>
       </div>
@@ -115,13 +115,13 @@ export function ProductFilters() {
           onClick={applyFilters}
           className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full"
         >
-          Apply Filters
+          ফিল্টার প্রয়োগ করুন
         </button>
         <button
           onClick={clearFilters}
           className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2 w-full"
         >
-          Clear Filters
+          ফিল্টার রিসেট করুন
         </button>
       </div>
     </div>

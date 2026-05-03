@@ -97,7 +97,7 @@ export const Header = ({
                 type="text"
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
-                placeholder="Search your desired product"
+                placeholder="আপনার পছন্দের পণ্য খুঁজুন"
                 className="w-full px-4 py-2 border border-r-0 border-input rounded-l-md focus:outline-none focus:border-primary bg-background text-foreground"
               />
               <button
@@ -156,7 +156,7 @@ export const Header = ({
                 value={searchValue}
                 onChange={(e) => setSearchValue(e.target.value)}
                 onBlur={handleSearchBlur}
-                placeholder="Search your desired product"
+                placeholder="আপনার পছন্দের পণ্য খুঁজুন"
                 className="w-full px-4 py-2 border border-input rounded-md focus:outline-none focus:border-primary bg-background text-foreground"
               />
               <button

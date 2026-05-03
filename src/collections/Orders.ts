@@ -37,16 +37,15 @@ export const Orders: CollectionConfig = {
         {
           name: 'phone',
           type: 'text',
-          required: true,
         },
         {
           name: 'email',
           type: 'email',
+          required: true,
         },
         {
           name: 'address',
           type: 'textarea',
-          required: true,
         },
       ],
     },
@@ -94,11 +93,9 @@ export const Orders: CollectionConfig = {
       name: 'paymentMethod',
       type: 'select',
       required: true,
-      defaultValue: 'cash_on_delivery',
+      defaultValue: 'uddoktapay',
       options: [
-        { label: 'Cash on Delivery', value: 'cash_on_delivery' },
-        { label: 'Partial Payment (Delivery Charge)', value: 'partial_delivery_charge' },
-        { label: 'Full Payment', value: 'full_payment' },
+        { label: 'UddoktaPay', value: 'uddoktapay' },
       ],
     },
     {
@@ -106,19 +103,21 @@ export const Orders: CollectionConfig = {
       type: 'group',
       fields: [
         {
+          name: 'invoice_id',
+          type: 'text',
+        },
+        {
+          name: 'payment_url',
+          type: 'text',
+        },
+        {
           name: 'trxId',
           type: 'text',
-          admin: {
-            condition: (data) => data?.paymentMethod !== 'cash_on_delivery',
-          },
         },
         {
           name: 'amount',
           type: 'number',
           min: 0,
-          admin: {
-            condition: (data) => data?.paymentMethod !== 'cash_on_delivery',
-          },
         },
       ],
     },

@@ -221,6 +221,15 @@ export interface Product {
     id?: string | null;
   }[];
   stock_status?: boolean | null;
+  digitalDelivery?: {
+    deliveryMethod?: ('file_link' | 'credentials' | 'pdf_upload') | null;
+    fileLink?: string | null;
+    credentials?: {
+      email?: string | null;
+      password?: string | null;
+    };
+    pdfUpload?: (string | null) | Media;
+  };
   updatedAt: string;
   createdAt: string;
 }
@@ -233,9 +242,9 @@ export interface Order {
   status?: ('pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled') | null;
   customer: {
     fullname: string;
-    phone: string;
-    email?: string | null;
-    address: string;
+    phone?: string | null;
+    email: string;
+    address?: string | null;
   };
   items: {
     product: string | Product;
@@ -245,8 +254,10 @@ export interface Order {
     id?: string | null;
   }[];
   total: number;
-  paymentMethod: 'cash_on_delivery' | 'partial_delivery_charge' | 'full_payment';
+  paymentMethod: 'uddoktapay';
   payment?: {
+    invoice_id?: string | null;
+    payment_url?: string | null;
     trxId?: string | null;
     amount?: number | null;
   };
@@ -411,6 +422,19 @@ export interface ProductsSelect<T extends boolean = true> {
         id?: T;
       };
   stock_status?: T;
+  digitalDelivery?:
+    | T
+    | {
+        deliveryMethod?: T;
+        fileLink?: T;
+        credentials?:
+          | T
+          | {
+              email?: T;
+              password?: T;
+            };
+        pdfUpload?: T;
+      };
   updatedAt?: T;
   createdAt?: T;
 }
@@ -442,6 +466,8 @@ export interface OrdersSelect<T extends boolean = true> {
   payment?:
     | T
     | {
+        invoice_id?: T;
+        payment_url?: T;
         trxId?: T;
         amount?: T;
       };

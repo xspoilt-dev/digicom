@@ -6,6 +6,7 @@ import { ShoppingCart, Check } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Link from 'next/link'
 import { useCart } from './CartContext'
+import { motion } from 'framer-motion'
 
 interface ProductCardProps {
   id: string
@@ -48,12 +49,16 @@ export const ProductCard = ({
 
   return (
     <Link href={'/product/' + slug}>
-      <div className="group bg-card rounded-lg p-3 hover:shadow-md transition-shadow border border-border flex flex-col h-full">
+      <motion.div 
+        whileHover={{ y: -5 }}
+        transition={{ type: 'spring', stiffness: 300 }}
+        className="group bg-card rounded-lg p-3 hover:shadow-xl hover:shadow-primary/10 transition-all border border-border flex flex-col h-full"
+      >
         {/* Image Container */}
         <div className="relative aspect-square mb-3 overflow-hidden rounded-md bg-muted">
           {discountAmount && (
             <div className="absolute top-2 right-2 bg-primary text-primary-foreground text-xs font-bold px-2 py-1 rounded-sm z-10">
-              Save {discountAmount} BDT
+              সাশ্রয় {discountAmount} BDT
             </div>
           )}
           <Image
@@ -95,18 +100,18 @@ export const ProductCard = ({
               {isAdded ? (
                 <>
                   <Check className="w-4 h-4" />
-                  Added
+                  যুক্ত হয়েছে
                 </>
               ) : (
                 <>
                   <ShoppingCart className="w-4 h-4" />
-                  Add to cart
+                  কার্টে যোগ করুন
                 </>
               )}
             </button>
           </div>
         </div>
-      </div>
+      </motion.div>
     </Link>
   )
 }

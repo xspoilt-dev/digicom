@@ -94,7 +94,7 @@ export const ProductDetails = ({ product }: ProductDetailsProps) => {
               src={currentImage.url}
               alt={currentImage.alt || product.name}
               fill
-              className="object-cover"
+              className="object-contain w-full h-full bg-white"
               priority
             />
           )}
@@ -142,7 +142,7 @@ export const ProductDetails = ({ product }: ProductDetailsProps) => {
                     src={img.url}
                     alt={img.alt || product.name}
                     fill
-                    className="object-cover"
+                    className="object-contain bg-white"
                   />
                 )}
               </button>
@@ -168,7 +168,7 @@ export const ProductDetails = ({ product }: ProductDetailsProps) => {
             )}
             {product.stock_status && (
               <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700 border border-red-200">
-                Out of Stock
+                স্টক আউট
               </span>
             )}
           </div>
@@ -178,7 +178,7 @@ export const ProductDetails = ({ product }: ProductDetailsProps) => {
         {availableColors.length > 0 && (
           <div className="mb-6">
             <label className="text-sm font-medium text-muted-foreground mb-2 block">
-              Color: <span className="text-foreground">{selectedColor}</span>
+              রং: <span className="text-foreground">{selectedColor}</span>
             </label>
             <div className="flex flex-wrap gap-2">
               {availableColors.map((color) => (
@@ -219,7 +219,7 @@ export const ProductDetails = ({ product }: ProductDetailsProps) => {
               </button>
             </div>
             <div className="text-sm text-muted-foreground">
-              {product.stock_status ? 'Currently Unavailable' : 'In Stock'}
+              {product.stock_status ? 'বর্তমানে অনুপলব্ধ' : 'স্টকে আছে'}
             </div>
           </div>
 
@@ -237,12 +237,12 @@ export const ProductDetails = ({ product }: ProductDetailsProps) => {
               {isAdded ? (
                 <>
                   <Check className="w-5 h-5" />
-                  Added
+                  যুক্ত হয়েছে
                 </>
               ) : (
                 <>
                   <ShoppingCart className="w-5 h-5" />
-                  Add to Cart
+                  কার্টে যোগ করুন
                 </>
               )}
             </button>
@@ -252,14 +252,14 @@ export const ProductDetails = ({ product }: ProductDetailsProps) => {
               className="flex items-center justify-center gap-2 bg-black text-white hover:bg-gray-800 px-6 py-3.5 rounded-lg font-semibold transition-all disabled:opacity-60 disabled:cursor-not-allowed shadow-md hover:shadow-lg"
             >
               <ShoppingBag className="w-5 h-5" />
-              Buy Now
+              এখন কিনুন
             </button>
           </div>
         </div>
 
         {/* Description */}
         <div className="prose-container">
-          <h2 className="text-lg font-bold mb-4 border-b pb-2">Description</h2>
+          <h2 className="text-lg font-bold mb-4 border-b pb-2">বিবরণ</h2>
           <RichTextParser content={product.description} />
         </div>
       </div>

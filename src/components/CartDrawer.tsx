@@ -31,7 +31,7 @@ export default function CartDrawer({ isOpen, setIsOpen }: CartDrawerProps) {
       >
         {/* Cart Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
-          <h2 className="text-xl font-bold text-foreground">Shopping Cart ({cartCount})</h2>
+          <h2 className="text-xl font-bold text-foreground">শপিং কার্ট ({cartCount})</h2>
           <button
             onClick={() => setIsOpen(false)}
             className="rounded-full p-2 hover:bg-muted text-foreground transition-colors"
@@ -48,9 +48,9 @@ export default function CartDrawer({ isOpen, setIsOpen }: CartDrawerProps) {
               <div className="bg-muted p-6 rounded-full">
                 <ShoppingCart className="w-12 h-12 text-muted-foreground" />
               </div>
-              <h3 className="text-xl font-medium text-foreground">Your cart is empty</h3>
+              <h3 className="text-xl font-medium text-foreground">আপনার কার্ট খালি</h3>
               <p className="text-muted-foreground">
-                Looks like you haven&apos;t added anything yet.
+                মনে হচ্ছে আপনি এখনও কিছু যোগ করেননি।
               </p>
               <button
                 onClick={() => {
@@ -59,7 +59,7 @@ export default function CartDrawer({ isOpen, setIsOpen }: CartDrawerProps) {
                 }}
                 className="mt-4 bg-primary text-primary-foreground px-6 py-2 rounded-md hover:bg-primary/90 transition-colors"
               >
-                Start Shopping
+                কেনাকাটা শুরু করুন
               </button>
             </div>
           ) : (
@@ -91,7 +91,7 @@ export default function CartDrawer({ isOpen, setIsOpen }: CartDrawerProps) {
                         </button>
                       </div>
                       {item.color && (
-                        <p className="text-sm text-muted-foreground mt-1">Color: {item.color}</p>
+                        <p className="text-sm text-muted-foreground mt-1">রং: {item.color}</p>
                       )}
                       <p className="font-semibold text-foreground mt-1">
                         TK {item.price.toLocaleString()}
@@ -127,13 +127,13 @@ export default function CartDrawer({ isOpen, setIsOpen }: CartDrawerProps) {
         {items.length > 0 && (
           <div className="border-t border-border p-6 bg-muted/20">
             <div className="flex items-center justify-between mb-4">
-              <span className="text-muted-foreground">Subtotal</span>
+              <span className="text-muted-foreground">সাবটোটাল</span>
               <span className="text-xl font-bold text-foreground">
                 TK {cartTotal.toLocaleString()}
               </span>
             </div>
             <p className="text-xs text-muted-foreground mb-4">
-              Shipping and taxes calculated at checkout.
+              শিপিং এবং ট্যাক্স চেকআউটের সময় হিসেব করা হবে।
             </p>
             <div className="grid gap-3">
               <Link
@@ -141,13 +141,13 @@ export default function CartDrawer({ isOpen, setIsOpen }: CartDrawerProps) {
                 onClick={() => setIsOpen(false)}
                 className="flex justify-center w-full bg-primary text-primary-foreground py-3 rounded-md hover:bg-primary/90 transition-colors font-medium"
               >
-                Checkout
+                চেকআউট
               </Link>
               <button
                 onClick={() => setIsOpen(false)}
                 className="w-full bg-background border border-border text-foreground py-3 rounded-md hover:bg-muted transition-colors font-medium"
               >
-                Continue Shopping
+                কেনাকাটা চালিয়ে যান
               </button>
             </div>
           </div>

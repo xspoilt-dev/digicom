@@ -41,10 +41,10 @@ export function CategoryCarousel({ categories }: CategoryCarouselProps) {
   if (!categories || categories.length === 0) return null
 
   return (
-    <div className="relative group w-full py-4">
+    <div className="relative group w-full py-1 md:py-4">
       {/* Header */}
-      <div className="flex justify-between items-center mb-4 px-1">
-        <h2 className="text-xl font-bold tracking-tight">Shop by Category</h2>
+      <div className="flex justify-between items-center mb-3 md:mb-4 px-1">
+        <h2 className="text-xl font-bold tracking-tight">ক্যাটাগরি</h2>
       </div>
 
       <div className="relative">

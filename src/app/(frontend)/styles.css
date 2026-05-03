@@ -25,24 +25,24 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #09090b;
+  --foreground: #022c22;
 
-  --primary: #000000;
+  --primary: #10b981;
   --primary-foreground: #ffffff;
 
-  --secondary: #f4f4f5;
-  --secondary-foreground: #18181b;
+  --secondary: #d1fae5;
+  --secondary-foreground: #064e3b;
 
   --card: #ffffff;
-  --card-foreground: #09090b;
+  --card-foreground: #022c22;
 
-  --muted: #f4f4f5;
-  --muted-foreground: #71717a;
+  --muted: #f0fdf4;
+  --muted-foreground: #059669;
 
-  --border: #e4e4e7;
-  --input: #e4e4e7;
+  --border: #a7f3d0;
+  --input: #a7f3d0;
 
-  --accent: #475569;
+  --accent: #059669;
   --accent-foreground: #ffffff;
 }
 

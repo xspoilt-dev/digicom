@@ -15,7 +15,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@payloadcms/db-postgres": "3.72.0",
+    "@payloadcms/db-mongodb": "3.72.0",
     "@payloadcms/next": "3.72.0",
     "@payloadcms/richtext-lexical": "3.72.0",
     "@payloadcms/ui": "3.72.0",

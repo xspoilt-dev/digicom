@@ -192,6 +192,11 @@ export interface Category {
 export interface Product {
   id: string;
   name: string;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  slug: string;
   price: number;
   price_before?: number | null;
   description?: {
@@ -392,6 +397,8 @@ export interface CategoriesSelect<T extends boolean = true> {
  */
 export interface ProductsSelect<T extends boolean = true> {
   name?: T;
+  generateSlug?: T;
+  slug?: T;
   price?: T;
   price_before?: T;
   description?: T;

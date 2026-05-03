@@ -117,7 +117,8 @@ export default async function ProductPage({ params }: PageProps) {
               return (
                 <ProductCard
                   key={p.slug}
-                  id={p.slug}
+                  id={p.id}
+                  slug={p.slug}
                   title={p.name}
                   price={p.price}
                   oldPrice={p.price_before || undefined}

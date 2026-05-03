@@ -1,5 +1,6 @@
 import { revalidatePath } from 'next/cache'
 import type { CollectionConfig } from 'payload'
+import { slugField } from 'payload'
 
 export const Products: CollectionConfig = {
   slug: 'products',
@@ -12,7 +13,7 @@ export const Products: CollectionConfig = {
   hooks: {
     afterChange: [
       async ({ doc }) => {
-        revalidatePath(`/product/${doc.id}`)
+        revalidatePath(`/product/${doc.slug}`)
         revalidatePath(`/`)
       },
     ],
@@ -23,6 +24,9 @@ export const Products: CollectionConfig = {
       type: 'text',
       required: true,
     },
+    slugField({
+      fieldToUse: 'name',
+    }),
     {
       name: 'price',
       type: 'number',

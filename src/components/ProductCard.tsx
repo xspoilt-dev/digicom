@@ -8,7 +8,8 @@ import Link from 'next/link'
 import { useCart } from './CartContext'
 
 interface ProductCardProps {
-  id: string | number
+  id: string
+  slug: string
   title: string
   price: number
   oldPrice?: number
@@ -20,6 +21,7 @@ interface ProductCardProps {
 export const ProductCard = ({
   title,
   id,
+  slug,
   price,
   oldPrice,
   image,
@@ -34,7 +36,7 @@ export const ProductCard = ({
     e.stopPropagation()
 
     addItem({
-      id: Number(id),
+      id,
       title,
       price,
       image,
@@ -45,7 +47,7 @@ export const ProductCard = ({
   }
 
   return (
-    <Link href={'/product/' + id}>
+    <Link href={'/product/' + slug}>
       <div className="group bg-card rounded-lg p-3 hover:shadow-md transition-shadow border border-border flex flex-col h-full">
         {/* Image Container */}
         <div className="relative aspect-square mb-3 overflow-hidden rounded-md bg-muted">

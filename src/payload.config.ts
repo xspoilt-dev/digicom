@@ -12,6 +12,7 @@ import { Products } from './collections/Products'
 import { Orders } from './collections/Orders'
 import { SiteSettings } from './globals/SiteSettings'
 import { PageEditor } from './globals/PageEditor'
+import { MetaPixelConfig } from './globals/MetaPixelConfig'
 
 const filename = fileURLToPath(import.meta.url)
 const dirname = path.dirname(filename)
@@ -39,7 +40,7 @@ export default buildConfig({
     disable: true,
   },
   collections: [Users, Media, Categories, Products, Orders],
-  globals: [SiteSettings, PageEditor],
+  globals: [SiteSettings, PageEditor, MetaPixelConfig],
   editor: lexicalEditor(),
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

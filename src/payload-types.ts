@@ -96,10 +96,12 @@ export interface Config {
   globals: {
     'site-settings': SiteSetting;
     'page-editor': PageEditor;
+    'meta-pixel-config': MetaPixelConfig;
   };
   globalsSelect: {
     'site-settings': SiteSettingsSelect<false> | SiteSettingsSelect<true>;
     'page-editor': PageEditorSelect<false> | PageEditorSelect<true>;
+    'meta-pixel-config': MetaPixelConfigSelect<false> | MetaPixelConfigSelect<true>;
   };
   locale: null;
   user: User & {
@@ -555,6 +557,42 @@ export interface PageEditor {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meta-pixel-config".
+ */
+export interface MetaPixelConfig {
+  id: string;
+  /**
+   * Enable or disable Meta Pixel tracking on the website.
+   */
+  enabled?: boolean | null;
+  /**
+   * Your Meta Pixel ID (e.g., 123456789012345).
+   */
+  pixelId?: string | null;
+  /**
+   * Enable server-side events via Meta Conversions API.
+   */
+  capiEnabled?: boolean | null;
+  /**
+   * Your Meta Conversions API access token.
+   */
+  accessToken?: string | null;
+  /**
+   * Optional test event code for debugging (leave empty for production).
+   */
+  testEventCode?: string | null;
+  events?: {
+    pageView?: boolean | null;
+    viewContent?: boolean | null;
+    addToCart?: boolean | null;
+    initiateCheckout?: boolean | null;
+    purchase?: boolean | null;
+  };
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "site-settings_select".
  */
 export interface SiteSettingsSelect<T extends boolean = true> {
@@ -613,6 +651,29 @@ export interface PageEditorSelect<T extends boolean = true> {
               id?: T;
             };
         numberOfProducts?: T;
+      };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "meta-pixel-config_select".
+ */
+export interface MetaPixelConfigSelect<T extends boolean = true> {
+  enabled?: T;
+  pixelId?: T;
+  capiEnabled?: T;
+  accessToken?: T;
+  testEventCode?: T;
+  events?:
+    | T
+    | {
+        pageView?: T;
+        viewContent?: T;
+        addToCart?: T;
+        initiateCheckout?: T;
+        purchase?: T;
       };
   updatedAt?: T;
   createdAt?: T;

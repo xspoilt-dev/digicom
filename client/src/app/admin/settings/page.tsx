@@ -11,7 +11,7 @@ const SettingsIcon = () => (
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState<any>({
-    company_info: { name: "", address: "", email: "", telegram: "", bkashNumber: "" },
+    company_info: { name: "", address: "", email: "", whatsapp: "", bkashNumber: "" },
     meta_pixel: { pixelId: "", accessToken: "", testEventCode: "" },
     email_settings: { resendApiKey: "", fromEmail: "" },
     zinipay_settings: { apiKey: "" },
@@ -38,7 +38,7 @@ export default function SettingsPage() {
       const data = await res.json();
       if (data.success) {
         setSettings({
-          company_info: data.settings.company_info || { name: "", address: "", email: "", telegram: "", bkashNumber: "" },
+          company_info: data.settings.company_info || { name: "", address: "", email: "", whatsapp: "", bkashNumber: "" },
           meta_pixel: data.settings.meta_pixel || { pixelId: "", accessToken: "", testEventCode: "" },
           email_settings: data.settings.email_settings || { resendApiKey: "", fromEmail: "" },
           zinipay_settings: data.settings.zinipay_settings || { apiKey: "" },
@@ -146,20 +146,27 @@ export default function SettingsPage() {
 
             <div className="form-control w-full">
               <label className="label">
-                <span className="label-text font-bold text-base-content/80">Telegram Support Link</span>
+                <span className="label-text font-bold text-base-content/80">WhatsApp Support Number</span>
               </label>
               <input
                 type="text"
                 className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
-                value={settings.company_info.telegram}
-                placeholder="e.g. t.me/username"
+                value={settings.company_info.whatsapp || settings.company_info.whatsappNumber || ""}
+                placeholder="e.g. 017xxxxxxxx or +88017xxxxxxxx"
                 onChange={(e) =>
                   setSettings({
                     ...settings,
-                    company_info: { ...settings.company_info, telegram: e.target.value },
+                    company_info: {
+                      ...settings.company_info,
+                      whatsapp: e.target.value,
+                      whatsappNumber: e.target.value,
+                    },
                   })
                 }
               />
+              <label className="label">
+                <span className="label-text-alt text-base-content/50">This WhatsApp number will be linked in the store footer and customer delivery emails.</span>
+              </label>
             </div>
           </div>
 

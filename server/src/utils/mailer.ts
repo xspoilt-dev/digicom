@@ -12,10 +12,19 @@ interface MailPayload {
 
 export async function sendOrderDeliveryEmail(payload: MailPayload) {
   try {
-    // 1. Fetch Email Settings from database
+    // 1. Fetch Email Settings and Company Info from database
     const emailConfigSetting = await Setting.findOne({ key: "email_settings" });
     const apiKey = emailConfigSetting?.value?.resendApiKey || process.env.RESEND_API_KEY;
     const fromEmail = emailConfigSetting?.value?.fromEmail || "Digitalcorebd.com <noreply@digitalcorebd.com>";
+
+    const companyInfoSetting = await Setting.findOne({ key: "company_info" });
+    const companyInfo = companyInfoSetting?.value || {};
+    const rawWhatsapp = companyInfo.whatsapp || companyInfo.whatsappNumber || "01700000000";
+    let cleanNumber = rawWhatsapp.replace(/\D/g, "");
+    if (cleanNumber.length === 11 && cleanNumber.startsWith("01")) {
+      cleanNumber = "88" + cleanNumber;
+    }
+    const whatsappLink = `https://wa.me/${cleanNumber}`;
 
     if (!apiKey) {
       console.warn("Resend API Key is not configured in settings. Email skipped.");
@@ -122,9 +131,9 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
                     <!-- Support Info -->
                     <div style="margin-top: 40px; background-color: #f1f5f9; border-radius: 16px; padding: 20px; text-align: center;">
                       <span style="font-size: 13px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Need Help?</span>
-                      <p style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">If you face any issues with download, contact support instantly.</p>
-                      <a href="https://t.me/monervideo" target="_blank" style="font-size: 12px; font-weight: 700; color: #0088cc; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
-                        Contact Telegram Support &rarr;
+                      <p style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">If you face any issues with your download, contact our WhatsApp support instantly.</p>
+                      <a href="${whatsappLink}" target="_blank" style="font-size: 13px; font-weight: 700; color: #16a34a; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+                        Contact WhatsApp Support &rarr;
                       </a>
                     </div>
                   </td>

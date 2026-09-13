@@ -10,6 +10,8 @@ import path from "path";
 import fs from "fs";
 
 // Load environment variables
+dotenv.config();
+dotenv.config({ path: path.resolve(__dirname, "../.env") });
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const app = new Hono();

@@ -6,7 +6,9 @@ interface Transaction {
   _id: string;
   orderId: { orderId: string; email?: string; phone?: string; total?: number };
   amount: number;
-  gateway: "bkash" | "eps";
+  gateway: string;
+  paymentMethod?: string;
+  invoiceId?: string;
   trxID: string;
   senderNumber?: string;
   status: "pending" | "verified" | "failed";
@@ -77,8 +79,8 @@ export default function TransactionsPage() {
                   <tr key={t._id} className="border-b border-base-200">
                     <td className="font-mono font-bold text-base-content">{t.trxID}</td>
                     <td className="font-mono font-bold text-base-content">{t.orderId?.orderId || "N/A"}</td>
-                    <td className="uppercase text-xs font-semibold">{t.gateway}</td>
-                    <td className="font-mono text-xs">{t.senderNumber || "Automated Link"}</td>
+                    <td className="uppercase text-xs font-semibold">{t.paymentMethod || t.gateway}</td>
+                    <td className="font-mono text-xs">{t.senderNumber || (t.invoiceId ? `Inv: ${t.invoiceId}` : "Automated Link")}</td>
                     <td className="font-black text-primary">৳{t.amount}</td>
                     <td className="text-xs text-base-content/60">{new Date(t.createdAt).toLocaleString()}</td>
                     <td>

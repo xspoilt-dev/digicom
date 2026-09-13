@@ -13,6 +13,8 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<any>({
     company_info: { name: "", address: "", email: "", telegram: "", bkashNumber: "" },
     meta_pixel: { pixelId: "", accessToken: "", testEventCode: "" },
+    email_settings: { resendApiKey: "", fromEmail: "" },
+    zinipay_settings: { apiKey: "" },
   });
   const [loading, setLoading] = useState(true);
 
@@ -38,6 +40,8 @@ export default function SettingsPage() {
         setSettings({
           company_info: data.settings.company_info || { name: "", address: "", email: "", telegram: "", bkashNumber: "" },
           meta_pixel: data.settings.meta_pixel || { pixelId: "", accessToken: "", testEventCode: "" },
+          email_settings: data.settings.email_settings || { resendApiKey: "", fromEmail: "" },
+          zinipay_settings: data.settings.zinipay_settings || { apiKey: "" },
         });
       }
     } catch (err) {
@@ -76,7 +80,7 @@ export default function SettingsPage() {
     <div className="space-y-8 animate-fadeIn">
       <div>
         <h1 className="text-3xl font-black text-base-content">System Configuration</h1>
-        <p className="text-xs text-base-content/65 font-semibold mt-1">Configure company profiles, support routes, and Meta tracking identifiers</p>
+        <p className="text-xs text-base-content/65 font-semibold mt-1">Configure company profiles, email gateways, and Meta tracking identifiers</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -237,6 +241,110 @@ export default function SettingsPage() {
             Save Pixel Settings
           </button>
         </div>
+
+        {/* Resend Email Dispatcher Settings Form */}
+        <div className="card bg-base-100 border border-base-300 p-8 rounded-3xl shadow-sm space-y-6 lg:col-span-2">
+          <h3 className="text-lg font-black text-base-content border-b border-base-200 pb-3 flex items-center gap-2">
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "20px", height: "20px" }}>
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+            </svg> Resend Email Gateway Configuration
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="form-control w-full">
+              <label className="label">
+                <span className="label-text font-bold text-base-content/80">Resend API Key</span>
+              </label>
+              <input
+                type="password"
+                placeholder="re_xxxxxxxxxxxxxxxxxxxxxx"
+                className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
+                value={settings.email_settings.resendApiKey}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    email_settings: { ...settings.email_settings, resendApiKey: e.target.value },
+                  })
+                }
+              />
+            </div>
+
+            <div className="form-control w-full">
+              <label className="label">
+                <span className="label-text font-bold text-base-content/80">From Domain Email (Authorized in Resend)</span>
+              </label>
+              <input
+                type="text"
+                placeholder="Digitalcorebd.com <noreply@digitalcorebd.com>"
+                className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
+                value={settings.email_settings.fromEmail}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    email_settings: { ...settings.email_settings, fromEmail: e.target.value },
+                  })
+                }
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={() => handleSettingsSubmit("email_settings", settings.email_settings)}
+            className="btn btn-primary rounded-xl font-bold shadow-md w-full mt-4"
+          >
+            Save Email Configurations
+          </button>
+        </div>
+
+        {/* ZiniPay Payment Gateway Configuration Form */}
+        <div className="card bg-base-100 border border-base-300 p-8 rounded-3xl shadow-sm space-y-6 lg:col-span-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-base-200 pb-3">
+            <h3 className="text-lg font-black text-base-content flex items-center gap-2">
+              <svg className="w-5 h-5 shrink-0 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "20px", height: "20px" }}>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              ZiniPay Payment Gateway Integration
+            </h3>
+            <span className="badge badge-success badge-sm font-bold text-success-content py-2 px-3">
+              Active Hosted Gateway
+            </span>
+          </div>
+
+          <p className="text-xs text-base-content/70 leading-relaxed">
+            Configure your ZiniPay API Key for automated hosted invoices and instant payment verification (supports bKash, Nagad, Rocket, Upay, Visa, MasterCard). If left empty, the system defaults to the <code className="bg-base-200 px-1 py-0.5 rounded font-mono text-primary font-bold">ZINIPAY_API_KEY</code> environment variable.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="form-control w-full md:col-span-2">
+              <label className="label">
+                <span className="label-text font-bold text-base-content/80">ZiniPay API Key (zini-api-key)</span>
+              </label>
+              <input
+                type="password"
+                placeholder="sandbox_test_... or live_prod_..."
+                className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full font-mono text-sm"
+                value={settings.zinipay_settings.apiKey}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    zinipay_settings: { ...settings.zinipay_settings, apiKey: e.target.value },
+                  })
+                }
+              />
+              <label className="label">
+                <span className="label-text-alt text-base-content/50">Header sent to ZiniPay: <span className="font-mono">zini-api-key</span></span>
+              </label>
+            </div>
+          </div>
+
+          <button
+            onClick={() => handleSettingsSubmit("zinipay_settings", settings.zinipay_settings)}
+            className="btn btn-primary rounded-xl font-bold shadow-md w-full mt-4"
+          >
+            Save ZiniPay Gateway Key
+          </button>
+        </div>
+
       </div>
     </div>
   );

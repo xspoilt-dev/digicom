@@ -6,6 +6,15 @@ function hash(value?: string) {
   return crypto.createHash("sha256").update(value.trim().toLowerCase()).digest("hex");
 }
 
+function hashPhone(phone?: string) {
+  if (!phone) return undefined;
+  let clean = phone.replace(/\D/g, "");
+  if (clean.length === 11 && clean.startsWith("01")) {
+    clean = "88" + clean;
+  }
+  return crypto.createHash("sha256").update(clean).digest("hex");
+}
+
 interface SendCapiEventArgs {
   eventName: string;
   eventId: string;
@@ -45,17 +54,19 @@ export async function sendCapiEvent({
       return false;
     }
 
+    const finalEventId = eventId || `evt_${Date.now()}_${Math.floor(Math.random() * 100000)}`;
+
     const payload = {
       data: [
         {
           event_name: eventName,
           event_time: Math.floor(Date.now() / 1000),
-          event_id: eventId,
+          event_id: finalEventId,
           event_source_url: eventSourceUrl,
           action_source: actionSource,
           user_data: {
             em: hash(userData.email),
-            ph: hash(userData.phone),
+            ph: hashPhone(userData.phone),
             fbp: userData.fbp,
             fbc: userData.fbc,
             client_ip_address: userData.clientIpAddress,

@@ -1,24 +1,136 @@
 import { Hono } from "hono";
+import { sign, verify } from "hono/jwt";
 import Product from "../models/Product";
 import Order from "../models/Order";
 import Transaction from "../models/Transaction";
 import Setting from "../models/Setting";
 import RouteRedirect from "../models/RouteRedirect";
 import { sendCapiEvent } from "../utils/metaCapi";
+import { sendOrderDeliveryEmail } from "../utils/mailer";
 import path from "path";
 import fs from "fs";
 
 const adminRouter = new Hono();
 
-// Auth Middleware: Simple Bearer Token check
-adminRouter.use("/*", async (c, next) => {
-  const authHeader = c.req.header("Authorization");
-  const adminToken = process.env.ADMIN_TOKEN || "admin-secret-token";
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "digicom_super_secret_jwt_admin_token_2026";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@digitalcorebd.com";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@2026!Secured";
+const LEGACY_ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin-secret-token";
 
-  if (!authHeader || authHeader !== `Bearer ${adminToken}`) {
-    return c.json({ success: false, message: "Unauthorized admin access" }, 401);
+// 0. Public Admin Login Endpoint (Email + Password)
+adminRouter.post("/login", async (c) => {
+  try {
+    const { email, password } = await c.req.json();
+
+    if (!email || !password) {
+      return c.json({ success: false, message: "Email and password are required." }, 400);
+    }
+
+    const inputEmail = String(email).trim().toLowerCase();
+    const targetEmail = (process.env.ADMIN_EMAIL || ADMIN_EMAIL).trim().toLowerCase();
+    const targetPassword = process.env.ADMIN_PASSWORD || ADMIN_PASSWORD;
+
+    if (inputEmail !== targetEmail || String(password) !== targetPassword) {
+      return c.json({ success: false, message: "Invalid administrator email or password." }, 401);
+    }
+
+    // Generate JWT token valid for 7 days
+    const exp = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7;
+    const token = await sign(
+      {
+        email: targetEmail,
+        role: "admin",
+        name: "Store Administrator",
+        exp,
+      },
+      process.env.ADMIN_JWT_SECRET || ADMIN_JWT_SECRET,
+      "HS256"
+    );
+
+    return c.json({
+      success: true,
+      message: "Admin authentication successful.",
+      token,
+      user: {
+        email: targetEmail,
+        name: "Store Administrator",
+        role: "admin",
+        expiresAt: new Date(exp * 1000).toISOString(),
+      },
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
   }
-  await next();
+});
+
+// 0.1 Session Profile Verification Endpoint
+adminRouter.get("/me", async (c) => {
+  const authHeader = c.req.header("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return c.json({ success: false, message: "No authentication token provided" }, 401);
+  }
+
+  const token = authHeader.replace(/^Bearer\s+/, "");
+  try {
+    if (token === (process.env.ADMIN_TOKEN || LEGACY_ADMIN_TOKEN)) {
+      return c.json({
+        success: true,
+        user: { email: process.env.ADMIN_EMAIL || ADMIN_EMAIL, name: "Store Administrator", role: "admin" },
+      });
+    }
+
+    const payload = (await verify(
+      token,
+      process.env.ADMIN_JWT_SECRET || ADMIN_JWT_SECRET,
+      "HS256"
+    )) as any;
+    return c.json({
+      success: true,
+      user: {
+        email: payload.email,
+        name: payload.name || "Store Administrator",
+        role: payload.role || "admin",
+      },
+    });
+  } catch (err) {
+    return c.json({ success: false, message: "Invalid or expired session token" }, 401);
+  }
+});
+
+// Auth Middleware: Protects all subsequent /api/admin/* routes
+adminRouter.use("/*", async (c, next) => {
+  if (c.req.path.endsWith("/login") || c.req.path.endsWith("/me")) {
+    return next();
+  }
+
+  const authHeader = c.req.header("Authorization");
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return c.json({ success: false, message: "Unauthorized admin access: Missing bearer token" }, 401);
+  }
+
+  const token = authHeader.replace(/^Bearer\s+/, "");
+
+  // Legacy fallback check
+  if (token === (process.env.ADMIN_TOKEN || LEGACY_ADMIN_TOKEN)) {
+    return next();
+  }
+
+  // Verify JWT
+  try {
+    const payload = (await verify(
+      token,
+      process.env.ADMIN_JWT_SECRET || ADMIN_JWT_SECRET,
+      "HS256"
+    )) as any;
+    if (payload && payload.role === "admin") {
+      c.set("adminUser" as any, payload);
+      return next();
+    }
+  } catch (err) {
+    return c.json({ success: false, message: "Session expired or invalid token" }, 401);
+  }
+
+  return c.json({ success: false, message: "Unauthorized admin access" }, 401);
 });
 
 // 1. Dashboard Stats
@@ -91,6 +203,8 @@ adminRouter.get("/orders", async (c) => {
         { orderId: new RegExp(search, "i") },
         { email: new RegExp(search, "i") },
         { phone: new RegExp(search, "i") },
+        { zinipayInvoiceId: new RegExp(search, "i") },
+        { transactionId: new RegExp(search, "i") },
         { bkashTrxID: new RegExp(search, "i") },
       ];
     }
@@ -102,7 +216,7 @@ adminRouter.get("/orders", async (c) => {
   }
 });
 
-// Approve/Verify Order manually (bKash manual payment validation)
+// Approve/Verify Order manually (ZiniPay / manual validation)
 adminRouter.post("/orders/:id/verify", async (c) => {
   try {
     const id = c.req.param("id");
@@ -116,20 +230,37 @@ adminRouter.post("/orders/:id/verify", async (c) => {
       return c.json({ success: false, message: "Order is already marked as paid" }, 400);
     }
 
-    // Set order status to paid
-    order.status = "paid";
-    await order.save();
-
-    // Update associated transaction status to verified
-    if (order.bkashTrxID) {
-      await Transaction.findOneAndUpdate(
-        { trxID: order.bkashTrxID },
-        { status: "verified", verifiedAt: new Date() }
-      );
+    // Ensure order has a metaEventId for CAPI deduplication
+    if (!order.metaEventId) {
+      order.metaEventId = `order_${order.orderId}_${Date.now()}`;
     }
 
-    // Trigger server-side Meta CAPI Purchase event
-    await sendCapiEvent({
+    // Set order status to paid
+    order.status = "paid";
+    if (!order.paymentMethod) {
+      order.paymentMethod = "admin_approval";
+    }
+    await order.save();
+
+    // Update or create associated transaction in ledger
+    const trxID = order.transactionId || order.zinipayInvoiceId || order.bkashTrxID || `MANUAL-${order.orderId}-${Date.now()}`;
+    await Transaction.findOneAndUpdate(
+      { orderId: order._id },
+      {
+        orderId: order._id,
+        amount: order.total,
+        gateway: order.paymentGateway || "zinipay",
+        trxID,
+        invoiceId: order.zinipayInvoiceId,
+        paymentMethod: order.paymentMethod || "admin_approval",
+        status: "verified",
+        verifiedAt: new Date(),
+      },
+      { upsert: true, new: true }
+    );
+
+    // Trigger server-side Meta CAPI Purchase event (counts as Purchase in Meta Pixel/CAPI)
+    const capiDispatched = await sendCapiEvent({
       eventName: "Purchase",
       eventId: order.metaEventId,
       eventSourceUrl: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/receipt/${order.orderId}`,
@@ -145,13 +276,44 @@ adminRouter.post("/orders/:id/verify", async (c) => {
       customData: {
         currency: "BDT",
         value: order.total,
-        content_ids: order.items.map((item: any) => String(item.productId)),
+        content_ids: order.items.map((item: any) => String(item.productId?._id || item.productId)),
         content_type: "product",
         order_id: order.orderId,
       },
     });
 
-    return c.json({ success: true, message: "Order manual payment verified, CAPI Purchase event fired." });
+    console.log(`[Admin Order Approval] Order ${order.orderId} approved by admin. CAPI Purchase dispatched: ${capiDispatched}`);
+
+    // Resolve secure download urls
+    const downloadUrls: { title: string; link: string }[] = [];
+    for (const item of order.items) {
+      const prodId = item.productId?._id || item.productId;
+      const prod = await Product.findById(prodId);
+      if (prod) {
+        const link = prod.deliveryLink || (prod.filePath ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/${prod.filePath}` : "");
+        if (link) {
+          downloadUrls.push({ title: prod.title, link });
+        }
+      }
+    }
+
+    // Send delivery email asynchronously so it doesn't block response
+    if (order.email) {
+      sendOrderDeliveryEmail({
+        toEmail: order.email,
+        orderId: order.orderId,
+        customerName: order.name || "Customer",
+        totalAmount: order.total,
+        items: order.items.map((i: any) => ({ title: i.title, price: i.price, quantity: i.quantity })),
+        downloadUrls,
+      }).catch(err => console.error("[Admin Order Approval] Email send error:", err));
+    }
+
+    return c.json({
+      success: true,
+      message: "Order approved, payment recorded, delivery email dispatched, and Meta CAPI Purchase event fired.",
+      capiDispatched,
+    });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }

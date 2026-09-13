@@ -15,7 +15,11 @@ export interface IOrder extends Document {
   items: IOrderItem[];
   total: number;
   status: "pending" | "processing" | "paid" | "failed" | "cancelled";
-  paymentGateway: "bkash" | "eps";
+  paymentGateway: "zinipay" | "bkash" | "eps";
+  zinipayInvoiceId?: string;
+  zinipayPaymentUrl?: string;
+  paymentMethod?: string;
+  transactionId?: string;
   bkashSender?: string;
   bkashTrxID?: string;
   epsTransactionId?: string;
@@ -49,7 +53,11 @@ const OrderSchema: Schema = new Schema(
       default: "pending",
       required: true,
     },
-    paymentGateway: { type: String, enum: ["bkash", "eps"], required: true },
+    paymentGateway: { type: String, default: "zinipay", required: true },
+    zinipayInvoiceId: { type: String },
+    zinipayPaymentUrl: { type: String },
+    paymentMethod: { type: String },
+    transactionId: { type: String },
     bkashSender: { type: String },
     bkashTrxID: { type: String },
     epsTransactionId: { type: String },

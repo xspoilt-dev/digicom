@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { trackEvent } from "@/lib/meta/track-event";
 import { getFbCookies } from "@/lib/meta/cookies";
+import Footer from "@/components/Footer";
 
 interface Product {
   _id: string;
@@ -74,7 +75,6 @@ export default function StoreHome() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({ name: "", email: "", phone: "" });
-  const [gateway, setGateway] = useState<"bkash" | "eps">("bkash");
   const [submittingCheckout, setSubmittingCheckout] = useState(false);
 
   // Active banner slide
@@ -108,7 +108,8 @@ export default function StoreHome() {
     if (!searchQuery.trim()) {
       setFilteredProducts(products);
     } else {
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
+      trackEvent("Search", { search_string: q });
       const filtered = products.filter(
         (p) => p.title.toLowerCase().includes(q) || p.description.toLowerCase().includes(q)
       );
@@ -133,12 +134,22 @@ export default function StoreHome() {
 
     setSubmittingCheckout(true);
     const fbCookies = getFbCookies();
-    const eventId = trackEvent("InitiateCheckout", {
-      content_ids: [selectedProduct._id],
-      content_type: "product",
-      value: selectedProduct.price,
-      currency: "BDT",
-    });
+    const eventId = trackEvent(
+      "InitiateCheckout",
+      {
+        content_ids: [selectedProduct._id],
+        content_name: selectedProduct.title,
+        content_type: "product",
+        value: selectedProduct.price,
+        currency: "BDT",
+        num_items: 1,
+      },
+      {
+        email: formData.email,
+        phone: formData.phone,
+        skipCapi: true, // Backend /api/checkout triggers server CAPI with this exact metaEventId for deduplication
+      }
+    );
 
     try {
       const res = await fetch(`${apiUrl}/api/checkout`, {
@@ -149,7 +160,7 @@ export default function StoreHome() {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          paymentGateway: gateway,
+          paymentGateway: "zinipay",
           metaEventId: eventId,
           fbp: fbCookies.fbp,
           fbc: fbCookies.fbc,
@@ -158,7 +169,11 @@ export default function StoreHome() {
 
       const data = await res.json();
       if (data.success) {
-        window.location.href = `/receipt/${data.order.orderId}`;
+        if (data.paymentUrl) {
+          window.location.href = data.paymentUrl;
+        } else if (data.order?.orderId) {
+          window.location.href = `/receipt/${data.order.orderId}`;
+        }
       } else {
         alert(data.message || "চেকআউট প্রসেস ব্যর্থ হয়েছে");
       }
@@ -191,11 +206,11 @@ export default function StoreHome() {
         <div className="navbar-start gap-2">
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-black text-xl text-primary-content shadow-md">
-              L
+              D
             </div>
             <div>
               <span className="text-lg md:text-xl font-extrabold tracking-tight text-base-content">
-                লুমিনা ডিজিটাল
+                Digitalcorebd.com
               </span>
               <div className="text-[10px] text-base-content/60 font-semibold mt-[-3px] block">
                 ডিজিটাল বুক ও কোর্স
@@ -338,7 +353,7 @@ export default function StoreHome() {
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
               {filteredProducts.slice(0, 3).map((product) => (
                 <div key={product._id} className="card bg-base-100 shadow-lg border border-base-300 transition-all hover:-translate-y-2 hover:shadow-2xl">
                   <figure className="relative h-48 bg-base-200">
@@ -408,7 +423,7 @@ export default function StoreHome() {
               <p className="text-base-content/70 font-bold">দুঃখিত, কোনো প্রোডাক্ট পাওয়া যায়নি!</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {filteredProducts.slice(3).map((product) => (
                 <div key={product._id} className="card bg-base-100 shadow-md border border-base-300 hover:shadow-xl transition-all">
                   <figure className="relative h-40 bg-base-200">
@@ -530,45 +545,14 @@ export default function StoreHome() {
                 </div>
               )}
 
-              {/* Gateway switcher */}
-              <div className="form-control mt-4">
-                <label className="label">
-                  <span className="label-text font-bold text-base-content/85">পেমেন্ট পদ্ধতি নির্বাচন করুন</span>
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <label
-                    className={`border-2 rounded-2xl p-5 cursor-pointer flex flex-col items-center gap-2 transition-all ${
-                      gateway === "bkash" ? "border-rose-500 bg-rose-500/5 shadow-md" : "border-base-300 bg-base-100 shadow-none hover:border-base-450"
-                    }`}
-                    onClick={() => setGateway("bkash")}
-                  >
-                    <input
-                      type="radio"
-                      name="gateway"
-                      checked={gateway === "bkash"}
-                      readOnly
-                      className="radio radio-primary radio-sm accent-rose-600"
-                    />
-                    <div className="font-extrabold text-rose-600 text-sm">বিকাশ পার্সোনাল</div>
-                    <div className="text-[10px] text-base-content/60 font-semibold">ম্যানুয়াল ভেরিফিকেশন</div>
-                  </label>
-
-                  <label
-                    className={`border-2 rounded-2xl p-5 cursor-pointer flex flex-col items-center gap-2 transition-all ${
-                      gateway === "eps" ? "border-primary bg-primary/5 shadow-md" : "border-base-300 bg-base-100 shadow-none hover:border-base-450"
-                    }`}
-                    onClick={() => setGateway("eps")}
-                  >
-                    <input
-                      type="radio"
-                      name="gateway"
-                      checked={gateway === "eps"}
-                      readOnly
-                      className="radio radio-primary radio-sm"
-                    />
-                    <div className="font-extrabold text-primary text-sm">ইপিএস গেটওয়ে</div>
-                    <div className="text-[10px] text-base-content/60 font-semibold font-sans">অটোমেটিক ক্লিয়ারিং</div>
-                  </label>
+              {/* Automated ZiniPay Hosted Checkout Notice */}
+              <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-center gap-3 mt-4">
+                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-content shadow-xs shrink-0">
+                  <ShieldIcon />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-base-content">তাৎক্ষণিক ডিজিটাল পেমেন্ট</div>
+                  <div className="text-[11px] text-base-content/70 font-medium">বিকাশ, নগদ, রকেট এবং কার্ডের মাধ্যমে নিরাপদ পেমেন্ট সম্পন্ন করুন</div>
                 </div>
               </div>
 
@@ -593,22 +577,7 @@ export default function StoreHome() {
       )}
 
       {/* Footer */}
-      <footer className="footer footer-center p-10 bg-neutral text-neutral-content border-t border-neutral-content/10">
-        <aside>
-          <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center font-black text-2xl text-primary-content mb-4 shadow-lg">
-            L
-          </div>
-          <p className="font-bold text-white text-lg">
-            লুমিনা ডিজিটাল স্টোরফ্রন্ট
-          </p>
-          <p className="text-neutral-content/65 text-xs">
-            সুরক্ষিত পেমেন্ট এবং তাত্ক্ষণিক ডাউনলোডের ডিজিটাল হাব।
-          </p>
-          <p className="text-neutral-content/40 text-xs mt-4">
-            &copy; ২০২৬ লুমিনা ডিজিটাল। সর্বস্বত্ব সংরক্ষিত।
-          </p>
-        </aside>
-      </footer>
+      <Footer />
     </div>
   );
 }

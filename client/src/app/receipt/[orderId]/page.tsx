@@ -1,6 +1,9 @@
 "use client";
 
-import { useEffect, useState, use } from "react";
+import { useEffect, useState, use, useRef } from "react";
+import Link from "next/link";
+import { trackEvent } from "@/lib/meta/track-event";
+import Footer from "@/components/Footer";
 
 interface OrderItem {
   id: string;
@@ -19,34 +22,44 @@ interface Order {
   phone?: string;
   total: number;
   status: "pending" | "processing" | "paid" | "failed" | "cancelled";
-  paymentGateway: "bkash" | "eps";
+  paymentGateway?: string;
+  paymentUrl?: string;
+  metaEventId?: string;
   items: OrderItem[];
+  transactionId?: string;
+  paymentMethod?: string;
   bkashSender?: string;
   bkashTrxID?: string;
 }
 
-// Beautiful SVG Icons
+// Icons
 const SuccessShield = () => (
-  <svg className="w-12 h-12 text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "48px", height: "48px", color: "var(--tertiary)" }}>
+  <svg className="w-12 h-12 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
   </svg>
 );
 
 const WarningShield = () => (
-  <svg className="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "48px", height: "48px", color: "var(--primary)" }}>
+  <svg className="w-12 h-12 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
   </svg>
 );
 
 const DownloadIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "16px", height: "16px", display: "inline-block", verticalAlign: "middle" }}>
+  <svg className="w-4 h-4 inline-block align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
   </svg>
 );
 
 const LinkIcon = () => (
-  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "16px", height: "16px", display: "inline-block", verticalAlign: "middle" }}>
+  <svg className="w-4 h-4 inline-block align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+  </svg>
+);
+
+const RefreshIcon = () => (
+  <svg className="w-4 h-4 inline-block align-middle" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
   </svg>
 );
 
@@ -55,24 +68,20 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
   const orderId = resolvedParams.orderId;
 
   const [order, setOrder] = useState<Order | null>(null);
-  const [companyInfo, setCompanyInfo] = useState<any>({});
   const [loading, setLoading] = useState(true);
+  const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
 
-  const [trxID, setTrxID] = useState("");
-  const [senderNumber, setSenderNumber] = useState("");
-  const [submittingTrx, setSubmittingTrx] = useState(false);
-  const [trxSuccessMessage, setTrxSuccessMessage] = useState("");
-
+  const purchaseTrackedRef = useRef(false);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-  async function fetchOrderStatus() {
+  async function fetchOrderStatus(showCheckingIndicator = false) {
+    if (showCheckingIndicator) setChecking(true);
     try {
       const res = await fetch(`${apiUrl}/api/order-status/${orderId}`);
       const data = await res.json();
       if (data.success) {
         setOrder(data.order);
-        setCompanyInfo(data.companyInfo || {});
       } else {
         setError(data.message || "অর্ডার তথ্য পাওয়া যায়নি।");
       }
@@ -80,6 +89,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
       setError("সার্ভারের সাথে যোগাযোগ করা যায়নি।");
     } finally {
       setLoading(false);
+      if (showCheckingIndicator) setChecking(false);
     }
   }
 
@@ -90,105 +100,71 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
       if (order && (order.status === "pending" || order.status === "processing")) {
         fetchOrderStatus();
       }
-    }, 5000);
+    }, 4000);
 
     return () => clearInterval(pollInterval);
   }, [orderId, order?.status]);
 
-  const handleBkashVerifySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!trxID || !senderNumber) return;
-
-    setSubmittingTrx(true);
-    try {
-      const res = await fetch(`${apiUrl}/api/checkout/verify-bkash`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          orderId,
-          trxID,
-          senderNumber,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setTrxSuccessMessage(data.message);
-        fetchOrderStatus();
-      } else {
-        alert(data.message || "ভেরিফিকেশন সাবমিট করা যায়নি।");
-      }
-    } catch (err) {
-      alert("ত্রুটি দেখা দিয়েছে। আবার চেষ্টা করুন।");
-    } finally {
-      setSubmittingTrx(false);
+  // Dual Deduplicated Purchase Event: Fires browser Pixel & CAPI with matching metaEventId
+  useEffect(() => {
+    if (order && order.status === "paid" && !purchaseTrackedRef.current) {
+      purchaseTrackedRef.current = true;
+      trackEvent(
+        "Purchase",
+        {
+          content_ids: order.items.map((i) => i.id || i.title),
+          content_type: "product",
+          value: order.total,
+          currency: "BDT",
+          order_id: order.orderId,
+          num_items: order.items.length,
+        },
+        {
+          eventId: order.metaEventId || undefined,
+          email: order.email,
+          phone: order.phone,
+        }
+      );
     }
-  };
-
-  const triggerMockEpsCallback = async () => {
-    try {
-      const mockTrx = `MOCK-EPS-${Date.now()}`;
-      const res = await fetch(`${apiUrl}/api/checkout/eps-callback`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: "success",
-          transaction_id: mockTrx,
-          order_id: orderId,
-          amount: order?.total || 0,
-        }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        alert("ইপিএস পেমেন্ট সফলভাবে ভেরিফাই করা হয়েছে! রিলোড হচ্ছে...");
-        fetchOrderStatus();
-      }
-    } catch (err) {
-      alert("ইপিএস প্রসেস সাবমিট করা যায়নি।");
-    }
-  };
+  }, [order?.status, order]);
 
   if (loading) {
     return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "#f8fafc" }}>
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
-          <div style={{ width: "40px", height: "40px", border: "4px solid #0058be", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
-          <div style={{ color: "#0058be", fontSize: "1.1rem", fontWeight: "600" }}>অর্ডার ভেরিফাই করা হচ্ছে...</div>
+      <div className="min-h-screen flex items-center justify-center bg-base-200" data-theme="lightyellow">
+        <div className="flex flex-col items-center gap-4">
+          <span className="loading loading-spinner loading-lg text-primary"></span>
+          <span className="text-primary font-bold text-sm">অর্ডার ভেরিফাই করা হচ্ছে...</span>
         </div>
-        <style jsx global>{`
-          @keyframes spin {
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
       </div>
     );
   }
 
   if (error || !order) {
     return (
-      <div className="container" style={{ padding: "80px 24px", textAlign: "center" }}>
-        <div className="card" style={{ maxWidth: "500px", margin: "0 auto", padding: "40px" }}>
-          <h2 className="headline-sm" style={{ color: "var(--error)", marginBottom: "16px" }}>
-            ভুল অর্ডার
-          </h2>
-          <p style={{ marginBottom: "24px", color: "var(--on-surface-variant)" }}>{error || "অর্ডারটি সিস্টেমে পাওয়া যায়নি।"}</p>
-          <a href="/" className="btn btn-primary">
-            হোমপেজে ফিরে যান
-          </a>
+      <div className="min-h-screen flex flex-col justify-between bg-base-200" data-theme="lightyellow">
+        <div className="container mx-auto px-4 py-16 flex-1 flex items-center justify-center">
+          <div className="card w-full max-w-md bg-base-100 border border-base-300 shadow-xl rounded-3xl p-8 text-center">
+            <h2 className="text-2xl font-black text-error mb-4">ভুল অর্ডার</h2>
+            <p className="text-sm text-base-content/70 mb-6">{error || "অর্ডারটি সিস্টেমে পাওয়া যায়নি।"}</p>
+            <Link href="/" className="btn btn-primary rounded-xl font-bold shadow-md">
+              হোমপেজে ফিরে যান
+            </Link>
+          </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
-  const statusBadges = {
-    pending: "badge-secondary",
-    processing: "badge-primary",
-    paid: "badge-success",
-    failed: "badge-error",
-    cancelled: "badge-error",
+  const statusBadges: Record<string, string> = {
+    pending: "badge-warning text-stone-900",
+    processing: "badge-primary text-primary-content",
+    paid: "badge-success text-success-content",
+    failed: "badge-error text-error-content",
+    cancelled: "badge-ghost text-base-content/60",
   };
 
-  const statusTexts = {
+  const statusTexts: Record<string, string> = {
     pending: "পেমেন্ট বাকি আছে",
     processing: "ভেরিফিকেশন চলছে",
     paid: "পরিশোধিত / ভেরিফাইড",
@@ -197,250 +173,210 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
   };
 
   return (
-    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", padding: "50px 24px", backgroundColor: "var(--background)" }}>
-      <main className="container" style={{ flex: 1, maxWidth: "720px" }}>
-        <div style={{ textAlign: "center", marginBottom: "36px" }}>
-          <h1 className="headline-md" style={{ color: "var(--on-background)", letterSpacing: "-0.5px" }}>
+    <div className="min-h-screen flex flex-col bg-base-200 text-base-content" data-theme="lightyellow">
+      {/* Top Navbar */}
+      <div className="navbar bg-base-100 shadow-sm sticky top-0 z-50 px-4 md:px-8 border-b border-base-300">
+        <div className="navbar-start gap-2">
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center font-black text-lg text-primary-content shadow-xs">
+              D
+            </div>
+            <span className="font-extrabold text-base md:text-lg tracking-tight text-base-content">
+              Digitalcorebd.com
+            </span>
+          </Link>
+        </div>
+        <div className="navbar-end gap-2">
+          <Link href="/" className="btn btn-ghost btn-sm font-bold text-xs md:text-sm">
+            হোমপেজ
+          </Link>
+          <Link href="/shop" className="btn btn-ghost btn-sm font-bold text-xs md:text-sm">
+            শপ
+          </Link>
+        </div>
+      </div>
+
+      <main className="container mx-auto px-4 py-8 md:py-12 flex-1 max-w-3xl">
+        <div className="text-center mb-8">
+          <h1 className="text-2xl md:text-3xl font-black text-base-content tracking-tight">
             ইনভয়েস বিবরণী
           </h1>
-          <p style={{ color: "var(--on-surface-variant)", marginTop: "6px", fontSize: "0.95rem" }}>
-            ইনভয়েস আইডিঃ <span style={{ fontFamily: "monospace", fontWeight: "700" }}>#{order.orderId}</span>
+          <p className="text-xs md:text-sm text-base-content/60 mt-1">
+            ইনভয়েস আইডিঃ <span className="font-mono font-bold text-primary">#{order.orderId}</span>
           </p>
         </div>
 
         {/* Invoice Summary Card */}
-        <div className="card" style={{ padding: "32px", marginBottom: "30px" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px", borderBottom: "1px solid var(--outline-variant)", paddingBottom: "16px" }}>
-            <span style={{ fontWeight: "700", fontSize: "1.1rem", color: "var(--on-surface)" }}>পেমেন্ট স্টেটাস</span>
-            <span className={`badge ${statusBadges[order.status]}`} style={{ padding: "6px 14px", fontSize: "0.85rem", fontWeight: "700" }}>
-              {statusTexts[order.status]}
+        <div className="card bg-base-100 border border-base-300 shadow-sm rounded-3xl p-6 md:p-8 mb-6">
+          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-base-200">
+            <span className="font-bold text-base md:text-lg text-base-content">পেমেন্ট স্টেটাস</span>
+            <span className={`badge ${statusBadges[order.status] || "badge-ghost"} py-3 px-4 font-bold text-xs`}>
+              {statusTexts[order.status] || order.status}
             </span>
           </div>
 
-          <div
-            style={{
-              padding: "20px",
-              background: "var(--surface-low)",
-              borderRadius: "16px",
-              marginBottom: "28px",
-              fontSize: "0.95rem",
-              lineHeight: "1.7",
-              border: "1px solid var(--outline-variant)",
-            }}
-          >
+          <div className="bg-base-200 rounded-2xl p-5 mb-6 text-xs md:text-sm space-y-2 border border-base-300">
             {order.name && (
-              <div>
-                <strong>গ্রাহকের নাম:</strong> {order.name}
+              <div className="flex justify-between flex-wrap gap-1">
+                <span className="font-bold text-base-content/80">গ্রাহকের নাম:</span>
+                <span className="font-semibold text-base-content">{order.name}</span>
               </div>
             )}
             {order.email && (
-              <div>
-                <strong>ইমেইল এড্রেস:</strong> {order.email}
+              <div className="flex justify-between flex-wrap gap-1">
+                <span className="font-bold text-base-content/80">ইমেইল এড্রেস:</span>
+                <span className="font-semibold text-base-content">{order.email}</span>
               </div>
             )}
             {order.phone && (
-              <div>
-                <strong>মোবাইল নম্বর:</strong> {order.phone}
+              <div className="flex justify-between flex-wrap gap-1">
+                <span className="font-bold text-base-content/80">মোবাইল নম্বর:</span>
+                <span className="font-semibold text-base-content">{order.phone}</span>
               </div>
             )}
-            <div>
-              <strong>পেমেন্ট মাধ্যম:</strong>{" "}
-              {order.paymentGateway === "bkash" ? "বিকাশ পার্সোনাল (ম্যানুয়াল)" : "ইপিএস পেমেন্ট গেটওয়ে (স্বয়ংক্রিয়)"}
+            <div className="flex justify-between flex-wrap gap-1">
+              <span className="font-bold text-base-content/80">পেমেন্ট মাধ্যম:</span>
+              <span className="font-semibold text-base-content">
+                {order.paymentMethod ? `${order.paymentMethod.toUpperCase()} (অনলাইন)` : "ZiniPay অনলাইন পেমেন্ট"}
+              </span>
             </div>
-            <div style={{ marginTop: "8px", paddingTop: "8px", borderTop: "1px dashed var(--outline-variant)" }}>
-              <strong>মোট ইনভয়েস মূল্য:</strong>{" "}
-              <span style={{ fontWeight: "800", color: "var(--primary)", fontSize: "1.25rem" }}>৳{order.total}</span>
+            {order.transactionId && (
+              <div className="flex justify-between flex-wrap gap-1">
+                <span className="font-bold text-base-content/80">ট্রানজেকশন আইডি:</span>
+                <span className="font-mono font-bold text-primary">{order.transactionId}</span>
+              </div>
+            )}
+            <div className="pt-2 border-t border-base-300 flex justify-between items-center">
+              <span className="font-bold text-base-content">মোট ইনভয়েস মূল্য:</span>
+              <span className="text-xl md:text-2xl font-black text-primary">৳{order.total}</span>
             </div>
           </div>
 
-          <h3 className="label-md" style={{ fontSize: "1rem", color: "var(--on-surface)", marginBottom: "16px", borderBottom: "1px solid var(--outline-variant)", paddingBottom: "8px" }}>
+          <h3 className="font-bold text-sm md:text-base text-base-content mb-4 pb-2 border-b border-base-200">
             ক্রয়কৃত পণ্যসমূহ
           </h3>
-          <ul style={{ listStyleType: "none", padding: 0 }}>
+          <div className="divide-y divide-base-200">
             {order.items.map((item, idx) => (
-              <li
-                key={idx}
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  padding: "14px 0",
-                  borderBottom: idx < order.items.length - 1 ? "1px dashed var(--outline-variant)" : "none",
-                }}
-              >
-                <div>
-                  <span style={{ fontWeight: "600", color: "var(--on-surface)" }}>{item.title}</span>
-                  <span
-                    className="badge badge-primary"
-                    style={{ fontSize: "0.7rem", marginLeft: "10px", verticalAlign: "middle" }}
-                  >
+              <div key={idx} className="py-3 flex flex-wrap justify-between items-center gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-xs md:text-sm text-base-content">{item.title}</span>
+                  <span className="badge badge-primary badge-xs py-2 px-2 font-bold text-[10px]">
                     {item.type === "course" ? "ভিডিও কোর্স" : item.type === "pdf" ? "পিডিএফ বই" : "ডিজিটাল ফাইল"}
                   </span>
                 </div>
-                <span style={{ fontWeight: "700", color: "var(--on-surface)" }}>৳{item.price}</span>
-              </li>
+                <span className="font-bold text-xs md:text-sm text-base-content">৳{item.price}</span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
 
-        {/* Status-specific action segments */}
-        {order.status === "pending" && order.paymentGateway === "bkash" && (
-          <div className="card" style={{ padding: "32px", border: "2px solid #e11d48", marginBottom: "30px" }}>
-            <h2 className="headline-sm" style={{ color: "#e11d48", fontSize: "1.25rem", marginBottom: "16px", display: "flex", alignItems: "center", gap: "10px" }}>
-              বিকাশ পেমেন্ট নির্দেশিকা
+        {/* Pending Payment Action Card */}
+        {order.status === "pending" && (
+          <div className="card bg-base-100 border-2 border-warning/70 shadow-md rounded-3xl p-6 md:p-8 text-center mb-6">
+            <div className="flex justify-center mb-4">
+              <WarningShield />
+            </div>
+            <h2 className="text-xl font-black text-base-content mb-2">
+              পেমেন্ট এখনও সম্পন্ন হয়নি
             </h2>
-            <div style={{ fontSize: "0.95rem", color: "var(--on-surface-variant)", lineHeight: "1.8", marginBottom: "24px" }}>
-              <ol style={{ paddingLeft: "20px" }}>
-                <li style={{ marginBottom: "6px" }}>
-                  আপনার বিকাশ অ্যাপে যান অথবা ডায়াল করুন <strong>*২৪৭#</strong>
-                </li>
-                <li style={{ marginBottom: "6px" }}>
-                  নিচে দেওয়া বিকাশ পার্সোনাল নম্বরে <strong>Send Money</strong> করুন সর্বমোট <strong>৳{order.total}</strong> টাকাঃ
-                  <strong style={{ fontSize: "1.25rem", color: "#e11d48", display: "block", margin: "10px 0", background: "rgba(225,29,72,0.05)", padding: "12px", borderRadius: "12px", border: "1px dashed rgba(225,29,72,0.3)", textAlign: "center" }}>
-                    {companyInfo.bkashNumber || "017XX-XXXXXX"} (বিকাশ পার্সোনাল)
-                  </strong>
-                </li>
-                <li style={{ marginBottom: "6px" }}>পেমেন্ট সফল হলে প্রাপ্ত ১০ অক্ষরের <strong>Transaction ID (TrxID)</strong> কপি করে নিন।</li>
-                <li>নিচের বক্সে আপনার বিকাশ ওয়ালেট নম্বর এবং TrxID প্রদান করে সাবমিট করুন।</li>
-              </ol>
+            <p className="text-xs md:text-sm text-base-content/75 max-w-md mx-auto mb-6 leading-relaxed">
+              আপনার ডিজিটাল ফাইলটি আনলক করতে নিচের বাটনে ক্লিক করে ZiniPay সুরক্ষিত গেটওয়েতে পেমেন্ট সম্পন্ন করুন।
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+              {order.paymentUrl && (
+                <a
+                  href={order.paymentUrl}
+                  className="btn btn-primary rounded-xl font-bold px-8 shadow-md w-full sm:w-auto text-sm"
+                >
+                  এখনই পেমেন্ট সম্পন্ন করুন (৳{order.total}) →
+                </a>
+              )}
+              <button
+                onClick={() => fetchOrderStatus(true)}
+                disabled={checking}
+                className="btn btn-outline rounded-xl font-bold px-6 w-full sm:w-auto text-sm gap-2"
+              >
+                <RefreshIcon /> {checking ? "যাচাই করা হচ্ছে..." : "স্টেটাস রিফ্রেশ করুন"}
+              </button>
             </div>
 
-            <form onSubmit={handleBkashVerifySubmit} style={{ borderTop: "1px solid var(--outline-variant)", paddingTop: "20px" }}>
-              <div className="form-group">
-                <label className="form-label">যে বিকাশ নম্বর থেকে টাকা পাঠিয়েছেন</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="উদাঃ ০১৭xxxxxxxx"
-                  className="form-control"
-                  value={senderNumber}
-                  onChange={(e) => setSenderNumber(e.target.value)}
-                />
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">বিকাশ ট্রানজেকশন আইডি (TrxID)</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="উদাঃ K8B7DFX9Z2"
-                  className="form-control"
-                  value={trxID}
-                  onChange={(e) => setTrxID(e.target.value)}
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submittingTrx}
-                className="btn btn-primary"
-                style={{ width: "100%", background: "#e11d48", border: "none", padding: "12px", borderRadius: "12px" }}
-              >
-                {submittingTrx ? "সাবমিট করা হচ্ছে..." : "ট্রানজেকশন ভেরিফিকেশন সাবমিট করুন"}
-              </button>
-            </form>
+            <div className="mt-6 pt-4 border-t border-base-200 text-xs text-base-content/60 flex items-center justify-center gap-2">
+              <span className="loading loading-spinner loading-xs text-primary"></span>
+              পেমেন্ট যাচাইয়ের জন্য অপেক্ষা করা হচ্ছে (স্বয়ংক্রিয়ভাবে আপডেট হবে)
+            </div>
           </div>
         )}
 
+        {/* Processing State Card */}
         {order.status === "processing" && (
-          <div
-            className="card"
-            style={{ padding: "32px", textAlign: "center", border: "1px solid var(--primary)", marginBottom: "30px", background: "rgba(0, 88, 190, 0.02)" }}
-          >
-            <div style={{ marginBottom: "16px", display: "inline-flex", justifyContent: "center" }}>
+          <div className="card bg-base-100 border border-primary/50 shadow-md rounded-3xl p-6 md:p-8 text-center mb-6">
+            <div className="flex justify-center mb-4">
               <WarningShield />
             </div>
-            <h2 className="headline-sm" style={{ color: "var(--primary)", fontSize: "1.25rem", marginBottom: "12px" }}>
+            <h2 className="text-lg md:text-xl font-black text-primary mb-2">
               পেমেন্ট ভেরিফিকেশন চলছে
             </h2>
-            <p style={{ color: "var(--on-surface-variant)", fontSize: "0.95rem", lineHeight: "1.7", marginBottom: "16px", padding: "0 10px" }}>
-              আপনার বিকাশ ট্রানজেকশন আইডি <strong>({order.bkashTrxID})</strong> আমাদের অ্যাডমিন প্যানেল থেকে মেলানো হচ্ছে। ভেরিফিকেশন সফল হলেই এই পেজে অটোমেটিক ডাউনলোড অপশন চালু হবে।
+            <p className="text-xs md:text-sm text-base-content/75 max-w-md mx-auto mb-4 leading-relaxed">
+              আপনার পেমেন্ট সিস্টেমের সাথে যোগাযোগ করে ভেরিফাই করা হচ্ছে। ভেরিফিকেশন সম্পন্ন হওয়া মাত্র ডিজিটাল ফাইলের ডাউনলোড লিংক স্বয়ংক্রিয়ভাবে উন্মুক্ত হবে।
             </p>
-            {trxSuccessMessage && <div style={{ color: "var(--tertiary)", fontWeight: "600", fontSize: "0.9rem", marginBottom: "12px" }}>{trxSuccessMessage}</div>}
-            <div style={{ display: "inline-flex", alignItems: "center", gap: "8px", color: "var(--primary)", fontSize: "0.85rem", fontWeight: "600" }}>
-              <div style={{ width: "14px", height: "14px", border: "2px solid var(--primary)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }}></div>
+            <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary">
+              <span className="loading loading-spinner loading-xs text-primary"></span>
               পেমেন্ট চেক করা হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন।
             </div>
           </div>
         )}
 
-        {order.status === "pending" && order.paymentGateway === "eps" && (
-          <div
-            className="card"
-            style={{ padding: "32px", textAlign: "center", border: "1px solid var(--primary)", marginBottom: "30px" }}
-          >
-            <h2 className="headline-sm" style={{ color: "var(--primary)", fontSize: "1.25rem", marginBottom: "12px" }}>
-              ইপিএস পেমেন্ট গেটওয়ের সংকেতের জন্য অপেক্ষা করা হচ্ছে
-            </h2>
-            <p style={{ color: "var(--on-surface-variant)", fontSize: "0.95rem", marginBottom: "24px" }}>
-              অটোমেটিক গেটওয়ে সিস্টেমে টেস্ট ট্রানজেকশনটি সম্পূর্ণ করতে নিচের বাটনে ক্লিক করে ইপিএস গেটওয়ের পেমেন্ট রিকোয়েস্টটি সিমুলেট করুনঃ
-            </p>
-            <button onClick={triggerMockEpsCallback} className="btn btn-primary" style={{ display: "inline-flex", margin: "0 auto" }}>
-              পেমেন্ট রিকোয়েস্ট সিমুলেট করুন (Mock EPS Callback)
-            </button>
-          </div>
-        )}
-
+        {/* Paid / Completed Card */}
         {order.status === "paid" && (
-          <div className="card" style={{ padding: "32px", border: "2px solid var(--tertiary)", marginBottom: "30px", background: "rgba(0, 131, 118, 0.01)" }}>
-            <div style={{ textAlign: "center", marginBottom: "24px" }}>
-              <div style={{ marginBottom: "12px" }}>
+          <div className="card bg-base-100 border-2 border-success shadow-lg rounded-3xl p-6 md:p-8 mb-6">
+            <div className="text-center mb-6">
+              <div className="flex justify-center mb-3">
                 <SuccessShield />
               </div>
-              <h2 className="headline-sm" style={{ color: "var(--tertiary)", fontSize: "1.35rem" }}>
+              <h2 className="text-xl md:text-2xl font-black text-success">
                 পেমেন্ট সফলভাবে সম্পন্ন হয়েছে!
               </h2>
-              <p style={{ color: "var(--on-surface-variant)", fontSize: "0.95rem", marginTop: "6px" }}>
+              <p className="text-xs md:text-sm text-base-content/70 mt-1">
                 নিচে দেওয়া লিংক থেকে আপনার ক্রয়কৃত ডিজিটাল ফাইলটি সংগ্রহ করুনঃ
               </p>
             </div>
 
-            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div className="space-y-4">
               {order.items.map((item, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    padding: "20px",
-                    background: "var(--surface-low)",
-                    borderRadius: "16px",
-                    border: "1px solid var(--outline-variant)",
-                  }}
-                >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px" }}>
-                    <div>
-                      <h4 style={{ fontWeight: "700", color: "var(--on-surface)" }}>{item.title}</h4>
-                      <span className="badge badge-primary" style={{ fontSize: "0.7rem", marginTop: "6px" }}>
-                        {item.type === "course" ? "ভিডিও কোর্স" : item.type === "pdf" ? "পিডিএফ বই" : "ডিজিটাল ফাইল"}
-                      </span>
-                    </div>
+                <div key={idx} className="bg-base-200 border border-base-300 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h4 className="font-bold text-sm md:text-base text-base-content">{item.title}</h4>
+                    <span className="badge badge-primary badge-xs py-2 px-2 font-bold text-[10px] mt-1">
+                      {item.type === "course" ? "ভিডিও কোর্স" : item.type === "pdf" ? "পিডিএফ বই" : "ডিজিটাল ফাইল"}
+                    </span>
+                  </div>
 
-                    <div style={{ display: "flex", gap: "12px" }}>
-                      {item.downloadUrl && (
-                        <a
-                          href={`${apiUrl}${item.downloadUrl}`}
-                          download
-                          className="btn btn-primary"
-                          style={{ padding: "8px 16px", fontSize: "0.85rem", borderRadius: "8px" }}
-                        >
-                          <DownloadIcon /> ডাউনলোড করুন
-                        </a>
-                      )}
-                      {item.deliveryLink && (
-                        <a
-                          href={item.deliveryLink}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn btn-secondary"
-                          style={{ padding: "8px 16px", fontSize: "0.85rem", borderRadius: "8px" }}
-                        >
-                          <LinkIcon /> সরাসরি দেখুন
-                        </a>
-                      )}
-                      {!item.isWebDisplay && (
-                        <span style={{ fontSize: "0.85rem", color: "var(--on-surface-variant)", fontStyle: "italic" }}>
-                          লিংকটি আপনার ইমেইল ঠিকানায় পাঠানো হয়েছে।
-                        </span>
-                      )}
-                    </div>
+                  <div className="flex flex-wrap gap-2">
+                    {item.downloadUrl && (
+                      <a
+                        href={`${apiUrl}${item.downloadUrl}`}
+                        download
+                        className="btn btn-primary btn-sm rounded-xl font-bold shadow-xs gap-1.5"
+                      >
+                        <DownloadIcon /> ডাউনলোড করুন
+                      </a>
+                    )}
+                    {item.deliveryLink && (
+                      <a
+                        href={item.deliveryLink}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-outline btn-sm rounded-xl font-bold gap-1.5"
+                      >
+                        <LinkIcon /> সরাসরি দেখুন
+                      </a>
+                    )}
+                    {!item.isWebDisplay && (
+                      <span className="text-xs text-base-content/60 italic self-center">
+                        লিংকটি আপনার ইমেইল ঠিকানায় পাঠানো হয়েছে।
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
@@ -448,17 +384,31 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
           </div>
         )}
 
-        <div style={{ textAlign: "center", marginTop: "24px" }}>
-          <a href="/" className="btn btn-secondary" style={{ display: "inline-block" }}>
-            হোমপেজে ফিরে যান
-          </a>
+        {/* Failed / Cancelled Card */}
+        {(order.status === "failed" || order.status === "cancelled") && (
+          <div className="card bg-base-100 border-2 border-error/50 shadow-md rounded-3xl p-6 md:p-8 text-center mb-6">
+            <h2 className="text-lg md:text-xl font-black text-error mb-2">
+              {order.status === "failed" ? "পেমেন্ট ব্যর্থ হয়েছে" : "অর্ডারটি বাতিল করা হয়েছে"}
+            </h2>
+            <p className="text-xs md:text-sm text-base-content/75 max-w-md mx-auto mb-6 leading-relaxed">
+              পেমেন্ট প্রক্রিয়া সম্পন্ন করা যায়নি। অনুগ্রহ করে পুনরায় অর্ডার করুন অথবা সাপোর্টে যোগাযোগ করুন।
+            </p>
+            <div className="flex justify-center gap-3">
+              <Link href="/" className="btn btn-primary rounded-xl font-bold text-sm">
+                হোমপেজে ফিরে যান
+              </Link>
+            </div>
+          </div>
+        )}
+
+        <div className="text-center mt-6">
+          <Link href="/" className="btn btn-ghost btn-sm font-bold text-xs text-base-content/70">
+            ← হোমপেজে ফিরে যান
+          </Link>
         </div>
       </main>
-      <style jsx global>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
+
+      <Footer />
     </div>
   );
 }

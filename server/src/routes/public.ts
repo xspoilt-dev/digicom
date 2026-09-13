@@ -4,6 +4,8 @@ import Order from "../models/Order";
 import Transaction from "../models/Transaction";
 import Setting from "../models/Setting";
 import { sendCapiEvent } from "../utils/metaCapi";
+import { sendOrderDeliveryEmail } from "../utils/mailer";
+import { createZiniPayInvoice, verifyZiniPayInvoice } from "../utils/zinipay";
 import path from "path";
 import fs from "fs";
 
@@ -13,6 +15,92 @@ const publicRouter = new Hono();
 function generateOrderId(): string {
   const num = Math.floor(100000 + Math.random() * 900000);
   return `DIGI-${num}`;
+}
+
+/**
+ * Fulfills an order once payment is confirmed via ZiniPay
+ */
+async function fulfillPaidOrder(
+  order: any,
+  paymentDetails?: { transactionId?: string; paymentMethod?: string; amount?: number }
+) {
+  if (order.status === "paid") return;
+
+  order.status = "paid";
+  if (paymentDetails?.transactionId) {
+    order.transactionId = paymentDetails.transactionId;
+  }
+  if (paymentDetails?.paymentMethod) {
+    order.paymentMethod = paymentDetails.paymentMethod;
+  }
+  await order.save();
+
+  // Create or update Transaction record in payment ledger
+  const trxID = paymentDetails?.transactionId || order.transactionId || `TXN-${order.orderId}-${Date.now()}`;
+  await Transaction.findOneAndUpdate(
+    { orderId: order._id },
+    {
+      orderId: order._id,
+      amount: paymentDetails?.amount || order.total,
+      gateway: "zinipay",
+      trxID,
+      invoiceId: order.zinipayInvoiceId,
+      paymentMethod: paymentDetails?.paymentMethod || order.paymentMethod || "zinipay",
+      status: "verified",
+      verifiedAt: new Date(),
+    },
+    { upsert: true, new: true }
+  );
+
+  // Trigger server-side Meta CAPI Purchase event
+  await sendCapiEvent({
+    eventName: "Purchase",
+    eventId: order.metaEventId,
+    eventSourceUrl: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/receipt/${order.orderId}`,
+    userData: {
+      email: order.email,
+      phone: order.phone,
+      fbp: order.fbp,
+      fbc: order.fbc,
+      clientIpAddress: order.ip,
+      clientUserAgent: order.userAgent,
+      externalId: String(order._id),
+    },
+    customData: {
+      currency: "BDT",
+      value: order.total,
+      content_ids: order.items.map((item: any) => String(item.productId?._id || item.productId)),
+      content_type: "product",
+      order_id: order.orderId,
+    },
+  });
+
+  // Resolve secure download urls
+  const downloadUrls: { title: string; link: string }[] = [];
+  for (const item of order.items) {
+    const prodId = item.productId?._id || item.productId;
+    const prod = await Product.findById(prodId);
+    if (prod) {
+      const link =
+        prod.deliveryLink ||
+        (prod.filePath ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/${prod.filePath}` : "");
+      if (link) {
+        downloadUrls.push({ title: prod.title, link });
+      }
+    }
+  }
+
+  // Send delivery email asynchronously
+  if (order.email) {
+    sendOrderDeliveryEmail({
+      toEmail: order.email,
+      orderId: order.orderId,
+      customerName: order.name || "Customer",
+      totalAmount: order.total,
+      items: order.items.map((i: any) => ({ title: i.title, price: i.price, quantity: i.quantity })),
+      downloadUrls,
+    }).catch((err) => console.error("Email delivery send error:", err));
+  }
 }
 
 // 0. Get public settings
@@ -26,6 +114,42 @@ publicRouter.get("/settings/public", async (c) => {
       companyInfo: companySetting?.value || {},
     });
   } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 0.1 Universal Meta Conversions API (CAPI) Dual-Dispatch Relay for Deduplicated Tracking
+publicRouter.post("/meta-capi", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { eventName, eventId, params, fbp, fbc, email, phone, eventSourceUrl } = body;
+
+    if (!eventName || !eventId) {
+      return c.json({ success: false, message: "eventName and eventId are required for deduplication" }, 400);
+    }
+
+    const userAgent = c.req.header("user-agent") || "";
+    const ip = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1";
+    const sourceUrl = eventSourceUrl || c.req.header("referer") || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+    const sent = await sendCapiEvent({
+      eventName,
+      eventId,
+      eventSourceUrl: sourceUrl,
+      userData: {
+        email,
+        phone,
+        fbp,
+        fbc,
+        clientIpAddress: ip,
+        clientUserAgent: userAgent,
+      },
+      customData: params || {},
+    });
+
+    return c.json({ success: true, eventId, dispatched: sent });
+  } catch (error: any) {
+    console.error("Error in /api/meta-capi relay:", error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
@@ -54,11 +178,11 @@ publicRouter.get("/products/:slug", async (c) => {
   }
 });
 
-// 3. Initiate Checkout
+// 3. Initiate Checkout & Create ZiniPay Hosted Invoice
 publicRouter.post("/checkout", async (c) => {
   try {
     const body = await c.req.json();
-    const { productId, name, email, phone, paymentGateway, metaEventId, fbp, fbc } = body;
+    const { productId, name, email, phone, metaEventId, fbp, fbc } = body;
 
     const product = await Product.findById(productId);
     if (!product || !product.active) {
@@ -79,6 +203,9 @@ publicRouter.post("/checkout", async (c) => {
     const userAgent = c.req.header("user-agent") || "";
     const ip = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1";
 
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
     const newOrder = new Order({
       orderId,
       name,
@@ -94,7 +221,7 @@ publicRouter.post("/checkout", async (c) => {
       ],
       total: product.price,
       status: "pending",
-      paymentGateway,
+      paymentGateway: "zinipay",
       metaEventId,
       fbp,
       fbc,
@@ -102,13 +229,34 @@ publicRouter.post("/checkout", async (c) => {
       ip,
     });
 
+    // Create ZiniPay Invoice
+    const ziniInvoice = await createZiniPayInvoice({
+      cus_name: name || "Guest Customer",
+      cus_email: email || "customer@digitalcorebd.com",
+      amount: product.price,
+      metadata: {
+        order_id: orderId,
+        product_id: String(product._id),
+        metaEventId,
+        customer_phone: phone || "",
+      },
+      redirect_url: `${siteUrl}/receipt/${orderId}?zinipay_verify=1`,
+      cancel_url: `${siteUrl}/receipt/${orderId}?canceled=1`,
+      webhook_url: `${apiUrl}/api/zinipay/webhook`,
+    });
+
+    if (ziniInvoice.status && ziniInvoice.payment_url) {
+      newOrder.zinipayInvoiceId = ziniInvoice.invoice_id;
+      newOrder.zinipayPaymentUrl = ziniInvoice.payment_url;
+    }
+
     await newOrder.save();
 
     // Trigger server-side InitiateCheckout CAPI tracking
     await sendCapiEvent({
       eventName: "InitiateCheckout",
       eventId: metaEventId,
-      eventSourceUrl: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/checkout/${product.slug}`,
+      eventSourceUrl: `${siteUrl}/checkout/${product.slug}`,
       userData: {
         email,
         phone,
@@ -128,125 +276,103 @@ publicRouter.post("/checkout", async (c) => {
 
     return c.json({
       success: true,
-      message: "Order initiated",
+      message: "ZiniPay invoice generated successfully",
+      paymentUrl: ziniInvoice.payment_url || `${siteUrl}/receipt/${orderId}`,
       order: {
         id: newOrder._id,
         orderId: newOrder.orderId,
         total: newOrder.total,
-        paymentGateway: newOrder.paymentGateway,
+        paymentGateway: "zinipay",
+        paymentUrl: ziniInvoice.payment_url,
       },
     });
   } catch (error: any) {
+    console.error("Checkout creation error:", error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
 
-// 4. Submit bKash Manual Payment Info
-publicRouter.post("/checkout/verify-bkash", async (c) => {
+// 4. ZiniPay Webhook Callback Flow (POST & GET)
+const handleZiniPayWebhook = async (c: any) => {
   try {
-    const { orderId, trxID, senderNumber } = await c.req.json();
+    let invoiceId: string | undefined;
+    let webhookStatus: string | undefined;
 
-    const order = await Order.findOne({ orderId });
-    if (!order) {
-      return c.json({ success: false, message: "Order not found" }, 404);
+    if (c.req.method === "POST") {
+      try {
+        const body = await c.req.json();
+        invoiceId = body.invoice_id;
+        webhookStatus = body.status;
+      } catch (e) {
+        // Body might be empty or query encoded
+      }
     }
 
-    // Save bKash sender details on Order
-    order.bkashTrxID = trxID;
-    order.bkashSender = senderNumber;
-    order.status = "processing"; // Order shifts to processing state waiting for admin approval
-    await order.save();
+    if (!invoiceId) {
+      invoiceId = c.req.query("invoice_id");
+      webhookStatus = c.req.query("status");
+    }
 
-    // Create a transaction log
-    const transaction = new Transaction({
-      orderId: order._id,
-      amount: order.total,
-      gateway: "bkash",
-      trxID,
-      senderNumber,
-      status: "pending",
-    });
-    await transaction.save();
+    if (!invoiceId) {
+      return c.json({ success: false, message: "Missing invoice_id parameter" }, 400);
+    }
 
-    return c.json({
-      success: true,
-      message: "Payment transaction details submitted. Awaiting verification by administrator.",
-      orderStatus: order.status,
-    });
+    console.log(`[ZiniPay Webhook] Received webhook for invoice: ${invoiceId}, status: ${webhookStatus}`);
+
+    // Verify invoice directly with ZiniPay API
+    const verifyResult = await verifyZiniPayInvoice(invoiceId);
+
+    if (verifyResult.success || verifyResult.status === "COMPLETED") {
+      const order = await Order.findOne({
+        $or: [
+          { zinipayInvoiceId: invoiceId },
+          { zinipayPaymentUrl: new RegExp(invoiceId, "i") },
+        ],
+      }).populate("items.productId");
+
+      if (order) {
+        await fulfillPaidOrder(order, {
+          transactionId: verifyResult.transaction_id,
+          paymentMethod: verifyResult.payment_method,
+          amount: verifyResult.amount,
+        });
+        return c.json({ success: true, message: "Payment verified and order fulfilled." });
+      } else {
+        console.warn(`[ZiniPay Webhook] Order not found for invoice ${invoiceId}`);
+      }
+    }
+
+    return c.json({ success: true, message: "Webhook processed" });
   } catch (error: any) {
+    console.error("[ZiniPay Webhook Error]:", error);
     return c.json({ success: false, error: error.message }, 500);
   }
-});
+};
 
-// 5. EPS Payment Webhook (Automated Callback)
-publicRouter.post("/checkout/eps-callback", async (c) => {
-  try {
-    const body = await c.req.json();
-    // EPS Gateway payload simulation (status, transaction_id, order_id, amount, hash)
-    const { status, transaction_id, order_id, amount } = body;
+publicRouter.post("/zinipay/webhook", handleZiniPayWebhook);
+publicRouter.get("/zinipay/webhook", handleZiniPayWebhook);
 
-    const order = await Order.findOne({ orderId: order_id });
-    if (!order) {
-      return c.json({ success: false, message: "Order not found" }, 404);
-    }
-
-    if (status === "success") {
-      order.status = "paid";
-      order.epsTransactionId = transaction_id;
-      await order.save();
-
-      // Create a verified transaction log
-      const transaction = new Transaction({
-        orderId: order._id,
-        amount: Number(amount) || order.total,
-        gateway: "eps",
-        trxID: transaction_id,
-        status: "verified",
-        verifiedAt: new Date(),
-      });
-      await transaction.save();
-
-      // Trigger server-side CAPI Purchase event
-      await sendCapiEvent({
-        eventName: "Purchase",
-        eventId: order.metaEventId,
-        eventSourceUrl: `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/receipt/${order.orderId}`,
-        userData: {
-          email: order.email,
-          phone: order.phone,
-          fbp: order.fbp,
-          fbc: order.fbc,
-          clientIpAddress: order.ip,
-          clientUserAgent: order.userAgent,
-          externalId: String(order._id),
-        },
-        customData: {
-          currency: "BDT",
-          value: order.total,
-          content_ids: order.items.map((item: any) => String(item.productId)),
-          content_type: "product",
-          order_id: order.orderId,
-        },
-      });
-
-      return c.json({ success: true, message: "Payment processed successfully" });
-    } else {
-      order.status = "failed";
-      await order.save();
-      return c.json({ success: true, message: "Payment status marked as failed" });
-    }
-  } catch (error: any) {
-    return c.json({ success: false, error: error.message }, 500);
-  }
-});
-
-// 6. Get Order Status
+// 5. Get Order Status & Auto-verify with ZiniPay
 publicRouter.get("/order-status/:orderId", async (c) => {
   try {
     const orderId = c.req.param("orderId");
-    const order = await Order.findOne({ orderId }).populate("items.productId");
+    let order = await Order.findOne({ orderId }).populate("items.productId");
     if (!order) {
       return c.json({ success: false, message: "Order not found" }, 404);
+    }
+
+    // If order is pending and has a ZiniPay invoice, verify with ZiniPay API
+    if (order.status !== "paid" && order.zinipayInvoiceId) {
+      const verifyResult = await verifyZiniPayInvoice(order.zinipayInvoiceId);
+      if (verifyResult.success || verifyResult.status === "COMPLETED") {
+        await fulfillPaidOrder(order, {
+          transactionId: verifyResult.transaction_id,
+          paymentMethod: verifyResult.payment_method,
+          amount: verifyResult.amount,
+        });
+        // Re-fetch populated order
+        order = await Order.findOne({ orderId }).populate("items.productId");
+      }
     }
 
     const companySetting = await Setting.findOne({ key: "company_info" });
@@ -262,6 +388,10 @@ publicRouter.get("/order-status/:orderId", async (c) => {
         total: order.total,
         status: order.status,
         paymentGateway: order.paymentGateway,
+        paymentUrl: order.zinipayPaymentUrl,
+        metaEventId: order.metaEventId,
+        transactionId: order.transactionId,
+        paymentMethod: order.paymentMethod,
         items: order.items.map((item: any) => {
           const prod = item.productId;
           return {
@@ -271,7 +401,6 @@ publicRouter.get("/order-status/:orderId", async (c) => {
             type: prod?.type,
             isWebDisplay: prod?.isWebDisplay,
             deliveryLink: prod?.isWebDisplay ? prod.deliveryLink : undefined,
-            // Generate secure link if paid
             downloadUrl:
               order.status === "paid" && prod?.isWebDisplay && prod.filePath
                 ? `/api/downloads/${order.orderId}/${prod._id}`
@@ -286,7 +415,7 @@ publicRouter.get("/order-status/:orderId", async (c) => {
   }
 });
 
-// 7. Secure file delivery
+// 6. Secure file delivery
 publicRouter.get("/downloads/:orderId/:productId", async (c) => {
   try {
     const orderId = c.req.param("orderId");

@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { trackEvent } from "@/lib/meta/track-event";
 import { getFbCookies } from "@/lib/meta/cookies";
+import Footer from "@/components/Footer";
 
 interface Product {
   _id: string;
@@ -42,6 +43,12 @@ const DocIcon = () => (
   </svg>
 );
 
+const ShieldIcon = () => (
+  <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "20px", height: "20px" }}>
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+  </svg>
+);
+
 function ShopContent() {
   const searchParams = useSearchParams();
   const initialSearch = searchParams.get("search") || "";
@@ -53,14 +60,12 @@ function ShopContent() {
   // Filters State
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [maxPrice, setMaxPrice] = useState<number>(3000);
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 8;
 
   // Checkout State
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({ name: "", email: "", phone: "" });
-  const [gateway, setGateway] = useState<"bkash" | "eps">("bkash");
   const [submittingCheckout, setSubmittingCheckout] = useState(false);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -101,12 +106,22 @@ function ShopContent() {
 
     setSubmittingCheckout(true);
     const fbCookies = getFbCookies();
-    const eventId = trackEvent("InitiateCheckout", {
-      content_ids: [selectedProduct._id],
-      content_type: "product",
-      value: selectedProduct.price,
-      currency: "BDT",
-    });
+    const eventId = trackEvent(
+      "InitiateCheckout",
+      {
+        content_ids: [selectedProduct._id],
+        content_name: selectedProduct.title,
+        content_type: "product",
+        value: selectedProduct.price,
+        currency: "BDT",
+        num_items: 1,
+      },
+      {
+        email: formData.email,
+        phone: formData.phone,
+        skipCapi: true, // Backend /api/checkout fires the paired CAPI event with matching metaEventId
+      }
+    );
 
     try {
       const res = await fetch(`${apiUrl}/api/checkout`, {
@@ -117,7 +132,7 @@ function ShopContent() {
           name: formData.name,
           email: formData.email,
           phone: formData.phone,
-          paymentGateway: gateway,
+          paymentGateway: "zinipay",
           metaEventId: eventId,
           fbp: fbCookies.fbp,
           fbc: fbCookies.fbc,
@@ -126,7 +141,11 @@ function ShopContent() {
 
       const data = await res.json();
       if (data.success) {
-        window.location.href = `/receipt/${data.order.orderId}`;
+        if (data.paymentUrl) {
+          window.location.href = data.paymentUrl;
+        } else if (data.order?.orderId) {
+          window.location.href = `/receipt/${data.order.orderId}`;
+        }
       } else {
         alert(data.message || "চেকআউট প্রসেস ব্যর্থ হয়েছে");
       }
@@ -147,9 +166,7 @@ function ShopContent() {
     const matchesCategory =
       selectedCategory === "all" ? true : p.type === selectedCategory;
 
-    const matchesPrice = p.price <= maxPrice;
-
-    return matchesSearch && matchesCategory && matchesPrice;
+    return matchesSearch && matchesCategory;
   });
 
   // Pagination Logic
@@ -182,11 +199,11 @@ function ShopContent() {
         <div className="navbar-start gap-2">
           <a href="/" className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-black text-xl text-primary-content shadow-md">
-              L
+              D
             </div>
             <div>
               <span className="text-lg md:text-xl font-extrabold tracking-tight text-base-content">
-                লুমিনা ডিজিটাল শপ
+                Digitalcorebd.com
               </span>
             </div>
           </a>
@@ -208,80 +225,52 @@ function ShopContent() {
 
         {/* Unified Top Inline Filter Layout */}
         <div className="card bg-base-100 p-6 rounded-3xl border border-base-300 shadow-sm mb-8">
-          <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+          <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full">
             
-            {/* Search Input and Horizontal Category Scrollbar */}
-            <div className="flex-1 flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full">
-              {/* Search input field */}
-              <div className="relative w-full md:w-80">
-                <input
-                  type="text"
-                  placeholder="পণ্য খুঁজুন..."
-                  className="input input-bordered w-full pr-10 focus:input-primary rounded-xl text-base-content bg-base-100"
-                  value={searchQuery}
-                  onChange={(e) => {
-                    setSearchQuery(e.target.value);
-                    setCurrentPage(1);
-                  }}
-                />
-                <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-60">
-                  <SearchIcon />
-                </span>
-              </div>
-
-              {/* Scrollable Categories List */}
-              <div className="flex gap-2 overflow-x-auto py-1 scrollbar-thin max-w-full">
-                {[
-                  { key: "all", label: "সব ক্যাটাগরি" },
-                  { key: "course", label: "ভিডিও কোর্স" },
-                  { key: "pdf", label: "পিডিএফ বই" },
-                  { key: "video", label: "ভিডিও গাইড" },
-                  { key: "zip", label: "জিপ ফাইল" },
-                  { key: "other", label: "অন্যান্য ফাইল" }
-                ].map((cat) => (
-                  <button
-                    key={cat.key}
-                    type="button"
-                    className={`btn btn-sm rounded-full font-bold whitespace-nowrap transition-all ${
-                      selectedCategory === cat.key
-                        ? "btn-primary text-primary-content"
-                        : "btn-outline btn-ghost border-base-300 text-base-content"
-                    }`}
-                    onClick={() => {
-                      setSelectedCategory(cat.key);
-                      setCurrentPage(1);
-                    }}
-                  >
-                    {cat.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Price budget slider container */}
-            <div className="w-full lg:w-64 flex flex-col gap-1 border-t lg:border-t-0 lg:border-l border-base-300 pt-4 lg:pt-0 lg:pl-6">
-              <div className="flex justify-between text-xs font-bold text-base-content/80">
-                <span>সর্বোচ্চ বাজেট</span>
-                <span className="text-primary font-black">৳{maxPrice}</span>
-              </div>
+            {/* Search input field */}
+            <div className="relative w-full md:w-80 shrink-0">
               <input
-                type="range"
-                min="0"
-                max="5000"
-                step="50"
-                className="range range-primary range-xs"
-                value={maxPrice}
+                type="text"
+                placeholder="পণ্য খুঁজুন..."
+                className="input input-bordered w-full pr-10 focus:input-primary rounded-xl text-base-content bg-base-100"
+                value={searchQuery}
                 onChange={(e) => {
-                  setMaxPrice(Number(e.target.value));
+                  setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
               />
-              <div className="flex justify-between text-[9px] text-base-content/40 font-bold px-1">
-                <span>৳০</span>
-                <span>৳৫,০০০</span>
-              </div>
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 opacity-60">
+                <SearchIcon />
+              </span>
             </div>
 
+            {/* Scrollable Categories List */}
+            <div className="flex gap-2 overflow-x-auto py-1 scrollbar-thin max-w-full flex-1">
+              {[
+                { key: "all", label: "সব ক্যাটাগরি" },
+                { key: "course", label: "ভিডিও কোর্স" },
+                { key: "pdf", label: "পিডিএফ বই" },
+                { key: "video", label: "ভিডিও গাইড" },
+                { key: "zip", label: "জিপ ফাইল" },
+                { key: "other", label: "অন্যান্য ফাইল" }
+              ].map((cat) => (
+                <button
+                  key={cat.key}
+                  type="button"
+                  className={`btn btn-sm rounded-full font-bold whitespace-nowrap transition-all ${
+                    selectedCategory === cat.key
+                      ? "btn-primary text-primary-content"
+                      : "btn-outline btn-ghost border-base-300 text-base-content"
+                  }`}
+                  onClick={() => {
+                    setSelectedCategory(cat.key);
+                    setCurrentPage(1);
+                  }}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -306,7 +295,7 @@ function ShopContent() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {currentItems.map((product) => (
                 <div key={product._id} className="card bg-base-100 shadow-md border border-base-300 hover:shadow-xl transition-all">
                   <figure className="relative h-44 bg-base-200">
@@ -446,45 +435,14 @@ function ShopContent() {
                 </div>
               )}
 
-              {/* Gateway Selection */}
-              <div className="form-control mt-4">
-                <label className="label">
-                  <span className="label-text font-bold text-base-content/85">পেমেন্ট পদ্ধতি নির্বাচন করুন</span>
-                </label>
-                <div className="grid grid-cols-2 gap-4">
-                  <label
-                    className={`border-2 rounded-2xl p-5 cursor-pointer flex flex-col items-center gap-2 transition-all ${
-                      gateway === "bkash" ? "border-rose-500 bg-rose-500/5 shadow-md" : "border-base-300 bg-base-100 shadow-none hover:border-base-450"
-                    }`}
-                    onClick={() => setGateway("bkash")}
-                  >
-                    <input
-                      type="radio"
-                      name="gateway"
-                      checked={gateway === "bkash"}
-                      readOnly
-                      className="radio radio-primary radio-sm accent-rose-600"
-                    />
-                    <div className="font-extrabold text-rose-600 text-sm">বিকাশ পার্সোনাল</div>
-                    <div className="text-[10px] text-base-content/60 font-semibold">ম্যানুয়াল ভেরিফিকেশন</div>
-                  </label>
-
-                  <label
-                    className={`border-2 rounded-2xl p-5 cursor-pointer flex flex-col items-center gap-2 transition-all ${
-                      gateway === "eps" ? "border-primary bg-primary/5 shadow-md" : "border-base-300 bg-base-100 shadow-none hover:border-base-450"
-                    }`}
-                    onClick={() => setGateway("eps")}
-                  >
-                    <input
-                      type="radio"
-                      name="gateway"
-                      checked={gateway === "eps"}
-                      readOnly
-                      className="radio radio-primary radio-sm"
-                    />
-                    <div className="font-extrabold text-primary text-sm">ইপিএস গেটওয়ে</div>
-                    <div className="text-[10px] text-base-content/60 font-semibold font-sans">অটোমেটিক ক্লিয়ারিং</div>
-                  </label>
+              {/* Automated ZiniPay Hosted Checkout Notice */}
+              <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-center gap-3 mt-4">
+                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-content shadow-xs shrink-0">
+                  <ShieldIcon />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-base-content">তাৎক্ষণিক ডিজিটাল পেমেন্ট</div>
+                  <div className="text-[11px] text-base-content/70 font-medium">বিকাশ, নগদ, রকেট এবং কার্ডের মাধ্যমে নিরাপদ পেমেন্ট সম্পন্ন করুন</div>
                 </div>
               </div>
 
@@ -508,23 +466,8 @@ function ShopContent() {
         </div>
       )}
 
-      {/* Footer info block */}
-      <footer className="footer footer-center p-10 bg-neutral text-neutral-content border-t border-neutral-content/10">
-        <aside>
-          <div className="w-12 h-12 rounded-2xl bg-primary flex items-center justify-center font-black text-2xl text-primary-content mb-4 shadow-lg">
-            L
-          </div>
-          <p className="font-bold text-white text-lg">
-            লুমিনা ডিজিটাল স্টোরফ্রন্ট
-          </p>
-          <p className="text-neutral-content/65 text-xs">
-            সুরক্ষিত পেমেন্ট এবং তাত্ক্ষণিক ডাউনলোডের ডিজিটাল হাব।
-          </p>
-          <p className="text-neutral-content/40 text-xs mt-4">
-            &copy; ২০২৬ লুমিনা ডিজিটাল। সর্বস্বত্ব সংরক্ষিত।
-          </p>
-        </aside>
-      </footer>
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

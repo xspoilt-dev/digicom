@@ -10,7 +10,11 @@ interface Order {
   phone?: string;
   total: number;
   status: "pending" | "processing" | "paid" | "failed" | "cancelled";
-  paymentGateway: "bkash" | "eps";
+  paymentGateway: string;
+  zinipayInvoiceId?: string;
+  zinipayPaymentUrl?: string;
+  transactionId?: string;
+  paymentMethod?: string;
   bkashSender?: string;
   bkashTrxID?: string;
   epsTransactionId?: string;
@@ -59,7 +63,7 @@ export default function OrdersPage() {
   };
 
   const verifyOrder = async (id: string) => {
-    if (!confirm("Are you sure you want to verify this transaction payment manually?")) return;
+    if (!confirm("Are you sure you want to approve this order? This will mark it as Paid, record the transaction, send delivery email, and fire the Meta CAPI Purchase event.")) return;
     try {
       const res = await fetch(`${apiUrl}/api/admin/orders/${id}/verify`, {
         method: "POST",
@@ -67,7 +71,7 @@ export default function OrdersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert("Payment verified successfully. Delivery links unlocked and Meta CAPI Purchase event fired!");
+        alert(data.message || "Order approved successfully. Meta CAPI Purchase event dispatched and delivery email sent!");
         fetchOrders();
       } else {
         alert(data.message || "Verification failed");
@@ -158,7 +162,7 @@ export default function OrdersPage() {
                 <th>Customer Profile</th>
                 <th>Gateway</th>
                 <th>Total</th>
-                <th>bKash Info</th>
+                <th>Payment Info</th>
                 <th>Date</th>
                 <th>Status</th>
                 <th className="text-right">Actions</th>
@@ -180,15 +184,22 @@ export default function OrdersPage() {
                       </td>
                       <td className="font-black text-primary">৳{o.total}</td>
                       <td>
-                        {o.paymentGateway === "bkash" && o.bkashTrxID ? (
+                        {o.transactionId ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-mono text-xs text-primary font-bold">{o.transactionId}</span>
+                            {o.paymentMethod && (
+                              <span className="text-[10px] text-base-content/60 uppercase">{o.paymentMethod}</span>
+                            )}
+                          </div>
+                        ) : o.zinipayInvoiceId ? (
+                          <span className="font-mono text-xs text-base-content/70">Inv: {o.zinipayInvoiceId}</span>
+                        ) : o.bkashTrxID ? (
                           <div className="flex flex-col gap-1">
                             <span className="font-mono text-xs bg-rose-50 text-rose-700 font-bold py-1 px-2 rounded border border-rose-100 max-w-fit">
                               {o.bkashTrxID}
                             </span>
                             <span className="text-[10px] text-base-content/50">Sender: {o.bkashSender}</span>
                           </div>
-                        ) : o.epsTransactionId ? (
-                          <span className="font-mono text-xs font-semibold">{o.epsTransactionId}</span>
                         ) : (
                           <span className="text-base-content/40 italic text-xs">None</span>
                         )}
@@ -202,19 +213,33 @@ export default function OrdersPage() {
                         </span>
                       </td>
                       <td className="text-right">
-                        {o.status === "processing" && (
+                        {(o.status === "pending" || o.status === "processing") ? (
                           <div className="flex gap-2 justify-end">
-                            <button onClick={() => verifyOrder(o._id)} className="btn btn-xs btn-primary rounded-full px-3 font-bold">
+                            <button
+                              onClick={() => verifyOrder(o._id)}
+                              className="btn btn-xs btn-primary rounded-full px-3 font-bold shadow-xs"
+                              title="Approve order, unlock files, send email, and fire CAPI Purchase event"
+                            >
                               Approve
                             </button>
                             <button
                               onClick={() => cancelOrder(o._id)}
                               className="btn btn-xs btn-outline btn-error rounded-full px-3 font-bold"
+                              title="Cancel order"
                             >
                               Cancel
                             </button>
                           </div>
-                        )}
+                        ) : o.status === "paid" ? (
+                          <a
+                            href={`/receipt/${o.orderId}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn btn-xs btn-ghost text-primary font-bold"
+                          >
+                            View Receipt ↗
+                          </a>
+                        ) : null}
                       </td>
                     </tr>
                   );

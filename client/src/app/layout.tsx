@@ -4,7 +4,7 @@ import Script from "next/script";
 import { PixelRouteTracker } from "@/components/PixelRouteTracker";
 
 export const metadata: Metadata = {
-  title: "Lumina Digital Storefront",
+  title: "Digitalcorebd.com - Premium Digital Hub",
   description: "Premium Digital Products & Courses Guest Purchase Storefront",
 };
 

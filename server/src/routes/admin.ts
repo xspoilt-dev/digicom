@@ -1,12 +1,21 @@
 import { Hono } from "hono";
 import { sign, verify } from "hono/jwt";
 import Product from "../models/Product";
+import Category from "../models/Category";
 import Order from "../models/Order";
 import Transaction from "../models/Transaction";
 import Setting from "../models/Setting";
 import RouteRedirect from "../models/RouteRedirect";
+import CapiLog from "../models/CapiLog";
 import { sendCapiEvent } from "../utils/metaCapi";
 import { sendOrderDeliveryEmail } from "../utils/mailer";
+import { invalidateSettingCache } from "../utils/settingsCache";
+import {
+  fetchCanbosoBalance,
+  fetchCanbosoProducts,
+  executeCanbosoPurchase,
+  getCanbosoConfig,
+} from "../services/canbosoClient";
 import path from "path";
 import fs from "fs";
 
@@ -133,14 +142,34 @@ adminRouter.use("/*", async (c, next) => {
   return c.json({ success: false, message: "Unauthorized admin access" }, 401);
 });
 
-// 1. Dashboard Stats
+// 1. Dashboard Stats (USD for Admin, BDT for Storefront)
 adminRouter.get("/stats", async (c) => {
   try {
     const totalSalesAggregate = await Order.aggregate([
       { $match: { status: "paid" } },
-      { $group: { _id: null, total: { $sum: "$total" } } },
+      {
+        $group: {
+          _id: null,
+          totalBdt: { $sum: "$total" },
+          totalUsd: { $sum: "$totalUsd" },
+          costUsd: { $sum: "$costUsd" },
+          profitUsd: { $sum: "$profitUsd" },
+          costBdt: { $sum: "$costBdt" },
+          profitBdt: { $sum: "$profitBdt" },
+        },
+      },
     ]);
-    const totalSales = totalSalesAggregate[0]?.total || 0;
+    const totals = totalSalesAggregate[0] || {};
+    const canbosoConfig = await getCanbosoConfig();
+    const dollarRate = canbosoConfig.dollarRate || 127;
+
+    const totalSales = totals.totalBdt || 0;
+    const totalSalesUsd = totals.totalUsd || Number((totalSales / dollarRate).toFixed(2));
+    const totalCostUsd = totals.costUsd || 0;
+    const netProfitUsd = totals.profitUsd || Number((totalSalesUsd - totalCostUsd).toFixed(2));
+    const totalCostBdt = totals.costBdt || Math.round(totalCostUsd * dollarRate);
+    const netProfitBdt = totals.profitBdt || (totalSales - totalCostBdt);
+    const profitMargin = totalSalesUsd > 0 ? Number(((netProfitUsd / totalSalesUsd) * 100).toFixed(1)) : 0;
 
     const totalOrders = await Order.countDocuments();
     const paidOrders = await Order.countDocuments({ status: "paid" });
@@ -157,29 +186,43 @@ adminRouter.get("/stats", async (c) => {
           _id: "$items.productId",
           title: { $first: "$items.title" },
           salesCount: { $sum: "$items.quantity" },
-          revenue: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
+          revenueBdt: { $sum: { $multiply: ["$items.price", "$items.quantity"] } },
         },
       },
       { $sort: { salesCount: -1 } },
       { $limit: 5 },
     ]);
 
+    const formattedTopProducts = topProducts.map((p) => ({
+      ...p,
+      revenueBdt: p.revenueBdt,
+      revenueUsd: Number((p.revenueBdt / dollarRate).toFixed(2)),
+    }));
+
     // Recent Transactions
     const recentTransactions = await Transaction.find()
-      .populate("orderId", "orderId email phone")
+      .populate("orderId", "orderId email phone total")
       .sort({ createdAt: -1 })
-      .limit(10);
+      .limit(10)
+      .lean();
 
     return c.json({
       success: true,
       stats: {
         totalSales,
+        totalSalesUsd,
+        totalCostUsd,
+        netProfitUsd,
+        totalCostBdt,
+        netProfitBdt,
+        profitMargin,
+        dollarRate,
         totalOrders,
         paidOrders,
         pendingOrders,
         processingOrders,
         failedOrders,
-        topProducts,
+        topProducts: formattedTopProducts,
         recentTransactions,
       },
     });
@@ -209,14 +252,14 @@ adminRouter.get("/orders", async (c) => {
       ];
     }
 
-    const orders = await Order.find(query).sort({ createdAt: -1 });
+    const orders = await Order.find(query).sort({ createdAt: -1 }).lean();
     return c.json({ success: true, orders });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }
 });
 
-// Approve/Verify Order manually (ZiniPay / manual validation)
+// Approve/Verify Order manually (ZiniPay / manual validation / Canboso fulfillment)
 adminRouter.post("/orders/:id/verify", async (c) => {
   try {
     const id = c.req.param("id");
@@ -235,11 +278,72 @@ adminRouter.post("/orders/:id/verify", async (c) => {
       order.metaEventId = `order_${order.orderId}_${Date.now()}`;
     }
 
-    // Set order status to paid
     order.status = "paid";
     if (!order.paymentMethod) {
       order.paymentMethod = "admin_approval";
     }
+
+    // Automated Canboso Purchase Execution
+    const canbosoConfig = await getCanbosoConfig();
+    const dollarRate = canbosoConfig.dollarRate || 127;
+    order.dollarRateUsed = dollarRate;
+
+    let totalCostUsd = order.costUsd || 0;
+    const downloadUrls: { title: string; link: string }[] = [];
+
+    for (const item of order.items) {
+      const prodId = item.productId?._id || item.productId;
+      const prod = (await Product.findById(prodId)) as any;
+
+      if (prod) {
+        if (prod.canbosoProductId && canbosoConfig.autoFulfill && prod.autoFulfill !== false) {
+          order.fulfillmentStatus = "processing";
+          try {
+            const purchaseRes = await executeCanbosoPurchase({
+              orderId: order.orderId,
+              productId: prod.canbosoProductId,
+              quantity: item.quantity || 1,
+              customerEmail: order.email,
+              slotMonths: order.slotMonths || item.slotMonths,
+            });
+
+            if (purchaseRes.success) {
+              order.fulfillmentStatus = "completed";
+              order.canbosoOrderCode = purchaseRes.orderCode;
+              if (purchaseRes.deliveryAccounts && purchaseRes.deliveryAccounts.length > 0) {
+                order.deliveryAccounts = (order.deliveryAccounts || []).concat(purchaseRes.deliveryAccounts);
+              }
+              const itemCost = purchaseRes.costUsd || prod.canbosoCostUsd || 0;
+              item.costUsd = itemCost;
+              totalCostUsd += itemCost * (item.quantity || 1);
+            } else {
+              order.fulfillmentStatus = "failed";
+              order.fulfillmentError = purchaseRes.errorMessage || "Canboso automated purchase failed";
+            }
+          } catch (err: any) {
+            order.fulfillmentStatus = "failed";
+            order.fulfillmentError = err.message;
+          }
+        } else {
+          if (!order.fulfillmentStatus || order.fulfillmentStatus === "unfulfilled") {
+            order.fulfillmentStatus = "completed";
+          }
+        }
+
+        const link = prod.deliveryLink || (prod.filePath ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/${prod.filePath}` : "");
+        if (link) {
+          downloadUrls.push({ title: prod.title, link });
+        }
+      }
+    }
+
+    // Accounting calculations
+    order.costUsd = Number(totalCostUsd.toFixed(2));
+    order.costBdt = Math.round(order.costUsd * dollarRate);
+    order.totalUsd = Number((order.total / dollarRate).toFixed(2));
+    order.profitUsd = Number((order.totalUsd - order.costUsd).toFixed(2));
+    order.profitBdt = Math.round(order.total - order.costBdt);
+
     await order.save();
 
     // Update or create associated transaction in ledger
@@ -259,7 +363,7 @@ adminRouter.post("/orders/:id/verify", async (c) => {
       { upsert: true, new: true }
     );
 
-    // Trigger server-side Meta CAPI Purchase event (counts as Purchase in Meta Pixel/CAPI)
+    // Trigger server-side Meta CAPI Purchase event
     const capiDispatched = await sendCapiEvent({
       eventName: "Purchase",
       eventId: order.metaEventId,
@@ -284,20 +388,7 @@ adminRouter.post("/orders/:id/verify", async (c) => {
 
     console.log(`[Admin Order Approval] Order ${order.orderId} approved by admin. CAPI Purchase dispatched: ${capiDispatched}`);
 
-    // Resolve secure download urls
-    const downloadUrls: { title: string; link: string }[] = [];
-    for (const item of order.items) {
-      const prodId = item.productId?._id || item.productId;
-      const prod = await Product.findById(prodId);
-      if (prod) {
-        const link = prod.deliveryLink || (prod.filePath ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/${prod.filePath}` : "");
-        if (link) {
-          downloadUrls.push({ title: prod.title, link });
-        }
-      }
-    }
-
-    // Send delivery email asynchronously so it doesn't block response
+    // Send delivery email asynchronously
     if (order.email) {
       sendOrderDeliveryEmail({
         toEmail: order.email,
@@ -306,13 +397,161 @@ adminRouter.post("/orders/:id/verify", async (c) => {
         totalAmount: order.total,
         items: order.items.map((i: any) => ({ title: i.title, price: i.price, quantity: i.quantity })),
         downloadUrls,
+        deliveryAccounts: order.deliveryAccounts || [],
       }).catch(err => console.error("[Admin Order Approval] Email send error:", err));
     }
 
     return c.json({
       success: true,
-      message: "Order approved, payment recorded, delivery email dispatched, and Meta CAPI Purchase event fired.",
+      message: "Order approved, Canboso fulfillment processed, payment recorded, delivery email dispatched, and Meta CAPI Purchase event fired.",
       capiDispatched,
+      fulfillmentStatus: order.fulfillmentStatus,
+      deliveryAccounts: order.deliveryAccounts || [],
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 2.1 Canboso Upstream Wallet Balance
+adminRouter.get("/canboso/balance", async (c) => {
+  try {
+    const result = await fetchCanbosoBalance();
+    return c.json(result);
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 2.2 Canboso Live Products List
+adminRouter.get("/canboso/products", async (c) => {
+  try {
+    const forceRefresh = c.req.query("refresh") === "1";
+    const result = await fetchCanbosoProducts(forceRefresh);
+    return c.json(result);
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 2.3 Import & Connect Canboso Product to Storefront
+adminRouter.post("/canboso/import", async (c) => {
+  try {
+    const body = await c.req.json();
+    const {
+      canbosoProductId,
+      title,
+      slug,
+      description,
+      price,
+      compareAtPrice,
+      type,
+      category,
+      thumbnailPath,
+      showInSlider,
+      isFeatured,
+      autoFulfill,
+      purchaseRequirements,
+      costUsd,
+    } = body;
+
+    if (!canbosoProductId || !title || !slug || !price) {
+      return c.json({ success: false, message: "canbosoProductId, title, slug, and price are required." }, 400);
+    }
+
+    const cleanSlug = String(slug).toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-");
+
+    const product = await Product.findOneAndUpdate(
+      { $or: [{ canbosoProductId }, { slug: cleanSlug }] },
+      {
+        title,
+        slug: cleanSlug,
+        description: description || `${title} - Premium Digital Subscription`,
+        price: Number(price),
+        compareAtPrice: compareAtPrice ? Number(compareAtPrice) : undefined,
+        type: type || "account",
+        category: category || "account",
+        thumbnailPath: thumbnailPath || undefined,
+        showInSlider: Boolean(showInSlider),
+        isFeatured: Boolean(isFeatured),
+        autoFulfill: autoFulfill !== false,
+        canbosoProductId,
+        canbosoCostUsd: Number(costUsd) || 0,
+        purchaseRequirements: purchaseRequirements || {},
+        active: true,
+      },
+      { upsert: true, new: true }
+    );
+
+    return c.json({ success: true, message: "Product imported & connected successfully!", product });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 2.4 Full Financial Accounting Dashboard API (in USD & BDT)
+adminRouter.get("/accounting", async (c) => {
+  try {
+    const canbosoConfig = await getCanbosoConfig();
+    const dollarRate = canbosoConfig.dollarRate || 127;
+
+    const paidOrders = await Order.find({ status: "paid" }).sort({ createdAt: -1 }).lean();
+
+    let totalRevenueUsd = 0;
+    let totalCostUsd = 0;
+    let totalRevenueBdt = 0;
+    let totalCostBdt = 0;
+
+    const ordersAccounting = paidOrders.map((o: any) => {
+      const revUsd = o.totalUsd || Number((o.total / (o.dollarRateUsed || dollarRate)).toFixed(2));
+      const costU = o.costUsd || 0;
+      const profitU = Number((revUsd - costU).toFixed(2));
+      const profitB = Math.round(o.total - (o.costBdt || Math.round(costU * (o.dollarRateUsed || dollarRate))));
+
+      totalRevenueUsd += revUsd;
+      totalCostUsd += costU;
+      totalRevenueBdt += o.total;
+      totalCostBdt += (o.costBdt || Math.round(costU * (o.dollarRateUsed || dollarRate)));
+
+      return {
+        _id: o._id,
+        orderId: o.orderId,
+        customerName: o.name,
+        customerPhone: o.phone,
+        customerEmail: o.email,
+        itemsCount: o.items?.length || 1,
+        totalBdt: o.total,
+        totalUsd: revUsd,
+        costUsd: costU,
+        costBdt: o.costBdt || Math.round(costU * (o.dollarRateUsed || dollarRate)),
+        profitUsd: profitU,
+        profitBdt: profitB,
+        dollarRateUsed: o.dollarRateUsed || dollarRate,
+        canbosoOrderCode: o.canbosoOrderCode,
+        fulfillmentStatus: o.fulfillmentStatus || "completed",
+        deliveryAccountsCount: o.deliveryAccounts?.length || 0,
+        createdAt: o.createdAt,
+      };
+    });
+
+    const netProfitUsd = Number((totalRevenueUsd - totalCostUsd).toFixed(2));
+    const netProfitBdt = Math.round(totalRevenueBdt - totalCostBdt);
+    const profitMarginPercent = totalRevenueUsd > 0 ? Number(((netProfitUsd / totalRevenueUsd) * 100).toFixed(1)) : 0;
+
+    return c.json({
+      success: true,
+      accounting: {
+        totalRevenueUsd: Number(totalRevenueUsd.toFixed(2)),
+        totalCostUsd: Number(totalCostUsd.toFixed(2)),
+        netProfitUsd,
+        profitMarginPercent,
+        totalRevenueBdt,
+        totalCostBdt,
+        netProfitBdt,
+        currentDollarRate: dollarRate,
+        paidOrdersCount: paidOrders.length,
+        orders: ordersAccounting,
+      },
     });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
@@ -347,7 +586,8 @@ adminRouter.get("/transactions", async (c) => {
   try {
     const transactions = await Transaction.find()
       .populate("orderId", "orderId email phone total")
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .lean();
     return c.json({ success: true, transactions });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
@@ -357,7 +597,7 @@ adminRouter.get("/transactions", async (c) => {
 // 4. Products CRUD
 adminRouter.get("/products", async (c) => {
   try {
-    const products = await Product.find().sort({ createdAt: -1 });
+    const products = await Product.find().sort({ createdAt: -1 }).lean();
     return c.json({ success: true, products });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
@@ -464,16 +704,106 @@ adminRouter.post("/settings", async (c) => {
       { value },
       { upsert: true, new: true }
     );
+    // Invalidate in-memory cache immediately
+    invalidateSettingCache(key);
     return c.json({ success: true, setting });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 400);
   }
 });
 
+// 6.1 Meta Conversions API (CAPI) Live Test Dispatcher
+adminRouter.post("/capi/test", async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const eventName = body.eventName || "TestEvent";
+    const testCode = body.testEventCode;
+    const testEmail = body.email || "admin.test@digitalcorebd.com";
+    const testPhone = body.phone || "01711000000";
+
+    const testEventId = `test_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+
+    const result = await sendCapiEvent({
+      eventName,
+      eventId: testEventId,
+      eventSourceUrl: `${siteUrl}/admin/settings`,
+      userData: {
+        email: testEmail,
+        phone: testPhone,
+        clientIpAddress: c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1",
+        clientUserAgent: c.req.header("user-agent") || "Mozilla/5.0 (Admin CAPI Diagnostics Tool)",
+      },
+      customData: {
+        currency: "BDT",
+        value: 100,
+        test_mode: true,
+        sent_by: "Admin Diagnostic Console",
+      },
+      actionSource: "website",
+      testEventCode: testCode,
+    });
+
+    return c.json({
+      success: result.success,
+      eventId: result.eventId,
+      statusCode: result.statusCode,
+      response: result.response,
+      message: result.message || (result.success ? "CAPI Test Event successfully received by Meta Graph API!" : "CAPI dispatch failed"),
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 6.2 Meta CAPI Real-Time Delivery Logs & Diagnostics
+adminRouter.get("/capi/logs", async (c) => {
+  try {
+    const page = Math.max(1, Number(c.req.query("page")) || 1);
+    const limit = Math.min(100, Math.max(1, Number(c.req.query("limit")) || 30));
+    const status = c.req.query("status");
+    const eventName = c.req.query("eventName");
+
+    const query: any = {};
+    if (status) query.status = status;
+    if (eventName) query.eventName = new RegExp(eventName, "i");
+
+    const [total, logs] = await Promise.all([
+      CapiLog.countDocuments(query),
+      CapiLog.find(query)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean(),
+    ]);
+
+    return c.json({
+      success: true,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+      logs,
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 6.3 Clear Meta CAPI Logs
+adminRouter.delete("/capi/logs", async (c) => {
+  try {
+    await CapiLog.deleteMany({});
+    return c.json({ success: true, message: "All CAPI diagnostic logs cleared successfully." });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // 7. Route redirects CRUD
 adminRouter.get("/redirects", async (c) => {
   try {
-    const redirects = await RouteRedirect.find();
+    const redirects = await RouteRedirect.find().lean();
     return c.json({ success: true, redirects });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
@@ -499,6 +829,58 @@ adminRouter.delete("/redirects/:id", async (c) => {
     const id = c.req.param("id");
     await RouteRedirect.findByIdAndDelete(id);
     return c.json({ success: true, message: "Redirect deleted successfully." });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ─── CATEGORY MANAGEMENT ───────────────────────────────────────────────────
+
+// List all categories (sorted by order)
+adminRouter.get("/categories", async (c) => {
+  try {
+    const categories = await Category.find().sort({ order: 1, createdAt: 1 }).lean();
+    return c.json({ success: true, categories });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// Create category
+adminRouter.post("/categories", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { name, slug, description, order, active } = body;
+    if (!name || !slug) {
+      return c.json({ success: false, message: "name and slug are required" }, 400);
+    }
+    const cat = new Category({ name, slug, description, order: order ?? 0, active: active ?? true });
+    await cat.save();
+    return c.json({ success: true, category: cat });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 400);
+  }
+});
+
+// Update category (name, slug, description, order, active)
+adminRouter.put("/categories/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+    const cat = await Category.findByIdAndUpdate(id, body, { new: true });
+    if (!cat) return c.json({ success: false, message: "Category not found" }, 404);
+    return c.json({ success: true, category: cat });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 400);
+  }
+});
+
+// Delete category
+adminRouter.delete("/categories/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    await Category.findByIdAndDelete(id);
+    return c.json({ success: true, message: "Category deleted." });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }

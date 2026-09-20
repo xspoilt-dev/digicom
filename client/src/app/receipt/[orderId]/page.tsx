@@ -4,6 +4,7 @@ import { useEffect, useState, use, useRef } from "react";
 import Link from "next/link";
 import { trackEvent } from "@/lib/meta/track-event";
 import Footer from "@/components/Footer";
+import { Copy, Check, Eye, EyeOff, Key, CheckCircle2 } from "lucide-react";
 
 interface OrderItem {
   id: string;
@@ -13,6 +14,14 @@ interface OrderItem {
   isWebDisplay: boolean;
   deliveryLink?: string;
   downloadUrl?: string;
+}
+
+interface DeliveryAccount {
+  user?: string;
+  password?: string;
+  verifyEmail?: string;
+  expiryText?: string;
+  otherInfo?: string;
 }
 
 interface Order {
@@ -30,6 +39,10 @@ interface Order {
   paymentMethod?: string;
   bkashSender?: string;
   bkashTrxID?: string;
+  fulfillmentStatus?: string;
+  canbosoOrderCode?: string;
+  deliveryAccounts?: DeliveryAccount[];
+  slotMonths?: number;
 }
 
 // Icons
@@ -71,6 +84,33 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<number, boolean>>({});
+
+  const handleCopy = (text: string, key: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 2500);
+  };
+
+  const handleCopyAll = () => {
+    if (!order?.deliveryAccounts || order.deliveryAccounts.length === 0) return;
+    const combined = order.deliveryAccounts
+      .map((acc, idx) => {
+        const lines = [`Account #${idx + 1}:`];
+        if (acc.user) lines.push(`Username/Email: ${acc.user}`);
+        if (acc.password) lines.push(`Password: ${acc.password}`);
+        if (acc.verifyEmail) lines.push(`Recovery Email: ${acc.verifyEmail}`);
+        if (acc.expiryText) lines.push(`Validity: ${acc.expiryText}`);
+        if (acc.otherInfo) lines.push(`Instructions: ${acc.otherInfo}`);
+        return lines.join("\n");
+      })
+      .join("\n\n---\n\n");
+
+    navigator.clipboard.writeText(combined);
+    setCopiedKey("all");
+    setTimeout(() => setCopiedKey(null), 2500);
+  };
 
   const purchaseTrackedRef = useRef(false);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -338,9 +378,135 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
                 পেমেন্ট সফলভাবে সম্পন্ন হয়েছে!
               </h2>
               <p className="text-xs md:text-sm text-base-content/70 mt-1">
-                নিচে দেওয়া লিংক থেকে আপনার ক্রয়কৃত ডিজিটাল ফাইলটি সংগ্রহ করুনঃ
+                নিচে আপনার ক্রয়কৃত ডিজিটাল অ্যাকাউন্ট ও ফাইলসমূহ প্রদান করা হলোঃ
               </p>
             </div>
+
+            {/* Delivered Canboso Digital Accounts */}
+            {order.deliveryAccounts && order.deliveryAccounts.length > 0 && (
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center justify-between border-b border-base-300 pb-2.5">
+                  <h3 className="font-extrabold text-sm md:text-base text-base-content flex items-center gap-2">
+                    <Key className="w-4 h-4 text-primary" />
+                    আপনার ডিজিটাল অ্যাকাউন্ট ও লগইন তথ্য
+                  </h3>
+                  <button
+                    type="button"
+                    onClick={handleCopyAll}
+                    className="btn btn-xs btn-outline rounded-lg font-bold gap-1 text-[11px]"
+                  >
+                    {copiedKey === "all" ? <Check size={12} className="text-success" /> : <Copy size={12} />}
+                    <span>{copiedKey === "all" ? "সব কপি হয়েছে" : "সব তথ্য কপি করুন"}</span>
+                  </button>
+                </div>
+
+                {order.deliveryAccounts.map((acc, idx) => (
+                  <div key={idx} className="bg-base-200 border-2 border-primary/20 rounded-2xl p-4 sm:p-5 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="badge badge-primary badge-sm font-bold text-primary-content">
+                        অ্যাকাউন্ট #{idx + 1}
+                      </span>
+                      {acc.expiryText && (
+                        <span className="text-[11px] font-bold text-success font-mono">
+                          মেয়াদ: {acc.expiryText}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="space-y-2.5">
+                      {acc.user && (
+                        <div>
+                          <label className="text-[10px] font-bold text-base-content/60 uppercase tracking-wider block mb-1">
+                            ইউজারনেম / ইমেইল
+                          </label>
+                          <div className="flex items-center justify-between bg-base-100 p-2.5 rounded-xl border border-base-300 font-mono text-xs">
+                            <span className="font-bold select-all text-base-content truncate pr-2">{acc.user}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(acc.user!, `user-${idx}`)}
+                              className="btn btn-ghost btn-xs btn-circle shrink-0"
+                              title="Copy username"
+                            >
+                              {copiedKey === `user-${idx}` ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {acc.password && (
+                        <div>
+                          <label className="text-[10px] font-bold text-base-content/60 uppercase tracking-wider block mb-1">
+                            পাসওয়ার্ড
+                          </label>
+                          <div className="flex items-center justify-between bg-base-100 p-2.5 rounded-xl border border-base-300 font-mono text-xs">
+                            <span className="font-bold select-all text-base-content truncate pr-2">
+                              {revealedPasswords[idx] ? acc.password : "••••••••••••"}
+                            </span>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => setRevealedPasswords((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+                                className="btn btn-ghost btn-xs btn-circle"
+                                title={revealedPasswords[idx] ? "Hide password" : "Show password"}
+                              >
+                                {revealedPasswords[idx] ? <EyeOff size={14} /> : <Eye size={14} />}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleCopy(acc.password!, `pw-${idx}`)}
+                                className="btn btn-ghost btn-xs btn-circle"
+                                title="Copy password"
+                              >
+                                {copiedKey === `pw-${idx}` ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {acc.verifyEmail && (
+                        <div>
+                          <label className="text-[10px] font-bold text-base-content/60 uppercase tracking-wider block mb-1">
+                            রিকভারি / ভেরিফিকেশন ইমেইল
+                          </label>
+                          <div className="flex items-center justify-between bg-base-100 p-2.5 rounded-xl border border-base-300 font-mono text-xs">
+                            <span className="select-all text-base-content truncate pr-2">{acc.verifyEmail}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleCopy(acc.verifyEmail!, `verify-${idx}`)}
+                              className="btn btn-ghost btn-xs btn-circle shrink-0"
+                              title="Copy recovery email"
+                            >
+                              {copiedKey === `verify-${idx}` ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {acc.otherInfo && (
+                        <div className="p-2.5 bg-amber-50 border border-amber-200 text-stone-800 rounded-xl text-xs font-medium">
+                          নির্দেশনা: {acc.otherInfo}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+
+                <p className="text-xs text-base-content/60 text-center">
+                  এই লগইন এক্সেস বিবরণী আপনার ইমেইল ({order.email}) ঠিকানায়ও পাঠানো হয়েছে।
+                </p>
+              </div>
+            )}
+
+            {/* Slot Invite Notice if applicable */}
+            {order.slotMonths && (
+              <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 rounded-2xl text-xs font-semibold mb-6 flex items-center gap-3">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span>
+                  আপনার প্রদত্ত ইমেইল ({order.email}) ঠিকানায় ওয়ার্কস্পেস ইনভাইটেশন ({order.slotMonths} মাসের মেয়াদ) পাঠানো হয়েছে। আপনার ইমেইল ইনবক্স বা স্প্যাম ফোল্ডার চেক করুন।
+                </span>
+              </div>
+            )}
 
             <div className="space-y-4">
               {order.items.map((item, idx) => (
@@ -372,7 +538,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
                         <LinkIcon /> সরাসরি দেখুন
                       </a>
                     )}
-                    {!item.isWebDisplay && (
+                    {!item.isWebDisplay && !order.deliveryAccounts && (
                       <span className="text-xs text-base-content/60 italic self-center">
                         লিংকটি আপনার ইমেইল ঠিকানায় পাঠানো হয়েছে।
                       </span>

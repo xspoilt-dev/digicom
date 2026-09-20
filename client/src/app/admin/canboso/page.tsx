@@ -1,0 +1,888 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import {
+  Server,
+  RefreshCw,
+  Search,
+  CheckCircle2,
+  AlertCircle,
+  ExternalLink,
+  DollarSign,
+  Package,
+  Layers,
+  Upload,
+  Link as LinkIcon,
+  Zap,
+  Tag,
+  Sliders,
+  Sparkles,
+  Wallet,
+  ArrowRight,
+  TrendingUp,
+  X,
+} from "lucide-react";
+
+interface UpstreamProduct {
+  id: string | number;
+  name: string;
+  code?: string;
+  costUsd: number;
+  costVnd?: number;
+  stock: number;
+  type?: string;
+  category?: string;
+  requirements?: {
+    hasUser?: boolean;
+    hasPassword?: boolean;
+    hasEmail?: boolean;
+    hasWorkspace?: boolean;
+  };
+}
+
+interface StoreCategory {
+  _id: string;
+  name: string;
+  slug: string;
+}
+
+interface StoreProduct {
+  _id: string;
+  title: string;
+  slug: string;
+  price: number;
+  compareAtPrice?: number;
+  canbosoProductId?: string;
+  canbosoCostUsd?: number;
+  active: boolean;
+}
+
+export default function CanbosoStockPage() {
+  const [upstreamProducts, setUpstreamProducts] = useState<UpstreamProduct[]>([]);
+  const [storeProducts, setStoreProducts] = useState<StoreProduct[]>([]);
+  const [categories, setCategories] = useState<StoreCategory[]>([]);
+  const [dollarRate, setDollarRate] = useState<number>(127);
+  const [balance, setBalance] = useState<{ balanceUsd: number; balanceVnd: number } | null>(null);
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "out_of_stock">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "connected" | "not_connected">("all");
+
+  // Import Modal State
+  const [selectedProduct, setSelectedProduct] = useState<UpstreamProduct | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [submittingImport, setSubmittingImport] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Modal Form Fields
+  const [importForm, setImportForm] = useState({
+    title: "",
+    slug: "",
+    category: "",
+    priceBdt: 0,
+    comparePriceBdt: 0,
+    description: "",
+    image: "",
+    isFeatured: false,
+    isSlider: false,
+    autoFulfill: true,
+  });
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+  const getAuthHeaders = () => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
+    return {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+  };
+
+  const loadData = async (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true);
+    else setLoading(true);
+
+    try {
+      const [upstreamRes, storeProdsRes, catsRes, balanceRes] = await Promise.all([
+        fetch(`${apiUrl}/api/admin/canboso/products`, { headers: getAuthHeaders() }),
+        fetch(`${apiUrl}/api/admin/products`, { headers: getAuthHeaders() }),
+        fetch(`${apiUrl}/api/admin/categories`, { headers: getAuthHeaders() }),
+        fetch(`${apiUrl}/api/admin/canboso/balance`, { headers: getAuthHeaders() }),
+      ]);
+
+      const upstreamData = await upstreamRes.json();
+      if (upstreamData.success) {
+        setUpstreamProducts(upstreamData.products || []);
+        if (upstreamData.dollarRate) {
+          setDollarRate(upstreamData.dollarRate);
+        }
+      }
+
+      const storeProdsData = await storeProdsRes.json();
+      if (storeProdsData.success) {
+        setStoreProducts(storeProdsData.products || []);
+      }
+
+      const catsData = await catsRes.json();
+      if (catsData.success && Array.isArray(catsData.categories)) {
+        setCategories(catsData.categories);
+      }
+
+      const balanceData = await balanceRes.json();
+      if (balanceData.success) {
+        setBalance({ balanceUsd: balanceData.balanceUsd, balanceVnd: balanceData.balanceVnd });
+      }
+    } catch (err) {
+      console.error("Error loading Canboso data:", err);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [apiUrl]);
+
+  const generateSlug = (text: string) => {
+    return text
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, "")
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .trim();
+  };
+
+  const openImportModal = (product: UpstreamProduct) => {
+    setSelectedProduct(product);
+
+    // Check if already connected to a storefront product
+    const existing = storeProducts.find((p) => p.canbosoProductId === String(product.id));
+
+    // Default price estimation: cost USD * dollar rate * 1.35 (35% default margin), rounded up to nearest 10
+    const estimatedCostBdt = product.costUsd * dollarRate;
+    const defaultPriceBdt = Math.ceil((estimatedCostBdt * 1.35) / 10) * 10;
+    const defaultCompareBdt = Math.ceil((defaultPriceBdt * 1.25) / 10) * 10;
+
+    setImportForm({
+      title: existing ? existing.title : product.name,
+      slug: existing ? existing.slug : generateSlug(product.name),
+      category: categories[0]?.name || "",
+      priceBdt: existing ? existing.price : defaultPriceBdt,
+      comparePriceBdt: existing?.compareAtPrice || defaultCompareBdt,
+      description: `Official digital subscription and license for ${product.name}. Instant automated activation and access delivered immediately upon payment.`,
+      image: "",
+      isFeatured: false,
+      isSlider: false,
+      autoFulfill: true,
+    });
+
+    setIsModalOpen(true);
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImage(true);
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("type", "thumbnail");
+
+    try {
+      const token = localStorage.getItem("admin_token");
+      const res = await fetch(`${apiUrl}/api/admin/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+      });
+      const data = await res.json();
+      if (data.success && data.filePath) {
+        setImportForm((prev) => ({ ...prev, image: data.filePath }));
+      } else {
+        alert(data.message || "Image upload failed");
+      }
+    } catch (err) {
+      alert("Error uploading image");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const handleImportSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedProduct) return;
+
+    if (!importForm.title.trim()) {
+      alert("Please specify a product title");
+      return;
+    }
+
+    if (importForm.priceBdt <= 0) {
+      alert("Please provide a valid selling price in BDT");
+      return;
+    }
+
+    setSubmittingImport(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/canboso/import`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          canbosoProductId: selectedProduct.id,
+          title: importForm.title.trim(),
+          slug: importForm.slug.trim() || generateSlug(importForm.title),
+          description: importForm.description,
+          price: Number(importForm.priceBdt),
+          comparePrice: Number(importForm.comparePriceBdt) || undefined,
+          category: importForm.category,
+          image: importForm.image || undefined,
+          isFeatured: importForm.isFeatured,
+          isSlider: importForm.isSlider,
+          autoFulfill: importForm.autoFulfill,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setIsModalOpen(false);
+        alert(data.message || "Product connected to store catalog successfully!");
+        loadData(true);
+      } else {
+        alert(data.message || "Failed to import product.");
+      }
+    } catch (err) {
+      alert("Network error processing import.");
+    } finally {
+      setSubmittingImport(false);
+    }
+  };
+
+  // Filtered Upstream Products
+  const filteredProducts = upstreamProducts.filter((p) => {
+    // Search query
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchName = p.name.toLowerCase().includes(q);
+      const matchId = String(p.id).includes(q);
+      if (!matchName && !matchId) return false;
+    }
+
+    // Stock Filter
+    if (stockFilter === "in_stock" && p.stock <= 0) return false;
+    if (stockFilter === "out_of_stock" && p.stock > 0) return false;
+
+    // Connection Status Filter
+    const isConnected = storeProducts.some((sp) => sp.canbosoProductId === String(p.id));
+    if (statusFilter === "connected" && !isConnected) return false;
+    if (statusFilter === "not_connected" && isConnected) return false;
+
+    return true;
+  });
+
+  // Calculate live financial profit for modal
+  const modalSellingPriceUsd = importForm.priceBdt > 0 ? importForm.priceBdt / dollarRate : 0;
+  const modalCostUsd = selectedProduct?.costUsd || 0;
+  const modalProfitUsd = modalSellingPriceUsd - modalCostUsd;
+  const modalProfitBdt = Math.round(modalProfitUsd * dollarRate);
+  const modalMarginPercent =
+    modalSellingPriceUsd > 0 ? ((modalProfitUsd / modalSellingPriceUsd) * 100).toFixed(1) : "0.0";
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-20">
+        <div className="flex flex-col items-center gap-3">
+          <span className="loading loading-spinner loading-lg text-amber-500"></span>
+          <span className="text-xs font-bold text-stone-600">Connecting to Canboso upstream API...</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8 animate-fadeIn max-w-7xl mx-auto pb-16">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-stone-900 flex items-center gap-2.5">
+            <Server className="w-7 h-7 text-amber-500" /> Canboso Upstream Stock
+          </h1>
+          <p className="text-xs sm:text-sm text-stone-600 font-medium mt-1">
+            Browse live stock, connect digital accounts, set Taka pricing, and preview USD margins
+          </p>
+        </div>
+        <div className="flex items-center gap-2.5">
+          <button
+            onClick={() => loadData(true)}
+            disabled={refreshing}
+            className="btn bg-white hover:bg-stone-50 border-2 border-stone-200 text-stone-900 rounded-xl font-bold text-xs flex items-center gap-2 shadow-xs"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-amber-500 ${refreshing ? "animate-spin" : ""}`} />
+            <span>{refreshing ? "Syncing..." : "Sync Stock"}</span>
+          </button>
+          <Link
+            href="/admin/settings"
+            className="btn bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-bold text-xs shadow-xs"
+          >
+            Settings
+          </Link>
+        </div>
+      </div>
+
+      {/* KPI & Balance Status Bar */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Wallet Balance Card */}
+        <div className="bg-white p-5 rounded-2xl border-2 border-stone-200 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center font-black shrink-0 shadow-xs">
+            <Wallet className="w-6 h-6" />
+          </div>
+          <div className="overflow-hidden">
+            <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
+              Upstream Wallet
+            </span>
+            <div className="text-xl font-black text-stone-900 truncate">
+              {balance ? `$${balance.balanceUsd.toFixed(2)} USD` : "Not Available"}
+            </div>
+            {balance && (
+              <span className="text-[10px] text-stone-400 font-mono block truncate">
+                {balance.balanceVnd.toLocaleString()} VND
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Total Upstream Items */}
+        <div className="bg-white p-5 rounded-2xl border-2 border-stone-200 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-stone-100 text-stone-700 flex items-center justify-center font-bold shrink-0">
+            <Package className="w-6 h-6" />
+          </div>
+          <div>
+            <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
+              Upstream Items
+            </span>
+            <div className="text-xl font-black text-stone-900">{upstreamProducts.length}</div>
+            <span className="text-[10px] text-emerald-600 font-bold block">
+              {upstreamProducts.filter((p) => p.stock > 0).length} in stock
+            </span>
+          </div>
+        </div>
+
+        {/* Connected Store Products */}
+        <div className="bg-white p-5 rounded-2xl border-2 border-stone-200 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold shrink-0">
+            <CheckCircle2 className="w-6 h-6" />
+          </div>
+          <div>
+            <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
+              Store Catalog Linked
+            </span>
+            <div className="text-xl font-black text-emerald-600">
+              {storeProducts.filter((p) => p.canbosoProductId).length}
+            </div>
+            <span className="text-[10px] text-stone-400 block">
+              Connected to auto-fulfillment
+            </span>
+          </div>
+        </div>
+
+        {/* Exchange Rate Card */}
+        <div className="bg-white p-5 rounded-2xl border-2 border-stone-200 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold shrink-0">
+            <DollarSign className="w-6 h-6" />
+          </div>
+          <div>
+            <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
+              Active Rate
+            </span>
+            <div className="text-xl font-black text-stone-900">
+              $1 = ৳{dollarRate}
+            </div>
+            <span className="text-[10px] text-stone-400 block">
+              Changeable in Settings
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Filter and Search Bar */}
+      <div className="bg-white p-5 rounded-2xl border-2 border-stone-200 shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            placeholder="Search upstream products by name or code..."
+            className="input input-bordered w-full pr-10 focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50 text-sm font-semibold"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Search className="w-4 h-4 text-stone-400 absolute right-3.5 top-1/2 -translate-y-1/2" />
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <select
+            className="select select-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50 text-xs font-bold"
+            value={stockFilter}
+            onChange={(e: any) => setStockFilter(e.target.value)}
+          >
+            <option value="all">All Stock Statuses</option>
+            <option value="in_stock">In Stock (&gt;0)</option>
+            <option value="out_of_stock">Out of Stock (0)</option>
+          </select>
+
+          <select
+            className="select select-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50 text-xs font-bold"
+            value={statusFilter}
+            onChange={(e: any) => setStatusFilter(e.target.value)}
+          >
+            <option value="all">All Connection Statuses</option>
+            <option value="connected">Imported / Connected</option>
+            <option value="not_connected">Not Yet Imported</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Upstream Products Table */}
+      <div className="bg-white border-2 border-stone-200 rounded-3xl shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="table w-full text-xs">
+            <thead>
+              <tr className="bg-stone-50 border-b border-stone-200 text-stone-700 font-bold text-xs">
+                <th>Product Name & ID</th>
+                <th>Type</th>
+                <th>Stock Available</th>
+                <th>Upstream Cost (USD)</th>
+                <th>Cost in BDT (~৳)</th>
+                <th>Store Connection</th>
+                <th className="text-right">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredProducts.length > 0 ? (
+                filteredProducts.map((p) => {
+                  const connectedStoreProduct = storeProducts.find(
+                    (sp) => sp.canbosoProductId === String(p.id)
+                  );
+                  const approxCostBdt = Math.round(p.costUsd * dollarRate);
+
+                  return (
+                    <tr key={p.id} className="border-b border-stone-100 hover:bg-stone-50/50">
+                      <td>
+                        <div className="font-extrabold text-stone-900 text-sm">{p.name}</div>
+                        <div className="text-[10px] text-stone-400 font-mono mt-0.5">
+                          ID: {p.id} {p.code ? `• Code: ${p.code}` : ""}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="badge bg-stone-100 text-stone-700 border-none font-bold text-[10px] uppercase">
+                          {p.type || "Account"}
+                        </span>
+                      </td>
+                      <td>
+                        {p.stock > 0 ? (
+                          <span className="badge bg-emerald-100 text-emerald-800 border-none font-bold text-xs py-1.5 px-2.5">
+                            {p.stock} in stock
+                          </span>
+                        ) : (
+                          <span className="badge bg-rose-100 text-rose-800 border-none font-bold text-xs py-1.5 px-2.5">
+                            Out of stock
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span className="font-mono font-bold text-stone-900 text-xs">
+                          ${p.costUsd.toFixed(2)} USD
+                        </span>
+                      </td>
+                      <td>
+                        <span className="font-bold text-amber-600 text-xs">
+                          ~৳{approxCostBdt}
+                        </span>
+                      </td>
+                      <td>
+                        {connectedStoreProduct ? (
+                          <div className="space-y-0.5">
+                            <span className="badge bg-emerald-500 text-white font-bold text-[10px] border-none">
+                              Linked to Store
+                            </span>
+                            <div className="text-[11px] font-bold text-stone-800 truncate max-w-[180px]">
+                              {connectedStoreProduct.title} (৳{connectedStoreProduct.price})
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="badge bg-stone-200 text-stone-600 font-bold text-[10px] border-none">
+                            Not Imported
+                          </span>
+                        )}
+                      </td>
+                      <td className="text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {connectedStoreProduct && (
+                            <Link
+                              href={`/product/${connectedStoreProduct.slug}`}
+                              target="_blank"
+                              className="btn btn-xs btn-ghost text-stone-500 hover:text-stone-900"
+                              title="View on storefront"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </Link>
+                          )}
+                          <button
+                            onClick={() => openImportModal(p)}
+                            className={`btn btn-xs rounded-xl font-bold border-none px-3 ${
+                              connectedStoreProduct
+                                ? "bg-stone-900 hover:bg-stone-800 text-white"
+                                : "bg-amber-400 hover:bg-amber-500 text-stone-950 shadow-xs"
+                            }`}
+                          >
+                            {connectedStoreProduct ? "Edit Pricing" : "Import & Connect"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={7} className="text-center py-12 text-stone-400 font-medium">
+                    No Canboso products found matching criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Import & Connect Product Modal */}
+      {isModalOpen && selectedProduct && (
+        <div className="modal modal-open">
+          <div className="modal-box rounded-3xl max-w-2xl bg-white border border-stone-200 shadow-2xl p-6 sm:p-8 text-stone-900">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-stone-100 pb-4 mb-5">
+              <div>
+                <h3 className="font-black text-xl text-stone-900 flex items-center gap-2">
+                  <Package className="w-5 h-5 text-amber-500" />
+                  Connect Product to Store Catalog
+                </h3>
+                <span className="text-xs text-stone-500 mt-0.5 block">
+                  Upstream: {selectedProduct.name} (ID: {selectedProduct.id})
+                </span>
+              </div>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="btn btn-sm btn-ghost btn-circle"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleImportSubmit} className="space-y-5 text-xs">
+              {/* Live Profit Estimator Banner */}
+              <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-2 pb-2 border-b border-amber-200/60">
+                  <span className="font-bold text-stone-700 flex items-center gap-1.5">
+                    <TrendingUp className="w-4 h-4 text-amber-600" />
+                    Live Accounting & Profit Calculation (Admin USD View)
+                  </span>
+                  <span className="badge bg-amber-400 text-stone-950 font-black text-[10px] border-none">
+                    1 USD = ৳{dollarRate} BDT
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+                  <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                    <span className="text-[10px] text-stone-500 block uppercase font-bold">
+                      Selling Price
+                    </span>
+                    <span className="font-black text-stone-900 text-sm">
+                      ৳{importForm.priceBdt}
+                    </span>
+                    <span className="text-[10px] text-stone-400 block font-mono">
+                      (${modalSellingPriceUsd.toFixed(2)} USD)
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                    <span className="text-[10px] text-stone-500 block uppercase font-bold">
+                      Upstream Cost
+                    </span>
+                    <span className="font-black text-stone-900 text-sm">
+                      ${modalCostUsd.toFixed(2)} USD
+                    </span>
+                    <span className="text-[10px] text-stone-400 block font-mono">
+                      (~৳{Math.round(modalCostUsd * dollarRate)})
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                    <span className="text-[10px] text-stone-500 block uppercase font-bold">
+                      Est. Profit / Unit
+                    </span>
+                    <span
+                      className={`font-black text-sm ${
+                        modalProfitUsd >= 0 ? "text-emerald-600" : "text-rose-600"
+                      }`}
+                    >
+                      ${modalProfitUsd.toFixed(2)} USD
+                    </span>
+                    <span className="text-[10px] text-stone-400 block font-mono">
+                      (~৳{modalProfitBdt})
+                    </span>
+                  </div>
+
+                  <div className="bg-white p-2.5 rounded-xl border border-stone-200">
+                    <span className="text-[10px] text-stone-500 block uppercase font-bold">
+                      Profit Margin
+                    </span>
+                    <span
+                      className={`font-black text-sm ${
+                        parseFloat(modalMarginPercent) >= 0 ? "text-emerald-600" : "text-rose-600"
+                      }`}
+                    >
+                      {modalMarginPercent}%
+                    </span>
+                    <span className="text-[10px] text-stone-400 block">
+                      {parseFloat(modalMarginPercent) > 20 ? "High Return" : "Standard"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Title & Slug */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="form-control">
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-stone-700">Storefront Product Title</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-semibold"
+                    value={importForm.title}
+                    onChange={(e) => {
+                      const newTitle = e.target.value;
+                      setImportForm((prev) => ({
+                        ...prev,
+                        title: newTitle,
+                        slug: generateSlug(newTitle),
+                      }));
+                    }}
+                  />
+                </div>
+
+                <div className="form-control">
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-stone-700">URL Slug</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-mono"
+                    value={importForm.slug}
+                    onChange={(e) =>
+                      setImportForm((prev) => ({ ...prev, slug: generateSlug(e.target.value) }))
+                    }
+                  />
+                </div>
+              </div>
+
+              {/* Pricing & Category */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="form-control">
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-stone-700">
+                      Selling Price (৳ Taka) *
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-bold"
+                    value={importForm.priceBdt || ""}
+                    onChange={(e) =>
+                      setImportForm((prev) => ({
+                        ...prev,
+                        priceBdt: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="form-control">
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-stone-700">
+                      Compare Price (৳ Strike)
+                    </span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    placeholder="e.g. 1500"
+                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-bold"
+                    value={importForm.comparePriceBdt || ""}
+                    onChange={(e) =>
+                      setImportForm((prev) => ({
+                        ...prev,
+                        comparePriceBdt: parseFloat(e.target.value) || 0,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div className="form-control">
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-stone-700">Category</span>
+                  </label>
+                  <select
+                    className="select select-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-semibold"
+                    value={importForm.category}
+                    onChange={(e) =>
+                      setImportForm((prev) => ({ ...prev, category: e.target.value }))
+                    }
+                  >
+                    <option value="">Select Category</option>
+                    {categories.map((c) => (
+                      <option key={c._id} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Image Upload or URL */}
+              <div className="form-control">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-stone-700">Product Thumbnail</span>
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    placeholder="Image URL or upload file..."
+                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs flex-1"
+                    value={importForm.image}
+                    onChange={(e) =>
+                      setImportForm((prev) => ({ ...prev, image: e.target.value }))
+                    }
+                  />
+                  <label className="btn btn-outline btn-sm rounded-xl font-bold cursor-pointer text-xs flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{uploadingImage ? "Uploading..." : "Upload"}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                    />
+                  </label>
+                </div>
+                {importForm.image && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <img
+                      src={
+                        importForm.image.startsWith("http")
+                          ? importForm.image
+                          : `${apiUrl}${importForm.image}`
+                      }
+                      alt="Preview"
+                      className="w-12 h-12 object-cover rounded-lg border border-stone-200"
+                    />
+                    <span className="text-[11px] text-stone-500">Image attached successfully</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Description */}
+              <div className="form-control">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-stone-700">Product Description</span>
+                </label>
+                <textarea
+                  rows={3}
+                  className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs"
+                  value={importForm.description}
+                  onChange={(e) =>
+                    setImportForm((prev) => ({ ...prev, description: e.target.value }))
+                  }
+                />
+              </div>
+
+              {/* Toggles */}
+              <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 space-y-3">
+                <label className="label cursor-pointer justify-start gap-3 p-0">
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-warning toggle-sm"
+                    checked={importForm.autoFulfill}
+                    onChange={(e) =>
+                      setImportForm((prev) => ({ ...prev, autoFulfill: e.target.checked }))
+                    }
+                  />
+                  <div>
+                    <span className="label-text font-bold text-stone-900 block">
+                      Automated Upstream Purchasing
+                    </span>
+                    <span className="text-[11px] text-stone-500 block">
+                      Instantly buys the item from Canboso and sends credentials to user upon payment
+                    </span>
+                  </div>
+                </label>
+
+                <div className="flex items-center gap-6 pt-2 border-t border-stone-200">
+                  <label className="label cursor-pointer gap-2 p-0">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-warning checkbox-xs"
+                      checked={importForm.isFeatured}
+                      onChange={(e) =>
+                        setImportForm((prev) => ({ ...prev, isFeatured: e.target.checked }))
+                      }
+                    />
+                    <span className="label-text font-bold text-xs text-stone-800">
+                      Featured Product
+                    </span>
+                  </label>
+
+                  <label className="label cursor-pointer gap-2 p-0">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-warning checkbox-xs"
+                      checked={importForm.isSlider}
+                      onChange={(e) =>
+                        setImportForm((prev) => ({ ...prev, isSlider: e.target.checked }))
+                      }
+                    />
+                    <span className="label-text font-bold text-xs text-stone-800">
+                      Show in Slider
+                    </span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Submit Buttons */}
+              <div className="modal-action mt-6 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="btn btn-sm btn-ghost rounded-xl font-bold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingImport}
+                  className="btn btn-sm bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold px-6 shadow-xs"
+                >
+                  {submittingImport ? "Connecting..." : "Save & Connect Product"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

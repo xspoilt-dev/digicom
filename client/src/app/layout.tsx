@@ -3,9 +3,12 @@ import "./globals.css";
 import Script from "next/script";
 import { PixelRouteTracker } from "@/components/PixelRouteTracker";
 
+import { CartProvider } from "@/context/CartContext";
+import CartDrawer from "@/components/CartDrawer";
+
 export const metadata: Metadata = {
   title: "Digitalcorebd.com - Premium Digital Hub",
-  description: "Premium Digital Products & Courses Guest Purchase Storefront",
+  description: "Premium Digital Accounts, Workspace Slots & Software Subscriptions",
 };
 
 export default async function RootLayout({
@@ -57,7 +60,6 @@ export default async function RootLayout({
                 s.parentNode.insertBefore(t,s)}(window, document,'script',
                 'https://connect.facebook.net/en_US/fbevents.js');
                 fbq('init', '${pixelId}');
-                fbq('track', 'PageView');
               `}
             </Script>
             <noscript>
@@ -72,7 +74,10 @@ export default async function RootLayout({
           </>
         )}
         <PixelRouteTracker />
-        {children}
+        <CartProvider>
+          {children}
+          <CartDrawer />
+        </CartProvider>
       </body>
     </html>
   );

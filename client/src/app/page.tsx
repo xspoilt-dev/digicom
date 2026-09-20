@@ -1,9 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { trackEvent } from "@/lib/meta/track-event";
 import { getFbCookies } from "@/lib/meta/cookies";
+import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { useCart } from "@/context/CartContext";
+import {
+  Play,
+  FileText,
+  Clock,
+  BookOpen,
+  Star,
+  ShieldCheck,
+  ShoppingCart,
+  ShoppingBag,
+  Zap,
+  Package,
+  ArrowRight,
+  ChevronRight,
+  ChevronLeft,
+  Folder,
+} from "lucide-react";
 
 interface Product {
   _id: string;
@@ -12,59 +32,28 @@ interface Product {
   description: string;
   price: number;
   compareAtPrice?: number;
-  type: "course" | "pdf" | "video" | "zip" | "other";
+  type: "course" | "pdf" | "video" | "zip" | "account" | "slot" | "license" | "other";
   thumbnailPath?: string;
   duration?: string;
   pageCount?: number;
   version?: string;
+  showInSlider?: boolean;
+  isFeatured?: boolean;
+  displaySection?: string;
   checkoutFields: string[];
   isWebDisplay: boolean;
   curriculum: { title: string; duration?: string }[];
+  active?: boolean;
 }
 
-// Inline SVGs for Good Icons
-const SearchIcon = () => (
-  <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "18px", height: "18px" }}>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-  </svg>
-);
-
-const PlayIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "20px", height: "20px" }}>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const DocIcon = () => (
-  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "20px", height: "20px" }}>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-  </svg>
-);
-
-const ClockIcon = () => (
-  <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "16px", height: "16px", display: "inline-block" }}>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-
-const BookOpenIcon = () => (
-  <svg className="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "16px", height: "16px", display: "inline-block" }}>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-  </svg>
-);
-
-const StarIcon = () => (
-  <svg className="w-5 h-5 text-amber-500 fill-amber-400" viewBox="0 0 20 20" style={{ width: "20px", height: "20px" }}>
-    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-  </svg>
-);
-
-const ShieldIcon = () => (
-  <svg className="w-5 h-5 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "20px", height: "20px" }}>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-  </svg>
-);
+// Lucide-based icon wrappers (keep same names so rest of JSX doesn't need changes)
+const SearchIcon = () => <svg className="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>;
+const PlayIcon = () => <Play className="w-5 h-5" style={{ width: 20, height: 20 }} />;
+const DocIcon = () => <FileText className="w-5 h-5" style={{ width: 20, height: 20 }} />;
+const ClockIcon = () => <Clock className="w-4 h-4 text-primary" style={{ width: 16, height: 16, display: "inline-block" }} />;
+const BookOpenIcon = () => <BookOpen className="w-4 h-4 text-primary" style={{ width: 16, height: 16, display: "inline-block" }} />;
+const StarIcon = () => <Star className="w-5 h-5 text-amber-500 fill-amber-400" style={{ width: 20, height: 20 }} />;
+const ShieldIcon = () => <ShieldCheck className="w-5 h-5 text-success" style={{ width: 20, height: 20 }} />;
 
 export default function StoreHome() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -76,6 +65,11 @@ export default function StoreHome() {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({ name: "", email: "", phone: "" });
   const [submittingCheckout, setSubmittingCheckout] = useState(false);
+  const [categories, setCategories] = useState<{ _id: string; name: string; slug: string; description?: string; products: Product[] }[]>([]);
+
+  // Cart & Router
+  const { addToCart } = useCart();
+  const router = useRouter();
 
   // Active banner slide
   const [activeSlide, setActiveSlide] = useState(0);
@@ -83,15 +77,25 @@ export default function StoreHome() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   useEffect(() => {
-    async function fetchProducts() {
+    async function fetchData() {
       try {
-        const res = await fetch(`${apiUrl}/api/products`);
-        const data = await res.json();
-        if (data.success) {
-          setProducts(data.products);
-          setFilteredProducts(data.products);
+        const [productsRes, categoriesRes] = await Promise.all([
+          fetch(`${apiUrl}/api/products`),
+          fetch(`${apiUrl}/api/categories`),
+        ]);
+        const productsData = await productsRes.json();
+        const categoriesData = await categoriesRes.json();
+
+        if (productsData.success) {
+          const list: Product[] = productsData.products || [];
+          setProducts(list);
+          setFilteredProducts(list);
         } else {
-          setError(data.message || "পণ্য লোড করতে ব্যর্থ হয়েছে");
+          setError(productsData.message || "পণ্য লোড করতে ব্যর্থ হয়েছে");
+        }
+
+        if (categoriesData.success) {
+          setCategories(categoriesData.categories || []);
         }
       } catch (err: any) {
         setError("ব্যাকএন্ড সার্ভারের সাথে যোগাযোগ করা যাচ্ছে না।");
@@ -99,7 +103,7 @@ export default function StoreHome() {
         setLoading(false);
       }
     }
-    fetchProducts();
+    fetchData();
   }, [apiUrl]);
 
   // Handle local searching in-place
@@ -147,7 +151,7 @@ export default function StoreHome() {
       {
         email: formData.email,
         phone: formData.phone,
-        skipCapi: true, // Backend /api/checkout triggers server CAPI with this exact metaEventId for deduplication
+        skipCapi: true,
       }
     );
 
@@ -184,12 +188,62 @@ export default function StoreHome() {
     }
   };
 
-  // Featured slide products mapping
-  const featuredProducts = products.filter((p) => p.price > 100).slice(0, 3);
+  // Helper to get friendly Bengali labels for digital product types
+  const getProductTypeLabel = (type: string) => {
+    switch (type) {
+      case "account":
+        return "অ্যাকাউন্ট";
+      case "slot":
+        return "টিম স্লট";
+      case "license":
+        return "লাইসেন্স কী";
+      case "course":
+        return "ভিডিও কোর্স";
+      case "pdf":
+        return "ইবুক / গাইড";
+      case "video":
+        return "ভিডিও";
+      case "zip":
+        return "জিপ ফাইল";
+      default:
+        return "ডিজিটাল";
+    }
+  };
+
+  // Products to show in the top slider (Admin controls via showInSlider or isFeatured)
+  const sliderProducts = products.filter((p) => p.showInSlider && p.active !== false);
+  const displaySliderProducts =
+    sliderProducts.length > 0
+      ? sliderProducts
+      : products.filter((p) => p.isFeatured && p.active !== false).length > 0
+      ? products.filter((p) => p.isFeatured && p.active !== false)
+      : products.filter((p) => p.active !== false).slice(0, 3);
+
+  // Featured products section (prioritizes products flagged as isFeatured by admin)
+  const explicitlyFeatured = filteredProducts.filter((p) => p.isFeatured && p.active !== false);
+  const displayFeaturedProducts =
+    explicitlyFeatured.length > 0
+      ? explicitlyFeatured
+      : filteredProducts.slice(0, 3);
+
+  // Catalog products (remaining items not in featured section, or all if none featured)
+  const displayCatalogProducts =
+    explicitlyFeatured.length > 0
+      ? filteredProducts.filter((p) => !explicitlyFeatured.some((feat) => feat._id === p._id))
+      : filteredProducts.slice(3);
+
+  // Auto-advance slider if more than 1 item
+  useEffect(() => {
+    if (displaySliderProducts.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % displaySliderProducts.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [displaySliderProducts.length]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200">
+      <div className="min-h-screen flex items-center justify-center bg-base-200" data-theme="lightyellow">
         <div className="flex flex-col items-center gap-4">
           <span className="loading loading-spinner loading-lg text-primary"></span>
           <span className="text-primary font-bold">লোডিং হচ্ছে...</span>
@@ -198,386 +252,393 @@ export default function StoreHome() {
     );
   }
 
+  const currentSlideProduct = displaySliderProducts[activeSlide] || displaySliderProducts[0];
+
   return (
     <div className="min-h-screen flex flex-col bg-base-200" data-theme="lightyellow">
       
-      {/* Navbar with search bar and buttons */}
-      <div className="navbar bg-base-100 shadow-md sticky top-0 z-50 px-4 md:px-8 border-b border-base-300">
-        <div className="navbar-start gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-black text-xl text-primary-content shadow-md">
-              D
-            </div>
-            <div>
-              <span className="text-lg md:text-xl font-extrabold tracking-tight text-base-content">
-                Digitalcorebd.com
-              </span>
-              <div className="text-[10px] text-base-content/60 font-semibold mt-[-3px] block">
-                ডিজিটাল বুক ও কোর্স
-              </div>
-            </div>
-          </div>
-        </div>
+      {/* Navbar with brand, search and live cart */}
+      <Navbar />
 
-        {/* Center: Search Bar */}
-        <div className="navbar-center hidden md:flex w-full max-w-md">
-          <form onSubmit={handleSearchSubmit} className="relative w-full flex items-center">
-            <input
-              type="text"
-              placeholder="পণ্য বা কোর্স খুঁজুন..."
-              className="input input-bordered w-full pr-12 focus:input-primary rounded-full bg-base-200 text-sm border-base-300 text-base-content"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-            <button type="submit" className="btn btn-ghost btn-circle absolute right-1">
-              <SearchIcon />
-            </button>
-          </form>
-        </div>
+      {/* Top Slider Banner - Ultra-Compact Horizontal Layout in White & Yellow Theme */}
+      {currentSlideProduct && (
+        <section className="container mx-auto px-4 md:px-8 mt-4 sm:mt-6">
+          <div className="relative max-w-2xl mx-auto rounded-2xl sm:rounded-3xl bg-gradient-to-r from-amber-50/90 via-yellow-50/70 to-white text-stone-900 p-3 sm:p-4 shadow-sm border-2 border-amber-300/80 overflow-hidden">
+            
+            {/* Prev Arrow */}
+            {displaySliderProducts.length > 1 && (
+              <button
+                type="button"
+                onClick={() =>
+                  setActiveSlide((prev) => (prev - 1 + displaySliderProducts.length) % displaySliderProducts.length)
+                }
+                className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 hover:bg-amber-100 text-stone-800 flex items-center justify-center transition-all shadow-xs border border-amber-200 active:scale-90"
+                aria-label="Previous Slide"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            )}
 
-        <div className="navbar-end gap-3">
-          <a href="/shop" className="btn btn-ghost font-bold text-sm text-base-content">
-            সব পণ্য
-          </a>
-        </div>
-      </div>
+            {/* Next Arrow */}
+            {displaySliderProducts.length > 1 && (
+              <button
+                type="button"
+                onClick={() => setActiveSlide((prev) => (prev + 1) % displaySliderProducts.length)}
+                className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 hover:bg-amber-100 text-stone-800 flex items-center justify-center transition-all shadow-xs border border-amber-200 active:scale-90"
+                aria-label="Next Slide"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            )}
 
-      {/* Mobile search bar trigger */}
-      <div className="p-4 bg-base-100 md:hidden border-b border-base-300">
-        <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full">
-          <input
-            type="text"
-            placeholder="পণ্য বা কোর্স খুঁজুন..."
-            className="input input-bordered w-full pr-12 focus:input-primary rounded-full text-sm"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <button type="submit" className="btn btn-ghost btn-circle absolute right-1">
-            <SearchIcon />
-          </button>
-        </form>
-      </div>
-
-      {/* Featured Products Slider Banner (Carousel style) */}
-      {featuredProducts.length > 0 && (
-        <section className="container mx-auto px-4 md:px-8 mt-8">
-          <div className="relative overflow-hidden rounded-3xl bg-neutral text-neutral-content p-6 md:p-12 shadow-xl border border-neutral-content/10">
-            {/* Background elements decoration */}
-            <div className="absolute right-0 bottom-0 w-80 h-80 rounded-full bg-primary/10 blur-3xl"></div>
-            <div className="absolute left-10 top-0 w-60 h-60 rounded-full bg-amber-400/5 blur-3xl"></div>
-
-            <div className="flex flex-col md:flex-row items-center justify-between gap-8 relative z-10">
-              <div className="flex-1 text-center md:text-left">
-                <span className="badge badge-primary font-bold text-xs uppercase tracking-wider py-3 px-4 mb-4">
-                  ফিচার্ড ডিজিটাল প্রোডাক্ট
-                </span>
-                <h1 className="text-3xl md:text-5xl font-black text-white leading-tight mb-4">
-                  {featuredProducts[activeSlide].title}
-                </h1>
-                <p className="text-neutral-content/85 text-sm md:text-base max-w-xl mb-6">
-                  {featuredProducts[activeSlide].description}
-                </p>
-
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mb-8">
-                  <div className="flex items-center gap-2 text-primary font-extrabold text-2xl">
-                    ৳{featuredProducts[activeSlide].price}
+            {/* Horizontal Content: Left Image, Right Details */}
+            <div className="flex items-center gap-3 sm:gap-4 px-6 sm:px-8">
+              {/* Product Thumbnail (Left) */}
+              <Link
+                href={`/product/${currentSlideProduct.slug}`}
+                className="w-20 sm:w-24 md:w-28 aspect-[3/4] bg-white rounded-xl overflow-hidden shrink-0 border border-amber-200 block relative group shadow-2xs"
+              >
+                {currentSlideProduct.thumbnailPath ? (
+                  <img
+                    src={`${apiUrl}/${currentSlideProduct.thumbnailPath}`}
+                    alt={currentSlideProduct.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-amber-500">
+                    <Package className="w-8 h-8" />
                   </div>
-                  {featuredProducts[activeSlide].compareAtPrice && (
-                    <div className="text-neutral-content/40 line-through text-sm">
-                      ৳{featuredProducts[activeSlide].compareAtPrice}
-                    </div>
+                )}
+              </Link>
+
+              {/* Product Details (Right) */}
+              <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+                {/* Title */}
+                <Link
+                  href={`/product/${currentSlideProduct.slug}`}
+                  className="hover:text-amber-700 transition-colors block"
+                >
+                  <h2 className="text-xs sm:text-sm md:text-base font-bold text-stone-900 leading-snug line-clamp-2">
+                    {currentSlideProduct.title}
+                  </h2>
+                </Link>
+
+                {/* Price Row (Main Price + Strikethrough + Discount Badge) */}
+                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                  <span className="text-sm sm:text-base font-black text-amber-600">
+                    ৳{currentSlideProduct.price}
+                  </span>
+                  {currentSlideProduct.compareAtPrice && currentSlideProduct.compareAtPrice > currentSlideProduct.price ? (
+                    <>
+                      <span className="text-xs text-stone-400 line-through">
+                        ৳{currentSlideProduct.compareAtPrice}
+                      </span>
+                      <span className="text-[10px] bg-amber-400 text-stone-950 font-bold px-1.5 py-0.5 rounded-md shadow-2xs">
+                        {Math.round(
+                          ((currentSlideProduct.compareAtPrice - currentSlideProduct.price) /
+                            currentSlideProduct.compareAtPrice) *
+                            100
+                        )}
+                        % ছাড়
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-xs text-stone-400 line-through">
+                        ৳{Math.round(currentSlideProduct.price * 1.5)}
+                      </span>
+                      <span className="text-[10px] bg-amber-400 text-stone-950 font-bold px-1.5 py-0.5 rounded-md shadow-2xs">
+                        অফার
+                      </span>
+                    </>
                   )}
                 </div>
 
-                <div className="flex gap-3 justify-center md:justify-start">
+                {/* Action Button: Golden-Yellow 'এখনই কিনুন' button */}
+                <div className="mt-2.5">
                   <button
-                    onClick={() => openCheckout(featuredProducts[activeSlide])}
-                    className="btn btn-primary btn-lg rounded-full font-bold shadow-lg"
+                    type="button"
+                    onClick={() => {
+                      addToCart({
+                        productId: currentSlideProduct._id,
+                        title: currentSlideProduct.title,
+                        price: currentSlideProduct.price,
+                        compareAtPrice: currentSlideProduct.compareAtPrice,
+                        thumbnailPath: currentSlideProduct.thumbnailPath,
+                        type: currentSlideProduct.type,
+                        slug: currentSlideProduct.slug,
+                      });
+                      router.push("/checkout");
+                    }}
+                    className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl btn-xs sm:btn-sm h-7 sm:h-8 px-3.5 font-bold text-xs flex items-center gap-1.5 shadow-2xs active:scale-95"
                   >
-                    কিনুন - এখন মাত্র ৳{featuredProducts[activeSlide].price}
+                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <span>এখনই কিনুন</span>
                   </button>
                 </div>
               </div>
+            </div>
 
-              {/* Slider Image Placeholder Visual block */}
-              <div className="w-full md:w-96 h-60 md:h-72 bg-base-100/5 rounded-2xl flex items-center justify-center border border-white/10 relative overflow-hidden">
-                {featuredProducts[activeSlide].thumbnailPath ? (
-                  <img
-                    src={`${apiUrl}/${featuredProducts[activeSlide].thumbnailPath}`}
-                    alt={featuredProducts[activeSlide].title}
-                    className="w-full h-full object-cover"
+            {/* Pagination Dots at Bottom */}
+            {displaySliderProducts.length > 1 && (
+              <div className="flex justify-center items-center gap-1 mt-2.5">
+                {displaySliderProducts.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveSlide(idx)}
+                    className={`h-1 rounded-full transition-all duration-300 ${
+                      idx === activeSlide ? "w-5 bg-amber-500" : "w-1.5 bg-amber-200 hover:bg-amber-300"
+                    }`}
+                    aria-label={`Slide ${idx + 1}`}
                   />
-                ) : (
-                  <div className="flex flex-col items-center gap-3 text-primary">
-                    <PlayIcon />
-                    <span className="text-xs uppercase font-extrabold tracking-widest text-neutral-content/50">
-                      ডিজিটাল প্রোডাক্ট গাইড
-                    </span>
-                  </div>
-                )}
+                ))}
               </div>
-            </div>
-
-            {/* Slider Switcher buttons */}
-            <div className="flex justify-center md:justify-start gap-2 mt-8 relative z-10">
-              {featuredProducts.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setActiveSlide(idx)}
-                  className={`w-3 h-3 rounded-full transition-all duration-350 ${
-                    idx === activeSlide ? "bg-primary w-8" : "bg-white/20"
-                  }`}
-                />
-              ))}
-            </div>
+            )}
           </div>
         </section>
       )}
 
-      {/* Main product showcase section */}
-      <main className="container mx-auto px-4 md:px-8 py-12 flex-1">
-        
+      {/* Main product showcase — Category by Category */}
+      <main className="container mx-auto px-4 md:px-8 py-8 flex-1">
+
         {error && (
-          <div className="alert alert-error shadow-md mb-8">
-            <span className="font-semibold">{error}</span>
+          <div className="alert alert-error shadow-md mb-6 text-sm">
+            <span>{error}</span>
           </div>
         )}
 
-        {/* TOP LISTED PRODUCTS */}
-        {filteredProducts.length > 0 && (
-          <section className="mb-16">
-            <div className="flex items-center gap-3 mb-8">
-              <span className="bg-primary/20 p-2 rounded-lg text-primary"><StarIcon /></span>
-              <h2 className="text-2xl font-black text-base-content">
-                আমাদের সেরা ও জনপ্রিয় প্রোডাক্টসমূহ
-              </h2>
+        {loading ? (
+          <div className="flex flex-col items-center py-20 gap-3">
+            <span className="loading loading-spinner loading-lg text-amber-500"></span>
+            <span className="text-stone-400 text-sm">লোড হচ্ছে...</span>
+          </div>
+        ) : categories.length === 0 ? (
+          /* No categories configured yet — fall back to flat product grid */
+          <section className="mb-12">
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-1 h-6 bg-amber-400 rounded-full"></div>
+              <h2 className="text-lg font-bold text-stone-800">সকল পণ্য</h2>
             </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
-              {filteredProducts.slice(0, 3).map((product) => (
-                <div key={product._id} className="card bg-base-100 shadow-lg border border-base-300 transition-all hover:-translate-y-2 hover:shadow-2xl">
-                  <figure className="relative h-48 bg-base-200">
-                    {product.thumbnailPath ? (
-                      <img
-                        src={`${apiUrl}/${product.thumbnailPath}`}
-                        alt={product.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-primary flex flex-col items-center gap-2">
-                        {product.type === "course" ? <PlayIcon /> : <DocIcon />}
-                        <span className="text-xs font-bold uppercase text-stone-400">ডিজিটাল ক্যাটালগ</span>
-                      </div>
-                    )}
-                    <span className="badge badge-primary absolute top-4 right-4 py-3 px-3 font-bold text-xs">
-                      শীর্ষ পণ্য
-                    </span>
-                  </figure>
-                  
-                  <div className="card-body">
-                    <h3 className="card-title text-base-content text-lg font-bold">
-                      {product.title}
-                    </h3>
-                    <p className="text-sm text-base-content/70 line-clamp-3">
-                      {product.description}
-                    </p>
-
-                    <div className="flex gap-4 text-xs text-base-content/60 my-2">
-                      {product.type === "course" && product.duration && (
-                        <span className="flex items-center gap-1"><ClockIcon /> {product.duration}</span>
-                      )}
-                      {product.type === "pdf" && product.pageCount && (
-                        <span className="flex items-center gap-1"><BookOpenIcon /> {product.pageCount} পৃষ্ঠা</span>
-                      )}
-                    </div>
-
-                    <div className="card-actions justify-between items-center mt-4 pt-4 border-t border-base-200">
-                      <div>
-                        <span className="text-2xl font-black text-primary">৳{product.price}</span>
-                        {product.compareAtPrice && (
-                          <span className="text-xs text-base-content/40 line-through ml-2">৳{product.compareAtPrice}</span>
-                        )}
-                      </div>
-                      <button onClick={() => openCheckout(product)} className="btn btn-primary rounded-full btn-sm font-bold">
-                        কিনুন
-                      </button>
-                    </div>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+              {filteredProducts.map((product) => (
+                <ProductCard key={product._id} product={product} apiUrl={apiUrl} addToCart={addToCart} router={router} />
               ))}
             </div>
           </section>
+        ) : (
+          /* Category-by-category display — admin-controlled order */
+          <div className="space-y-14">
+            {categories.map((cat) => (
+              cat.products.length > 0 && (
+                <section key={cat._id} className="scroll-mt-6">
+                  {/* Category Section Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-stone-200/80 gap-3">
+                    <div className="flex items-start sm:items-center gap-3">
+                      <div className="w-1.5 h-8 bg-amber-400 rounded-full mt-0.5 sm:mt-0"></div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h2 className="text-lg sm:text-xl font-black text-stone-900 leading-tight">
+                            {cat.name}
+                          </h2>
+                          <span className="text-[11px] font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-200">
+                            {cat.products.length}টি পণ্য
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* "সব পণ্য দেখুন" Button for that category route */}
+                    <Link
+                      href={`/category/${cat.slug}`}
+                      className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-stone-900 hover:text-amber-800 bg-white hover:bg-amber-50 border border-stone-300 hover:border-amber-400 px-4 py-2 rounded-xl transition-all shadow-xs shrink-0 self-start sm:self-auto"
+                    >
+                      <span>সব পণ্য দেখুন</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-amber-600" />
+                    </Link>
+                  </div>
+
+                  {/* 2-col mobile, 3-4 col desktop grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+                    {cat.products.map((product) => (
+                      <ProductCard key={product._id} product={product} apiUrl={apiUrl} addToCart={addToCart} router={router} />
+                    ))}
+                  </div>
+
+                  {/* Mobile "সব পণ্য দেখুন" bottom bar if 2+ products */}
+                  <div className="sm:hidden mt-3">
+                    <Link
+                      href={`/category/${cat.slug}`}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-stone-700 bg-stone-100 hover:bg-stone-200 rounded-xl transition-colors border border-stone-200"
+                    >
+                      <span>{cat.name}-এর সব পণ্য দেখুন ({cat.products.length})</span>
+                      <ArrowRight className="w-3 h-3 text-amber-600" />
+                    </Link>
+                  </div>
+                </section>
+              )
+            ))}
+          </div>
         )}
 
-        {/* ALL OTHER PRODUCTS */}
-        <section className="mb-12">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-3 h-8 bg-primary rounded-full"></div>
-            <h2 className="text-2xl font-black text-base-content">
-              সকল প্রোডাক্ট তালিকা
-            </h2>
-          </div>
-
-          {filteredProducts.length === 0 ? (
-            <div className="card bg-base-100 p-12 text-center border border-base-300">
-              <p className="text-base-content/70 font-bold">দুঃখিত, কোনো প্রোডাক্ট পাওয়া যায়নি!</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {filteredProducts.slice(3).map((product) => (
-                <div key={product._id} className="card bg-base-100 shadow-md border border-base-300 hover:shadow-xl transition-all">
-                  <figure className="relative h-40 bg-base-200">
-                    {product.thumbnailPath ? (
-                      <img
-                        src={`${apiUrl}/${product.thumbnailPath}`}
-                        alt={product.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-primary flex flex-col items-center gap-2">
-                        {product.type === "course" ? <PlayIcon /> : <DocIcon />}
-                      </div>
-                    )}
-                    <span className="badge badge-primary absolute top-3 right-3 text-[10px] font-bold py-2">
-                      {product.type === "course" ? "কোর্স" : product.type === "pdf" ? "বই" : "ফাইল"}
-                    </span>
-                  </figure>
-                  
-                  <div className="card-body p-5">
-                    <h3 className="card-title text-base text-base-content font-bold line-clamp-1">
-                      {product.title}
-                    </h3>
-                    <p className="text-xs text-base-content/75 line-clamp-2">
-                      {product.description}
-                    </p>
-
-                    <div className="card-actions justify-between items-center mt-3 pt-3 border-t border-base-200">
-                      <span className="text-lg font-black text-primary">৳{product.price}</span>
-                      <button onClick={() => openCheckout(product)} className="btn btn-primary rounded-full btn-xs px-3 font-bold">
-                        কিনুন
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {/* Link section to full shop page */}
-        <section className="mt-16">
-          <div className="card bg-gradient-to-r from-primary/10 to-amber-400/5 p-8 md:p-12 text-center rounded-3xl border border-primary/20 shadow-md max-w-4xl mx-auto">
-            <h2 className="text-xl md:text-3xl font-black text-base-content mb-4">
-              আমাদের সকল ডিজিটাল পণ্যের লাইব্রেরি দেখতে চান?
-            </h2>
-            <p className="text-base-content/80 text-sm max-w-xl mx-auto mb-8 leading-relaxed">
-              বাজেট ফিল্টার, ক্যাটাগরি সাজানো এবং উন্নত সার্চ ফিচার ব্যবহার করে আপনার প্রয়োজনীয় প্রোডাক্টটি শপ পেজ থেকে খুঁজে নিন।
-            </p>
-            <a href="/shop" className="btn btn-primary btn-lg rounded-full font-bold shadow-lg">
-              আমাদের শপ-এ প্রবেশ করুন
-            </a>
-          </div>
-        </section>
+        {/* Shop CTA */}
+        <div className="mt-14 py-8 text-center border-t border-stone-200/80">
+          <p className="text-sm text-stone-500 mb-3 font-medium">আরও বিস্তারিত ও উন্নত ফিল্টারিং করতে আমাদের পুরো ক্যাটালগ দেখুন</p>
+          <Link href="/shop" className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 font-bold border-none rounded-full px-8 shadow-sm">
+            সকল পণ্য ও শপ ব্রাউজ করুন
+          </Link>
+        </div>
 
       </main>
 
-      {/* Guest Checkout Modal Popup */}
-      {selectedProduct && (
-        <div className="modal modal-open">
-          <div className="modal-box rounded-3xl max-w-lg border border-base-300 shadow-2xl relative">
-            <button
-              onClick={() => setSelectedProduct(null)}
-              className="btn btn-sm btn-circle btn-ghost absolute right-4 top-4"
-            >
-              ✕
-            </button>
-            <h3 className="font-black text-xl text-base-content mb-2">গেস্ট চেকআউট</h3>
-            <p className="text-xs text-base-content/70 mb-6">
-              পণ্য: <span className="font-bold text-primary">{selectedProduct.title}</span>
-            </p>
+      <Footer />
+    </div>
+  );
+}
 
-            <form onSubmit={handleCheckoutSubmit} className="space-y-4">
-              {selectedProduct.checkoutFields.includes("name") && (
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text font-bold text-base-content/85">আপনার নাম</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="পূর্ণ নাম লিখুন"
-                    className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  />
-                </div>
-              )}
+// ─── Reusable Product Card ───────────────────────────────────────────────────
 
-              {selectedProduct.checkoutFields.includes("email") && (
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text font-bold text-base-content/85">ইমেইল এড্রেস</span>
-                  </label>
-                  <input
-                    type="email"
-                    required
-                    placeholder="name@example.com"
-                    className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  />
-                </div>
-              )}
+function ProductCard({
+  product,
+  apiUrl,
+  addToCart,
+  router,
+}: {
+  product: any;
+  apiUrl: string;
+  addToCart: (item: any) => void;
+  router: any;
+}) {
+  const getLabel = (type: string) => {
+    const map: Record<string, string> = {
+      account: "Account", slot: "Slot", license: "License",
+      course: "Course", pdf: "PDF", video: "Video", zip: "ZIP", other: "Digital",
+    };
+    return map[type] || "Digital";
+  };
 
-              {selectedProduct.checkoutFields.includes("phone") && (
-                <div className="form-control">
-                  <label className="label">
-                    <span className="label-text font-bold text-base-content/85">মোবাইল নম্বর</span>
-                  </label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="উদাঃ ০১৭xxxxxxxx"
-                    className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100"
-                    value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
-                </div>
-              )}
+  const discountPercent =
+    product.compareAtPrice && product.compareAtPrice > product.price
+      ? Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)
+      : null;
 
-              {/* Automated ZiniPay Hosted Checkout Notice */}
-              <div className="bg-primary/10 border border-primary/20 rounded-2xl p-4 flex items-center gap-3 mt-4">
-                <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center text-primary-content shadow-xs shrink-0">
-                  <ShieldIcon />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-base-content">তাৎক্ষণিক ডিজিটাল পেমেন্ট</div>
-                  <div className="text-[11px] text-base-content/70 font-medium">বিকাশ, নগদ, রকেট এবং কার্ডের মাধ্যমে নিরাপদ পেমেন্ট সম্পন্ন করুন</div>
-                </div>
-              </div>
+  return (
+    <div className="bg-white rounded-2xl border border-stone-200/90 hover:border-amber-400 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between group">
+      {/* Product Image */}
+      <Link href={`/product/${product.slug}`} className="block">
+        <figure className="relative aspect-square sm:aspect-[4/3] bg-stone-100 overflow-hidden">
+          {product.thumbnailPath ? (
+            <img
+              src={`${apiUrl}/${product.thumbnailPath}`}
+              alt={product.title}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <Package className="w-10 h-10 text-stone-300" />
+            </div>
+          )}
 
-              {/* Total checkout amount display */}
-              <div className="flex justify-between items-center bg-base-200 p-4 rounded-2xl border border-base-300 mt-6">
-                <span className="font-semibold text-sm text-base-content">পরিশোধযোগ্য টাকা:</span>
-                <span className="text-2xl font-black text-primary">৳{selectedProduct.price}</span>
-              </div>
+          {/* Top-Left Discount Badge */}
+          {discountPercent ? (
+            <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-lg shadow-xs">
+              {discountPercent}% ছাড়
+            </span>
+          ) : (
+            <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-lg shadow-xs">
+              অফার
+            </span>
+          )}
 
-              <div className="modal-action">
-                <button
-                  type="submit"
-                  disabled={submittingCheckout}
-                  className="btn btn-primary w-full rounded-xl font-bold py-3 text-base shadow-lg"
-                >
-                  {submittingCheckout ? "অর্ডার প্রসেস হচ্ছে..." : `পেমেন্ট সম্পন্ন করুন (৳${selectedProduct.price})`}
-                </button>
-              </div>
-            </form>
+          {/* Type Badge on Top-Right */}
+          <span className="absolute top-2 right-2 bg-white/95 text-stone-800 font-bold text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-xs border border-stone-200">
+            {getLabel(product.type)}
+          </span>
+        </figure>
+      </Link>
+
+      {/* Card Body */}
+      <div className="p-3 sm:p-4 flex flex-col flex-1 justify-between gap-2">
+        <div>
+          {/* Title */}
+          <Link href={`/product/${product.slug}`} className="block">
+            <h3 className="text-xs sm:text-sm font-bold text-stone-900 group-hover:text-amber-700 line-clamp-2 leading-snug transition-colors">
+              {product.title}
+            </h3>
+          </Link>
+
+          {/* Star Rating Row (as in screenshot) */}
+          <div className="flex items-center gap-1 mt-1.5">
+            <div className="flex items-center text-amber-400">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+              ))}
+            </div>
+            <span className="text-[11px] font-bold text-stone-700 ml-0.5">4.9</span>
+          </div>
+
+          {/* Price Row (Own Line) */}
+          <div className="flex items-baseline gap-2 mt-2">
+            <span className="text-base sm:text-lg font-black text-stone-900">
+              ৳{product.price}
+            </span>
+            {product.compareAtPrice && product.compareAtPrice > product.price ? (
+              <span className="text-xs text-stone-400 line-through">
+                ৳{product.compareAtPrice}
+              </span>
+            ) : (
+              <span className="text-xs text-stone-400 line-through">
+                ৳{Math.round(product.price * 1.5)}
+              </span>
+            )}
           </div>
         </div>
-      )}
 
-      {/* Footer */}
-      <Footer />
+        {/* Buttons Row (Side-by-Side: Cart + Crimson Buy) */}
+        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-100">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              addToCart({
+                productId: product._id,
+                title: product.title,
+                price: product.price,
+                compareAtPrice: product.compareAtPrice,
+                thumbnailPath: product.thumbnailPath,
+                type: product.type,
+                slug: product.slug,
+              });
+            }}
+            className="w-full btn bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 hover:border-amber-400 rounded-xl btn-xs sm:btn-sm font-bold text-xs h-8 sm:h-9 min-h-0 flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-95"
+            title="কার্টে যোগ করুন"
+          >
+            <ShoppingCart className="w-3.5 h-3.5 text-stone-700" />
+            <span>কার্ট</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              addToCart({
+                productId: product._id,
+                title: product.title,
+                price: product.price,
+                compareAtPrice: product.compareAtPrice,
+                thumbnailPath: product.thumbnailPath,
+                type: product.type,
+                slug: product.slug,
+              });
+              router.push("/checkout");
+            }}
+            className="w-full btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl btn-xs sm:btn-sm font-bold text-xs h-8 sm:h-9 min-h-0 flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-95"
+            title="এখনই কিনুন"
+          >
+            <ShoppingBag className="w-3.5 h-3.5 text-stone-950" />
+            <span>কিনুন</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

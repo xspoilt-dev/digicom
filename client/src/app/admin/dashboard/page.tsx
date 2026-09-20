@@ -1,18 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-const ProductsIcon = () => (
-  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "20px", height: "20px" }}>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-  </svg>
-);
-
-const TransactionsIcon = () => (
-  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" style={{ width: "20px", height: "20px" }}>
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-  </svg>
-);
+import {
+  LayoutDashboard,
+  ShoppingBag,
+  CreditCard,
+  TrendingUp,
+  Clock,
+  CheckCircle2,
+  DollarSign,
+  Package,
+} from "lucide-react";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
@@ -44,61 +42,119 @@ export default function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <span className="loading loading-spinner text-primary"></span>
+      <div className="flex items-center justify-center p-16">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
       </div>
     );
   }
 
   if (!stats) {
     return (
-      <div className="alert alert-error">
-        <span>Failed to load dashboard metrics. Check server status.</span>
+      <div className="p-6 bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl text-sm font-semibold">
+        Failed to load dashboard metrics. Check server status.
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn max-w-7xl mx-auto pb-12">
       <div>
-        <h1 className="text-3xl font-black text-base-content">Dashboard Overview</h1>
-        <p className="text-xs text-base-content/65 font-semibold mt-1">General dashboard metrics and performance tracking</p>
+        <h1 className="text-2xl sm:text-3xl font-black text-stone-900 flex items-center gap-2.5">
+          <LayoutDashboard className="w-7 h-7 text-amber-500" /> Dashboard Overview
+        </h1>
+        <p className="text-xs sm:text-sm text-stone-600 font-medium mt-1">
+          Store sales performance, completed fulfillments, and financial metrics
+        </p>
       </div>
 
-      {/* KPI Cards widget */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="card bg-base-100 p-6 border border-base-300 shadow-sm flex flex-col gap-2 rounded-2xl">
-          <span className="text-xs text-base-content/60 font-bold uppercase tracking-wider">Total Sales</span>
-          <span className="text-3xl font-black text-primary">৳{stats.totalSales}</span>
+      {/* Financial Accounting KPI Cards (USD for Admin, BDT Context) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="bg-white p-6 border-2 border-stone-200 shadow-sm flex flex-col justify-between gap-3 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">Total Sales (USD)</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+              <DollarSign className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-3xl font-black text-stone-900">
+              ${(stats.totalSalesUsd || (stats.totalSales / (stats.dollarRate || 127))).toFixed(2)}
+            </div>
+            <span className="text-xs font-semibold text-stone-500 mt-0.5 block">
+              ৳{stats.totalSales} BDT
+            </span>
+          </div>
         </div>
-        <div className="card bg-base-100 p-6 border border-base-300 shadow-sm flex flex-col gap-2 rounded-2xl">
-          <span className="text-xs text-base-content/60 font-bold uppercase tracking-wider">Total Orders</span>
-          <span className="text-3xl font-black text-base-content">{stats.totalOrders}</span>
+
+        <div className="bg-white p-6 border-2 border-stone-200 shadow-sm flex flex-col justify-between gap-3 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">Upstream Cost (USD)</span>
+            <div className="w-8 h-8 rounded-xl bg-stone-100 flex items-center justify-center text-stone-700">
+              <Package className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-3xl font-black text-stone-900">
+              ${(stats.totalCostUsd || 0).toFixed(2)}
+            </div>
+            <span className="text-xs font-semibold text-stone-500 mt-0.5 block">
+              ~৳{Math.round((stats.totalCostUsd || 0) * (stats.dollarRate || 127))} BDT
+            </span>
+          </div>
         </div>
-        <div className="card bg-base-100 p-6 border border-base-300 shadow-sm flex flex-col gap-2 rounded-2xl">
-          <span className="text-xs text-base-content/60 font-bold uppercase tracking-wider">Paid Orders</span>
-          <span className="text-3xl font-black text-emerald-600">{stats.paidOrders}</span>
+
+        <div className="bg-white p-6 border-2 border-stone-200 shadow-sm flex flex-col justify-between gap-3 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">Net Profit (USD)</span>
+            <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+              <TrendingUp className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-3xl font-black text-emerald-600">
+              ${(stats.netProfitUsd || 0).toFixed(2)}
+            </div>
+            <div className="flex items-center gap-2 mt-0.5">
+              <span className="text-xs font-semibold text-stone-500">
+                ~৳{Math.round((stats.netProfitUsd || 0) * (stats.dollarRate || 127))} BDT
+              </span>
+              <span className="badge bg-emerald-100 text-emerald-800 border-none font-bold text-[10px]">
+                +{stats.profitMargin || "0.0"}%
+              </span>
+            </div>
+          </div>
         </div>
-        <div className="card bg-base-100 p-6 border border-base-300 shadow-sm flex flex-col gap-2 rounded-2xl">
-          <span className="text-xs text-base-content/60 font-bold uppercase tracking-wider">Pending Orders</span>
-          <span className="text-3xl font-black text-amber-500">
-            {stats.processingOrders + stats.pendingOrders}
-          </span>
+
+        <div className="bg-white p-6 border-2 border-stone-200 shadow-sm flex flex-col justify-between gap-3 rounded-2xl">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-stone-500 font-bold uppercase tracking-wider">Rate & Orders</span>
+            <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+          </div>
+          <div>
+            <div className="text-2xl font-black text-stone-900">
+              {stats.paidOrders} / {stats.totalOrders} Paid
+            </div>
+            <span className="text-xs font-bold text-amber-600 mt-0.5 block">
+              1 USD = ৳{stats.dollarRate || 127} BDT
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Tables details lists */}
+      {/* Tables Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Top Products */}
-        <div className="card bg-base-100 border border-base-300 p-6 rounded-3xl shadow-sm">
-          <h3 className="text-lg font-black text-base-content mb-4 flex items-center gap-2">
-            <ProductsIcon /> Top Selling Products
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="table table-zebra w-full text-sm">
+        <div className="bg-white border-2 border-stone-200 p-6 rounded-3xl shadow-sm">
+          <h2 className="text-base font-black text-stone-900 mb-4 flex items-center gap-2">
+            <Package className="w-5 h-5 text-amber-500" /> Top Selling Products
+          </h2>
+          <div className="overflow-x-auto rounded-2xl border border-stone-100">
+            <table className="table w-full text-xs">
               <thead>
-                <tr className="border-b border-base-300 text-base-content/80 font-bold">
-                  <th>Product Title</th>
+                <tr className="bg-stone-50 text-stone-700 font-bold border-b border-stone-200">
+                  <th>Product</th>
                   <th className="text-center">Units Sold</th>
                   <th className="text-right">Revenue</th>
                 </tr>
@@ -106,15 +162,17 @@ export default function DashboardPage() {
               <tbody>
                 {stats.topProducts && stats.topProducts.length > 0 ? (
                   stats.topProducts.map((p: any, idx: number) => (
-                    <tr key={idx} className="border-b border-base-200">
-                      <td className="font-bold text-base-content">{p.title}</td>
-                      <td className="text-center font-bold text-base-content/85">{p.salesCount}</td>
-                      <td className="text-right font-black text-primary">৳{p.revenue}</td>
+                    <tr key={idx} className="border-b border-stone-100 hover:bg-stone-50/50">
+                      <td className="font-bold text-stone-900">{p.title}</td>
+                      <td className="text-center font-bold text-stone-700">{p.salesCount}</td>
+                      <td className="text-right font-black text-amber-600">৳{p.revenue}</td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={3} className="text-center py-6 text-base-content/50">No products sold yet.</td>
+                    <td colSpan={3} className="text-center py-8 text-stone-400 font-medium">
+                      No products sold yet.
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -123,14 +181,14 @@ export default function DashboardPage() {
         </div>
 
         {/* Recent Transactions */}
-        <div className="card bg-base-100 border border-base-300 p-6 rounded-3xl shadow-sm">
-          <h3 className="text-lg font-black text-base-content mb-4 flex items-center gap-2">
-            <TransactionsIcon /> Recent Transactions
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="table table-zebra w-full text-sm">
+        <div className="bg-white border-2 border-stone-200 p-6 rounded-3xl shadow-sm">
+          <h2 className="text-base font-black text-stone-900 mb-4 flex items-center gap-2">
+            <CreditCard className="w-5 h-5 text-amber-500" /> Recent Transactions
+          </h2>
+          <div className="overflow-x-auto rounded-2xl border border-stone-100">
+            <table className="table w-full text-xs">
               <thead>
-                <tr className="border-b border-base-300 text-base-content/80 font-bold">
+                <tr className="bg-stone-50 text-stone-700 font-bold border-b border-stone-200">
                   <th>TrxID</th>
                   <th>Gateway</th>
                   <th>Amount</th>
@@ -140,14 +198,20 @@ export default function DashboardPage() {
               <tbody>
                 {stats.recentTransactions && stats.recentTransactions.length > 0 ? (
                   stats.recentTransactions.map((t: any, idx: number) => (
-                    <tr key={idx} className="border-b border-base-200">
-                      <td className="font-mono font-bold text-base-content">{t.trxID}</td>
-                      <td className="uppercase font-semibold text-xs">{t.gateway}</td>
-                      <td className="font-bold text-base-content">৳{t.amount}</td>
+                    <tr key={idx} className="border-b border-stone-100 hover:bg-stone-50/50">
+                      <td className="font-mono font-bold text-stone-900">{t.trxID}</td>
+                      <td className="uppercase font-semibold text-[10px] text-stone-600">{t.gateway}</td>
+                      <td className="font-bold text-stone-900">৳{t.amount}</td>
                       <td className="text-center">
-                        <span className={`badge badge-sm font-bold ${
-                          t.status === "verified" ? "badge-success text-success-content" : t.status === "pending" ? "badge-warning text-stone-900" : "badge-error text-error-content"
-                        }`}>
+                        <span
+                          className={`badge badge-sm font-bold border-none ${
+                            t.status === "verified"
+                              ? "bg-emerald-500 text-white"
+                              : t.status === "pending"
+                              ? "bg-amber-400 text-stone-950"
+                              : "bg-rose-500 text-white"
+                          }`}
+                        >
                           {t.status}
                         </span>
                       </td>
@@ -155,7 +219,9 @@ export default function DashboardPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={4} className="text-center py-6 text-base-content/50">No transaction logs available.</td>
+                    <td colSpan={4} className="text-center py-8 text-stone-400 font-medium">
+                      No transaction records found.
+                    </td>
                   </tr>
                 )}
               </tbody>

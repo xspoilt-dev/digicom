@@ -1,10 +1,14 @@
 "use client";
 
 import { useEffect, useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { trackEvent } from "@/lib/meta/track-event";
 import { getFbCookies } from "@/lib/meta/cookies";
+import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { useCart } from "@/context/CartContext";
+import { ShoppingCart, ShoppingBag, Star, Package } from "lucide-react";
 
 interface Product {
   _id: string;
@@ -13,7 +17,7 @@ interface Product {
   description: string;
   price: number;
   compareAtPrice?: number;
-  type: "course" | "pdf" | "video" | "zip" | "other";
+  type: "course" | "pdf" | "video" | "zip" | "account" | "slot" | "license" | "other";
   thumbnailPath?: string;
   duration?: string;
   pageCount?: number;
@@ -63,6 +67,10 @@ function ShopContent() {
   const [currentPage, setCurrentPage] = useState<number>(1);
   const itemsPerPage = 8;
 
+  // Cart & Router
+  const { addToCart } = useCart();
+  const router = useRouter();
+
   // Checkout State
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState({ name: "", email: "", phone: "" });
@@ -90,14 +98,16 @@ function ShopContent() {
   }, [apiUrl]);
 
   const openCheckout = (product: Product) => {
-    setSelectedProduct(product);
-    trackEvent("ViewContent", {
-      content_ids: [product._id],
-      content_name: product.title,
-      content_type: "product",
-      value: product.price,
-      currency: "BDT",
+    addToCart({
+      productId: product._id,
+      title: product.title,
+      price: product.price,
+      compareAtPrice: product.compareAtPrice,
+      thumbnailPath: product.thumbnailPath,
+      type: product.type,
+      slug: product.slug,
     });
+    router.push("/checkout");
   };
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
@@ -119,7 +129,7 @@ function ShopContent() {
       {
         email: formData.email,
         phone: formData.phone,
-        skipCapi: true, // Backend /api/checkout fires the paired CAPI event with matching metaEventId
+        skipCapi: true,
       }
     );
 
@@ -156,24 +166,19 @@ function ShopContent() {
     }
   };
 
-  // Filter Logic
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch = searchQuery.trim()
-      ? p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchQuery.toLowerCase())
-      : true;
-
+  // Filter calculations
+  const filteredProducts = products.filter((product) => {
     const matchesCategory =
-      selectedCategory === "all" ? true : p.type === selectedCategory;
-
-    return matchesSearch && matchesCategory;
+      selectedCategory === "all" || product.type === selectedCategory;
+    const matchesSearch =
+      product.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      product.description.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
   });
 
-  // Pagination Logic
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredProducts.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentItems = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
 
   const handlePageChange = (page: number) => {
     if (page >= 1 && page <= totalPages) {
@@ -183,7 +188,7 @@ function ShopContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200">
+      <div className="min-h-screen flex items-center justify-center bg-base-200" data-theme="lightyellow">
         <div className="flex flex-col items-center gap-4">
           <span className="loading loading-spinner loading-lg text-primary"></span>
           <span className="text-primary font-bold">লোডিং হচ্ছে...</span>
@@ -194,27 +199,7 @@ function ShopContent() {
 
   return (
     <div className="min-h-screen flex flex-col bg-base-200" data-theme="lightyellow">
-      {/* Navbar header without admin panel button */}
-      <div className="navbar bg-base-100 shadow-md sticky top-0 z-50 px-4 md:px-8 border-b border-base-300">
-        <div className="navbar-start gap-2">
-          <a href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-black text-xl text-primary-content shadow-md">
-              D
-            </div>
-            <div>
-              <span className="text-lg md:text-xl font-extrabold tracking-tight text-base-content">
-                Digitalcorebd.com
-              </span>
-            </div>
-          </a>
-        </div>
-
-        <div className="navbar-end gap-3">
-          <a href="/" className="btn btn-ghost font-extrabold text-sm text-base-content">
-            হোমপেজ
-          </a>
-        </div>
-      </div>
+      <Navbar />
 
       <main className="container mx-auto px-4 md:px-8 py-10 flex-1">
         {error && (
@@ -248,11 +233,14 @@ function ShopContent() {
             <div className="flex gap-2 overflow-x-auto py-1 scrollbar-thin max-w-full flex-1">
               {[
                 { key: "all", label: "সব ক্যাটাগরি" },
+                { key: "account", label: "প্রাইভেট একাউন্ট" },
+                { key: "slot", label: "টিম স্লট" },
+                { key: "license", label: "লাইসেন্স কী" },
                 { key: "course", label: "ভিডিও কোর্স" },
                 { key: "pdf", label: "পিডিএফ বই" },
                 { key: "video", label: "ভিডিও গাইড" },
                 { key: "zip", label: "জিপ ফাইল" },
-                { key: "other", label: "অন্যান্য ফাইল" }
+                { key: "other", label: "অন্যান্য" }
               ].map((cat) => (
                 <button
                   key={cat.key}
@@ -295,43 +283,154 @@ function ShopContent() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {currentItems.map((product) => (
-                <div key={product._id} className="card bg-base-100 shadow-md border border-base-300 hover:shadow-xl transition-all">
-                  <figure className="relative h-44 bg-base-200">
-                    {product.thumbnailPath ? (
-                      <img
-                        src={`${apiUrl}/${product.thumbnailPath}`}
-                        alt={product.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-primary flex flex-col items-center gap-2">
-                        {product.type === "course" ? <PlayIcon /> : <DocIcon />}
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+              {currentItems.map((product) => {
+                const typeLabel =
+                  product.type === "account"
+                    ? "অ্যাকাউন্ট"
+                    : product.type === "slot"
+                    ? "টিম স্লট"
+                    : product.type === "license"
+                    ? "লাইসেন্স কী"
+                    : product.type === "course"
+                    ? "কোর্স"
+                    : product.type === "pdf"
+                    ? "বই"
+                    : product.type === "video"
+                    ? "ভিডিও"
+                    : product.type === "zip"
+                    ? "জিপ"
+                    : "ফাইল";
+
+                const discount =
+                  product.compareAtPrice && product.compareAtPrice > product.price
+                    ? Math.round(((product.compareAtPrice - product.price) / product.compareAtPrice) * 100)
+                    : null;
+
+                return (
+                  <div
+                    key={product._id}
+                    className="bg-white shadow-sm border border-stone-200/90 hover:border-amber-400 hover:shadow-md transition-all rounded-2xl overflow-hidden flex flex-col justify-between group"
+                  >
+                    {/* Product Image */}
+                    <Link href={`/product/${product.slug}`} className="block">
+                      <figure className="relative aspect-square sm:aspect-[4/3] bg-stone-100 overflow-hidden">
+                        {product.thumbnailPath ? (
+                          <img
+                            src={`${apiUrl}/${product.thumbnailPath}`}
+                            alt={product.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="text-stone-300 flex items-center justify-center h-full">
+                            <Package className="w-10 h-10" />
+                          </div>
+                        )}
+
+                        {/* Top-Left Discount Badge */}
+                        {discount ? (
+                          <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-lg shadow-xs">
+                            {discount}% ছাড়
+                          </span>
+                        ) : (
+                          <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-lg shadow-xs">
+                            অফার
+                          </span>
+                        )}
+
+                        {/* Type Badge on Top-Right */}
+                        <span className="badge bg-white/95 text-stone-800 font-bold text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-xs border border-stone-200 absolute top-2 right-2">
+                          {typeLabel}
+                        </span>
+                      </figure>
+                    </Link>
+
+                    {/* Card Body */}
+                    <div className="p-3 sm:p-4 flex flex-col flex-1 justify-between gap-2">
+                      <div>
+                        {/* Title */}
+                        <Link href={`/product/${product.slug}`} className="block">
+                          <h3 className="text-stone-900 text-xs sm:text-sm font-bold group-hover:text-amber-600 line-clamp-2 leading-snug transition-colors">
+                            {product.title}
+                          </h3>
+                        </Link>
+
+                        {/* Star Rating Row */}
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <div className="flex items-center text-amber-400">
+                            {[...Array(5)].map((_, i) => (
+                              <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+                            ))}
+                          </div>
+                          <span className="text-[11px] font-bold text-stone-700 ml-0.5">4.9</span>
+                        </div>
+
+                        {/* Price Row (Own Line) */}
+                        <div className="flex items-baseline gap-2 mt-2">
+                          <span className="text-base sm:text-lg font-black text-stone-900">
+                            ৳{product.price}
+                          </span>
+                          {product.compareAtPrice && product.compareAtPrice > product.price ? (
+                            <span className="text-xs text-stone-400 line-through">
+                              ৳{product.compareAtPrice}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-stone-400 line-through">
+                              ৳{Math.round(product.price * 1.5)}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    <span className="badge badge-primary absolute top-3 right-3 text-[10px] font-bold py-2 px-3">
-                      {product.type === "course" ? "কোর্স" : product.type === "pdf" ? "বই" : "ফাইল"}
-                    </span>
-                  </figure>
 
-                  <div className="card-body p-5">
-                    <h3 className="card-title text-base-content text-base font-black line-clamp-1">
-                      {product.title}
-                    </h3>
-                    <p className="text-xs text-base-content/70 line-clamp-2">
-                      {product.description}
-                    </p>
+                      {/* Buttons Row (Side-by-Side: Cart + Crimson Buy) */}
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-100">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            addToCart({
+                              productId: product._id,
+                              title: product.title,
+                              price: product.price,
+                              compareAtPrice: product.compareAtPrice,
+                              thumbnailPath: product.thumbnailPath,
+                              type: product.type,
+                              slug: product.slug,
+                            });
+                          }}
+                          className="w-full btn bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 hover:border-amber-400 rounded-xl btn-xs sm:btn-sm font-bold text-xs h-8 sm:h-9 min-h-0 flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-95"
+                          title="কার্টে যোগ করুন"
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5 text-stone-700" />
+                          <span>কার্ট</span>
+                        </button>
 
-                    <div className="card-actions justify-between items-center mt-3 pt-3 border-t border-base-200">
-                      <span className="text-lg font-black text-primary">৳{product.price}</span>
-                      <button onClick={() => openCheckout(product)} className="btn btn-primary rounded-full btn-xs px-3 font-bold">
-                        কিনুন
-                      </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            addToCart({
+                              productId: product._id,
+                              title: product.title,
+                              price: product.price,
+                              compareAtPrice: product.compareAtPrice,
+                              thumbnailPath: product.thumbnailPath,
+                              type: product.type,
+                              slug: product.slug,
+                            });
+                            router.push("/checkout");
+                          }}
+                          className="w-full btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl btn-xs sm:btn-sm font-bold text-xs h-8 sm:h-9 min-h-0 flex items-center justify-center gap-1.5 shadow-2xs transition-all active:scale-95"
+                          title="এখনই কিনুন"
+                        >
+                          <ShoppingBag className="w-3.5 h-3.5 text-stone-950" />
+                          <span>কিনুন</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 

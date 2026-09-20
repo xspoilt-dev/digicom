@@ -1,6 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  Package,
+  Plus,
+  Edit2,
+  Trash2,
+  Upload,
+  Sliders,
+  Sparkles,
+  CheckCircle2,
+  XCircle,
+  ExternalLink,
+  Layers,
+  Image as ImageIcon,
+  Tag,
+  Eye,
+} from "lucide-react";
 
 interface Product {
   _id?: string;
@@ -9,13 +25,17 @@ interface Product {
   description: string;
   price: number;
   compareAtPrice?: number;
-  type: "course" | "pdf" | "video" | "zip" | "other";
+  type: "course" | "pdf" | "video" | "zip" | "account" | "slot" | "license" | "other";
+  category?: string;
   filePath?: string;
   deliveryLink?: string;
   thumbnailPath?: string;
   duration?: string;
   pageCount?: number;
   version?: string;
+  showInSlider?: boolean;
+  isFeatured?: boolean;
+  displaySection?: string;
   checkoutFields: string[];
   isEmailDelivery: boolean;
   isWebDisplay: boolean;
@@ -23,8 +43,15 @@ interface Product {
   active: boolean;
 }
 
+interface CategoryOption {
+  _id: string;
+  name: string;
+  slug: string;
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [curriculumTitle, setCurriculumTitle] = useState("");
@@ -36,37 +63,56 @@ export default function ProductsPage() {
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
-  useEffect(() => {
-    fetchProducts();
-  }, [apiUrl]);
-
   const getAuthHeaders = () => {
-    const token = localStorage.getItem("admin_token");
+    const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
     return {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     };
   };
 
-  const fetchProducts = async () => {
+  const fetchData = async () => {
     try {
-      const res = await fetch(`${apiUrl}/api/admin/products`, { headers: getAuthHeaders() });
-      const data = await res.json();
-      if (data.success) setProducts(data.products);
+      setLoading(true);
+      const [prodsRes, catsRes] = await Promise.all([
+        fetch(`${apiUrl}/api/admin/products`, { headers: getAuthHeaders() }),
+        fetch(`${apiUrl}/api/admin/categories`, { headers: getAuthHeaders() }),
+      ]);
+
+      const prodsData = await prodsRes.json();
+      if (prodsData.success) setProducts(prodsData.products);
+
+      const catsData = await catsRes.json();
+      if (catsData.success && Array.isArray(catsData.categories)) {
+        setCategories(catsData.categories);
+      }
     } catch (err) {
-      console.error(err);
+      console.error("Error loading products/categories:", err);
     } finally {
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    fetchData();
+  }, [apiUrl]);
+
   const openProductCreate = () => {
+    const defaultCat = categories.length > 0 ? categories[0].slug : "account";
     setSelectedProduct({
       title: "",
       slug: "",
       description: "",
       price: 0,
-      type: "pdf",
+      compareAtPrice: undefined,
+      type: "account",
+      category: defaultCat,
+      filePath: "",
+      deliveryLink: "",
+      thumbnailPath: "",
+      showInSlider: false,
+      isFeatured: false,
+      displaySection: "all",
       checkoutFields: ["name", "email", "phone"],
       isEmailDelivery: true,
       isWebDisplay: true,
@@ -77,8 +123,31 @@ export default function ProductsPage() {
   };
 
   const openProductEdit = (product: Product) => {
-    setSelectedProduct({ ...product });
+    setSelectedProduct({
+      ...product,
+      category: product.category || product.type || "account",
+      showInSlider: product.showInSlider ?? false,
+      isFeatured: product.isFeatured ?? false,
+      displaySection: product.displaySection || "all",
+    });
     setIsProductModalOpen(true);
+  };
+
+  const toggleProductFlag = async (product: Product, flag: "showInSlider" | "isFeatured" | "active") => {
+    try {
+      const updatedValue = !product[flag];
+      const res = await fetch(`${apiUrl}/api/admin/products/${product._id}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...product, [flag]: updatedValue }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setProducts(products.map((p) => (p._id === product._id ? { ...p, [flag]: updatedValue } : p)));
+      }
+    } catch (err) {
+      console.error("Error toggling product flag:", err);
+    }
   };
 
   const handleProductSubmit = async (e: React.FormEvent) => {
@@ -96,9 +165,8 @@ export default function ProductsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert("Product saved successfully.");
         setIsProductModalOpen(false);
-        fetchProducts();
+        fetchData();
       } else {
         alert(data.message || "Failed to save product.");
       }
@@ -116,8 +184,7 @@ export default function ProductsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert("Product deleted.");
-        fetchProducts();
+        setProducts(products.filter((p) => p._id !== id));
       }
     } catch (err) {
       alert("Error deleting product.");
@@ -149,7 +216,6 @@ export default function ProductsPage() {
         } else {
           setSelectedProduct({ ...selectedProduct, filePath: data.filePath });
         }
-        alert("File uploaded successfully.");
       } else {
         alert(data.message || "File upload failed.");
       }
@@ -163,386 +229,514 @@ export default function ProductsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-12">
-        <span className="loading loading-spinner text-primary"></span>
+      <div className="flex items-center justify-center p-16">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-fadeIn">
+    <div className="space-y-8 animate-fadeIn max-w-7xl mx-auto pb-12">
+      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-black text-base-content">Product Catalog</h1>
-          <p className="text-xs text-base-content/65 font-semibold mt-1">Manage and add digital goods, courses, and PDFs</p>
+          <h1 className="text-2xl sm:text-3xl font-black text-stone-900 flex items-center gap-2.5">
+            <Package className="w-7 h-7 text-amber-500" /> Product Catalog
+          </h1>
+          <p className="text-xs sm:text-sm text-stone-600 font-medium mt-1">
+            Manage products, pricing, categories, slider placements, and download links
+          </p>
         </div>
-        <button onClick={openProductCreate} className="btn btn-primary rounded-full font-bold shadow-md">
-          + Create Digital Product
+        <button
+          onClick={openProductCreate}
+          className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm flex items-center gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          <span>Add New Product</span>
         </button>
       </div>
 
+      {/* Product Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {products.length > 0 ? (
           products.map((p) => (
-            <div key={p._id} className="card bg-base-100 border border-base-300 shadow-sm hover:shadow-md transition-all rounded-2xl">
-              <div className="card-body p-6 flex flex-col justify-between">
+            <div
+              key={p._id}
+              className="bg-white border-2 border-stone-200 shadow-sm hover:border-amber-300 transition-all rounded-2xl overflow-hidden flex flex-col justify-between"
+            >
+              {/* Product Cover Thumbnail */}
+              {p.thumbnailPath ? (
+                <div className="h-44 w-full bg-stone-100 overflow-hidden relative border-b border-stone-100">
+                  <img
+                    src={`${apiUrl}/${p.thumbnailPath}`}
+                    alt={p.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute top-2 right-2 flex flex-wrap gap-1">
+                    {p.showInSlider && (
+                      <span className="badge bg-amber-400 text-stone-950 font-bold text-[10px] border-none shadow-sm flex items-center gap-1">
+                        <Sliders className="w-2.5 h-2.5" /> Slider
+                      </span>
+                    )}
+                    {p.isFeatured && (
+                      <span className="badge bg-stone-900 text-white font-bold text-[10px] border-none shadow-sm flex items-center gap-1">
+                        <Sparkles className="w-2.5 h-2.5 text-amber-400" /> Featured
+                      </span>
+                    )}
+                    <span
+                      className={`badge ${
+                        p.active ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
+                      } font-bold text-[10px] border-none shadow-sm`}
+                    >
+                      {p.active ? "Active" : "Hidden"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="h-24 bg-stone-100 p-3 flex justify-between items-start border-b border-stone-200">
+                  <div className="flex flex-wrap gap-1">
+                    {p.showInSlider && (
+                      <span className="badge bg-amber-400 text-stone-950 font-bold text-[10px] border-none">
+                        Slider
+                      </span>
+                    )}
+                    {p.isFeatured && (
+                      <span className="badge bg-stone-900 text-white font-bold text-[10px] border-none">
+                        Featured
+                      </span>
+                    )}
+                    <span
+                      className={`badge ${
+                        p.active ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
+                      } font-bold text-[10px] border-none`}
+                    >
+                      {p.active ? "Active" : "Hidden"}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-stone-400 font-medium italic">No image</span>
+                </div>
+              )}
+
+              {/* Card Body */}
+              <div className="p-5 flex flex-col justify-between flex-1">
                 <div>
-                  <div className="flex justify-between items-center gap-2 mb-3">
-                    <span className="badge badge-outline font-bold text-xs uppercase">
+                  <div className="flex justify-between items-center gap-2 mb-2">
+                    <span className="badge bg-stone-100 text-stone-700 font-bold text-[10px] border border-stone-200 uppercase tracking-wide">
                       {p.type}
                     </span>
-                    <span className="font-black text-lg text-primary">৳{p.price}</span>
+                    <div className="flex items-center gap-1.5">
+                      {p.compareAtPrice && p.compareAtPrice > p.price && (
+                        <span className="text-xs text-stone-400 line-through">৳{p.compareAtPrice}</span>
+                      )}
+                      <span className="font-black text-base text-amber-600">৳{p.price}</span>
+                    </div>
                   </div>
-                  <h3 className="card-title text-base-content text-base font-bold line-clamp-1 mb-2">
+                  <h3 className="text-stone-900 text-base font-bold line-clamp-1 mb-1">
                     {p.title}
                   </h3>
-                  <p className="text-xs text-base-content/70 line-clamp-3 mb-6">
+                  <div className="text-[11px] font-semibold text-amber-700 mb-2">
+                    Category: /{p.category || p.type || "account"}
+                  </div>
+                  <p className="text-xs text-stone-600 line-clamp-2 mb-4">
                     {p.description}
                   </p>
                 </div>
 
-                <div className="flex justify-between gap-3 pt-4 border-t border-base-200">
-                  <button onClick={() => openProductEdit(p)} className="btn btn-sm btn-outline rounded-full font-bold flex-1 text-xs">
-                    Edit Details
-                  </button>
-                  <button
-                    onClick={() => deleteProduct(p._id!)}
-                    className="btn btn-sm btn-outline btn-error rounded-full font-bold flex-1 text-xs"
+                {/* Quick Toggle Controls */}
+                <div className="space-y-2 pt-3 border-t border-stone-100">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-stone-600">Top Slider:</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleProductFlag(p, "showInSlider")}
+                      className={`btn btn-xs rounded-lg font-bold border-none ${
+                        p.showInSlider
+                          ? "bg-amber-400 hover:bg-amber-500 text-stone-950"
+                          : "bg-stone-100 hover:bg-stone-200 text-stone-600"
+                      }`}
+                    >
+                      {p.showInSlider ? "Active in Slider" : "Not in Slider"}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-stone-600">Featured:</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleProductFlag(p, "isFeatured")}
+                      className={`btn btn-xs rounded-lg font-bold border-none ${
+                        p.isFeatured
+                          ? "bg-stone-900 hover:bg-stone-800 text-amber-400"
+                          : "bg-stone-100 hover:bg-stone-200 text-stone-600"
+                      }`}
+                    >
+                      {p.isFeatured ? "Featured" : "Standard"}
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-stone-600">Status:</span>
+                    <button
+                      type="button"
+                      onClick={() => toggleProductFlag(p, "active")}
+                      className={`btn btn-xs rounded-lg font-bold border-none ${
+                        p.active
+                          ? "bg-emerald-100 hover:bg-emerald-200 text-emerald-800"
+                          : "bg-rose-100 hover:bg-rose-200 text-rose-800"
+                      }`}
+                    >
+                      {p.active ? "Published" : "Draft"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Action Row */}
+                <div className="pt-4 mt-3 border-t border-stone-100 flex items-center justify-between gap-2">
+                  <a
+                    href={`/product/${p.slug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-ghost btn-xs text-stone-600 hover:text-stone-900 font-bold flex items-center gap-1"
                   >
-                    Delete
-                  </button>
+                    <span>View</span>
+                    <ExternalLink className="w-3 h-3" />
+                  </a>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openProductEdit(p)}
+                      className="btn btn-xs bg-stone-100 hover:bg-stone-200 text-stone-800 border-none rounded-lg font-bold flex items-center gap-1"
+                    >
+                      <Edit2 className="w-3 h-3" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={() => deleteProduct(p._id!)}
+                      className="btn btn-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border-none rounded-lg font-bold flex items-center gap-1"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Delete</span>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
           ))
         ) : (
-          <div className="col-span-full text-center py-12 text-base-content/50 bg-base-100 rounded-2xl border border-base-300">
-            No digital products added to store catalog yet.
+          <div className="col-span-full text-center py-16 bg-white rounded-3xl border-2 border-dashed border-stone-200">
+            <Package className="w-12 h-12 text-stone-300 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-stone-700">No products found</h3>
+            <p className="text-xs text-stone-500 mt-1 mb-4">Add your first digital product to begin selling</p>
+            <button
+              onClick={openProductCreate}
+              className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold btn-sm"
+            >
+              + Create Product
+            </button>
           </div>
         )}
       </div>
 
-      {/* CREATE / EDIT PRODUCT DETAIL MODAL */}
+      {/* Product Edit / Create Modal */}
       {isProductModalOpen && selectedProduct && (
         <div className="modal modal-open">
-          <div className="modal-box rounded-3xl max-w-2xl border border-base-300 shadow-2xl relative bg-base-100 text-base-content">
+          <div className="modal-box rounded-3xl max-w-2xl bg-white border border-stone-200 shadow-2xl relative text-stone-900 max-h-[90vh] overflow-y-auto p-6 sm:p-8">
             <button
               onClick={() => setIsProductModalOpen(false)}
-              className="btn btn-sm btn-circle btn-ghost absolute right-4 top-4"
+              className="btn btn-sm btn-circle btn-ghost absolute right-4 top-4 text-stone-500"
             >
               ✕
             </button>
-            
-            <h3 className="font-black text-xl text-base-content mb-6 border-b border-base-200 pb-3">
-              {selectedProduct._id ? "Edit Product Details" : "Create New Digital Product"}
-            </h3>
 
-            <form onSubmit={handleProductSubmit} className="space-y-4">
+            <h2 className="font-black text-xl text-stone-900 mb-6 border-b border-stone-100 pb-3">
+              {selectedProduct._id ? "Edit Product Details" : "Add New Digital Product"}
+            </h2>
+
+            <form onSubmit={handleProductSubmit} className="space-y-5">
+              {/* Title & Slug */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-bold text-base-content/85">Product Title / Name</span>
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-xs text-stone-700">Product Title *</span>
                   </label>
                   <input
                     type="text"
                     required
-                    className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm font-semibold"
                     value={selectedProduct.title}
                     onChange={(e) => setSelectedProduct({ ...selectedProduct, title: e.target.value })}
                   />
                 </div>
                 <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-bold text-base-content/85">URL Route Slug (Unique)</span>
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-xs text-stone-700">URL Slug (Unique) *</span>
                   </label>
                   <input
                     type="text"
                     required
-                    className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm font-mono"
                     value={selectedProduct.slug}
-                    placeholder="e.g. laravel-guide-book"
-                    onChange={(e) => setSelectedProduct({ ...selectedProduct, slug: e.target.value })}
+                    placeholder="e.g. chatgpt-plus"
+                    onChange={(e) => setSelectedProduct({ ...selectedProduct, slug: e.target.value.toLowerCase().replace(/\s+/g, "-") })}
                   />
                 </div>
               </div>
 
+              {/* Description */}
               <div className="form-control w-full">
-                <label className="label">
-                  <span className="label-text font-bold text-base-content/85">Short Description</span>
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-700">Description *</span>
                 </label>
                 <textarea
                   required
                   rows={3}
-                  className="textarea textarea-bordered focus:textarea-primary rounded-xl text-base-content bg-base-100 w-full"
+                  className="textarea textarea-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm leading-relaxed"
                   value={selectedProduct.description}
                   onChange={(e) => setSelectedProduct({ ...selectedProduct, description: e.target.value })}
                 />
               </div>
 
+              {/* Price, Compare-At, and Type */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-bold text-base-content/85">Price (BDT)</span>
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-xs text-stone-700">Price (BDT) *</span>
                   </label>
                   <input
                     type="number"
                     required
-                    className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm font-bold"
                     value={selectedProduct.price}
                     onChange={(e) => setSelectedProduct({ ...selectedProduct, price: Number(e.target.value) })}
                   />
                 </div>
                 <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-bold text-base-content/85">Compare at Price (BDT)</span>
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-xs text-stone-700">Compare at Price (BDT)</span>
                   </label>
                   <input
                     type="number"
-                    className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm font-bold"
                     value={selectedProduct.compareAtPrice || ""}
-                    onChange={(e) => setSelectedProduct({ ...selectedProduct, compareAtPrice: Number(e.target.value) || undefined })}
+                    placeholder="Original price"
+                    onChange={(e) =>
+                      setSelectedProduct({
+                        ...selectedProduct,
+                        compareAtPrice: Number(e.target.value) || undefined,
+                      })
+                    }
                   />
                 </div>
                 <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-bold text-base-content/85">Category</span>
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-xs text-stone-700">Product Type</span>
                   </label>
                   <select
-                    className="select select-bordered focus:select-primary rounded-xl text-base-content bg-base-100 w-full"
+                    className="select select-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50 w-full text-sm"
                     value={selectedProduct.type}
                     onChange={(e) => setSelectedProduct({ ...selectedProduct, type: e.target.value as any })}
                   >
+                    <option value="account">Private Account</option>
+                    <option value="slot">Team / Workspace Slot</option>
+                    <option value="license">Software License Key</option>
                     <option value="course">Video Course</option>
                     <option value="pdf">PDF Book</option>
-                    <option value="video">Video Guide</option>
-                    <option value="zip">ZIP File</option>
-                    <option value="other">Other File</option>
+                    <option value="video">Video Resource</option>
+                    <option value="zip">ZIP Archive</option>
+                    <option value="other">Other Digital Good</option>
                   </select>
                 </div>
               </div>
 
-              {/* Dynamic configs */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {(selectedProduct.type === "course" || selectedProduct.type === "video") && (
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text font-bold text-base-content/85">Total Video Duration (e.g. 5h 40m)</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
-                      value={selectedProduct.duration || ""}
-                      onChange={(e) => setSelectedProduct({ ...selectedProduct, duration: e.target.value })}
-                    />
-                  </div>
-                )}
-
-                {selectedProduct.type === "pdf" && (
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text font-bold text-base-content/85">Page Count</span>
-                    </label>
-                    <input
-                      type="number"
-                      className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
-                      value={selectedProduct.pageCount || ""}
-                      onChange={(e) => setSelectedProduct({ ...selectedProduct, pageCount: Number(e.target.value) })}
-                    />
-                  </div>
-                )}
-
-                {selectedProduct.type === "zip" && (
-                  <div className="form-control w-full">
-                    <label className="label">
-                      <span className="label-text font-bold text-base-content/85">Software Version (e.g. v1.0)</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
-                      value={selectedProduct.version || ""}
-                      onChange={(e) => setSelectedProduct({ ...selectedProduct, version: e.target.value })}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Delivery info */}
-              <div className="border border-base-300 rounded-2xl p-5 space-y-4">
-                <span className="font-extrabold text-sm text-base-content block">Secure File Delivery</span>
-                <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-bold text-base-content/80">Upload File to Server</span>
-                  </label>
-                  <input
-                    type="file"
-                    className="file-input file-input-bordered focus:file-input-primary rounded-xl w-full"
-                    onChange={(e) => handleFileUpload(e, false)}
-                  />
-                  {uploadingFile && <span className="text-xs text-primary mt-1">Writing file to disk...</span>}
-                  {selectedProduct.filePath && (
-                    <span className="text-xs text-success font-bold mt-1">✓ File URL: {selectedProduct.filePath}</span>
-                  )}
-                </div>
-                <div className="form-control w-full">
-                  <label className="label">
-                    <span className="label-text font-bold text-base-content/80">Or External Download Link</span>
-                  </label>
+              {/* Dynamic Category Selector */}
+              <div className="form-control w-full">
+                <label className="label py-1 flex justify-between items-center">
+                  <span className="label-text font-bold text-xs text-stone-700">Campaign Category & Route *</span>
+                  <span className="text-[11px] text-amber-600 font-bold">
+                    URL: /category/{selectedProduct.category || selectedProduct.type || "account"}
+                  </span>
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    className="select select-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50 text-sm flex-1 font-semibold"
+                    value={selectedProduct.category || selectedProduct.type || "account"}
+                    onChange={(e) => setSelectedProduct({ ...selectedProduct, category: e.target.value })}
+                  >
+                    {categories.length > 0 ? (
+                      categories.map((cat) => (
+                        <option key={cat._id} value={cat.slug}>
+                          {cat.name} (/category/{cat.slug})
+                        </option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="account">Private Accounts (/category/account)</option>
+                        <option value="slot">Team Slots (/category/slot)</option>
+                        <option value="license">License Keys (/category/license)</option>
+                        <option value="streaming">Streaming (/category/streaming)</option>
+                        <option value="creative">AI & Creative (/category/creative)</option>
+                      </>
+                    )}
+                  </select>
                   <input
                     type="text"
-                    placeholder="https://example.com/download"
-                    className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
-                    value={selectedProduct.deliveryLink || ""}
-                    onChange={(e) => setSelectedProduct({ ...selectedProduct, deliveryLink: e.target.value })}
+                    placeholder="Custom slug"
+                    className="input input-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50 text-sm w-44 font-mono"
+                    value={selectedProduct.category || ""}
+                    onChange={(e) =>
+                      setSelectedProduct({
+                        ...selectedProduct,
+                        category: e.target.value.toLowerCase().replace(/\s+/g, "-"),
+                      })
+                    }
                   />
                 </div>
               </div>
 
-              {/* Thumbnail info */}
-              <div className="form-control w-full">
-                <label className="label">
-                  <span className="label-text font-bold text-base-content/85">Product Cover Thumbnail Image</span>
-                </label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="file-input file-input-bordered focus:file-input-primary rounded-xl w-full"
-                  onChange={(e) => handleFileUpload(e, true)}
-                />
-                {uploadingThumbnail && <span className="text-xs text-primary mt-1">Uploading thumbnail...</span>}
-                {selectedProduct.thumbnailPath && (
-                  <span className="text-xs text-success font-bold mt-1">✓ Thumbnail URL: {selectedProduct.thumbnailPath}</span>
+              {/* Placement Checkboxes */}
+              <div className="border border-stone-200 rounded-2xl p-5 space-y-3 bg-stone-50/70">
+                <span className="font-extrabold text-xs text-stone-800 uppercase tracking-wider block">
+                  Storefront Display Placements
+                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold bg-white p-3 rounded-xl border border-stone-200 hover:border-amber-400">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-warning checkbox-xs"
+                      checked={selectedProduct.showInSlider || false}
+                      onChange={(e) =>
+                        setSelectedProduct({ ...selectedProduct, showInSlider: e.target.checked })
+                      }
+                    />
+                    <span>Top Compact Slider</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold bg-white p-3 rounded-xl border border-stone-200 hover:border-amber-400">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-warning checkbox-xs"
+                      checked={selectedProduct.isFeatured || false}
+                      onChange={(e) =>
+                        setSelectedProduct({ ...selectedProduct, isFeatured: e.target.checked })
+                      }
+                    />
+                    <span>Featured Section</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold bg-white p-3 rounded-xl border border-stone-200 hover:border-amber-400">
+                    <input
+                      type="checkbox"
+                      className="checkbox checkbox-warning checkbox-xs"
+                      checked={selectedProduct.active}
+                      onChange={(e) =>
+                        setSelectedProduct({ ...selectedProduct, active: e.target.checked })
+                      }
+                    />
+                    <span>Active / Visible</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Product Cover Image Upload */}
+              <div className="border border-stone-200 rounded-2xl p-5 space-y-3 bg-white">
+                <span className="font-extrabold text-xs text-stone-800 uppercase tracking-wider block">
+                  Product Thumbnail Image
+                </span>
+
+                {selectedProduct.thumbnailPath ? (
+                  <div className="flex items-center gap-4 bg-stone-50 p-3 rounded-2xl border border-stone-200">
+                    <img
+                      src={`${apiUrl}/${selectedProduct.thumbnailPath}`}
+                      alt="Thumbnail"
+                      className="w-16 h-16 object-cover rounded-xl border border-stone-200"
+                    />
+                    <div className="flex-1 overflow-hidden">
+                      <span className="text-xs font-mono truncate block text-stone-700">
+                        {selectedProduct.thumbnailPath}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedProduct({ ...selectedProduct, thumbnailPath: "" })}
+                        className="text-xs text-rose-600 font-bold hover:underline mt-1"
+                      >
+                        Remove Image
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleFileUpload(e, true)}
+                      className="file-input file-input-bordered file-input-sm w-full rounded-xl bg-stone-50 text-stone-900 border-stone-300"
+                    />
+                    {uploadingThumbnail && <span className="loading loading-spinner loading-xs text-amber-500"></span>}
+                  </div>
                 )}
               </div>
 
-              {/* Checkboxes */}
-              <div className="border border-base-300 rounded-2xl p-5 space-y-4">
-                <span className="font-extrabold text-sm text-base-content block">Delivery Options & Forms</span>
-                <div className="flex flex-wrap gap-6">
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold">
-                    <input
-                      type="checkbox"
-                      className="checkbox checkbox-primary checkbox-xs"
-                      checked={selectedProduct.isEmailDelivery}
-                      onChange={(e) => setSelectedProduct({ ...selectedProduct, isEmailDelivery: e.target.checked })}
-                    />
-                    Send Link via Email
+              {/* Digital File Delivery / Link */}
+              <div className="border border-stone-200 rounded-2xl p-5 space-y-4 bg-white">
+                <span className="font-extrabold text-xs text-stone-800 uppercase tracking-wider block">
+                  Fulfillment & Digital Delivery (Instant Unlock)
+                </span>
+
+                <div className="form-control w-full">
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-xs text-stone-700">
+                      External Delivery Link / Private Credentials URL
+                    </span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer text-xs font-bold">
-                    <input
-                      type="checkbox"
-                      className="checkbox checkbox-primary checkbox-xs"
-                      checked={selectedProduct.isWebDisplay}
-                      onChange={(e) => setSelectedProduct({ ...selectedProduct, isWebDisplay: e.target.checked })}
-                    />
-                    Show Download Button on Thank-You page
-                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://drive.google.com/... or login link"
+                    className="input input-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50 w-full text-sm"
+                    value={selectedProduct.deliveryLink || ""}
+                    onChange={(e) =>
+                      setSelectedProduct({ ...selectedProduct, deliveryLink: e.target.value })
+                    }
+                  />
                 </div>
 
-                <div className="space-y-2">
-                  <span className="text-xs font-bold text-base-content/80 block">Required Guest Checkout Fields:</span>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold">
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox-xs"
-                        checked={selectedProduct.checkoutFields.includes("name")}
-                        onChange={(e) => {
-                          const fields = e.target.checked
-                            ? [...selectedProduct.checkoutFields, "name"]
-                            : selectedProduct.checkoutFields.filter((f) => f !== "name");
-                          setSelectedProduct({ ...selectedProduct, checkoutFields: fields });
-                        }}
-                      />
-                      Name
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold">
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox-xs"
-                        checked={selectedProduct.checkoutFields.includes("email")}
-                        onChange={(e) => {
-                          const fields = e.target.checked
-                            ? [...selectedProduct.checkoutFields, "email"]
-                            : selectedProduct.checkoutFields.filter((f) => f !== "email");
-                          setSelectedProduct({ ...selectedProduct, checkoutFields: fields });
-                        }}
-                      />
-                      Email
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold">
-                      <input
-                        type="checkbox"
-                        className="checkbox checkbox-xs"
-                        checked={selectedProduct.checkoutFields.includes("phone")}
-                        onChange={(e) => {
-                          const fields = e.target.checked
-                            ? [...selectedProduct.checkoutFields, "phone"]
-                            : selectedProduct.checkoutFields.filter((f) => f !== "phone");
-                          setSelectedProduct({ ...selectedProduct, checkoutFields: fields });
-                        }}
-                      />
-                      Phone Number
-                    </label>
+                <div className="form-control w-full">
+                  <label className="label py-1">
+                    <span className="label-text font-bold text-xs text-stone-700">
+                      Or Upload Digital File (PDF, ZIP, License)
+                    </span>
+                  </label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="file"
+                      onChange={(e) => handleFileUpload(e, false)}
+                      className="file-input file-input-bordered file-input-sm w-full rounded-xl bg-stone-50 text-stone-900 border-stone-300"
+                    />
+                    {uploadingFile && <span className="loading loading-spinner loading-xs text-amber-500"></span>}
                   </div>
+                  {selectedProduct.filePath && (
+                    <span className="text-xs font-mono text-emerald-700 mt-1 block">
+                      Saved File: {selectedProduct.filePath}
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* Lesson Curriculum */}
-              {selectedProduct.type === "course" && (
-                <div className="border border-base-300 rounded-2xl p-5 space-y-4">
-                  <span className="font-extrabold text-sm text-base-content block">Course Lesson Curriculum Setup</span>
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      placeholder="e.g. Chapter 1: Introduction"
-                      className="input input-bordered focus:input-primary rounded-xl flex-1 text-sm bg-base-100 text-base-content w-full"
-                      value={curriculumTitle}
-                      onChange={(e) => setCurriculumTitle(e.target.value)}
-                    />
-                    <input
-                      type="text"
-                      placeholder="e.g. 12m 45s"
-                      className="input input-bordered focus:input-primary rounded-xl w-32 text-sm bg-base-100 text-base-content w-full"
-                      value={curriculumDuration}
-                      onChange={(e) => setCurriculumDuration(e.target.value)}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-outline font-bold text-xs"
-                      onClick={() => {
-                        if (!curriculumTitle) return;
-                        const curr = [...selectedProduct.curriculum, { title: curriculumTitle, duration: curriculumDuration }];
-                        setSelectedProduct({ ...selectedProduct, curriculum: curr });
-                        setCurriculumTitle("");
-                        setCurriculumDuration("");
-                      }}
-                    >
-                      Add Lesson
-                    </button>
-                  </div>
-                  <ul className="text-xs space-y-2 max-h-40 overflow-y-auto pl-4 list-disc">
-                    {selectedProduct.curriculum.map((item, idx) => (
-                      <li key={idx}>
-                        <span className="font-semibold text-base-content">{item.title}</span> {item.duration && `(${item.duration})`}
-                        <button
-                          type="button"
-                          className="text-error font-extrabold ml-3 hover:underline"
-                          onClick={() => {
-                            const curr = selectedProduct.curriculum.filter((_, i) => i !== idx);
-                            setSelectedProduct({ ...selectedProduct, curriculum: curr });
-                          }}
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              <button type="submit" className="btn btn-primary w-full rounded-xl font-bold shadow-lg mt-4">
-                Save Product to Catalog
-              </button>
+              {/* Submit Buttons */}
+              <div className="modal-action border-t border-stone-100 pt-4 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsProductModalOpen(false)}
+                  className="btn btn-outline rounded-xl font-bold flex-1"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-md flex-1"
+                >
+                  Save Product
+                </button>
+              </div>
             </form>
           </div>
         </div>

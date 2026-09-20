@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import { Eye, EyeOff, ExternalLink } from "lucide-react";
 
 // Custom Premium SVG Icons for Admin Dashboard
 const DashboardIcon = () => (
@@ -14,6 +15,18 @@ const DashboardIcon = () => (
 const ProductsIcon = () => (
   <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+  </svg>
+);
+
+const CanbosoIcon = () => (
+  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10" />
+  </svg>
+);
+
+const CategoriesIcon = () => (
+  <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
   </svg>
 );
 
@@ -237,8 +250,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   onClick={() => setShowPassword(!showPassword)}
                   className="btn btn-ghost btn-xs btn-circle absolute right-2 text-base-content/50"
                   tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {showPassword ? "🙈" : "👁"}
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
@@ -272,6 +286,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const navLinks = [
     { href: "/admin/dashboard", label: "Overview", icon: <DashboardIcon /> },
     { href: "/admin/products", label: "Catalog", icon: <ProductsIcon /> },
+    { href: "/admin/canboso", label: "Canboso Stock", icon: <CanbosoIcon /> },
+    { href: "/admin/categories", label: "Categories", icon: <CategoriesIcon /> },
     { href: "/admin/orders", label: "Orders", icon: <OrdersIcon /> },
     { href: "/admin/transactions", label: "Ledger", icon: <TransactionsIcon /> },
     { href: "/admin/redirects", label: "Router", icon: <RouterIcon /> },
@@ -373,9 +389,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <Link
               href="/"
               target="_blank"
-              className="btn btn-outline btn-sm flex-1 rounded-xl font-bold text-xs"
+              className="btn btn-outline btn-sm flex-1 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5"
             >
-              Storefront ↗
+              <span>Storefront</span>
+              <ExternalLink size={13} />
             </Link>
             <button
               onClick={handleLogout}

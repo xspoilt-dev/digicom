@@ -2,17 +2,18 @@
 
 import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, Suspense } from "react";
+import { trackEvent } from "@/lib/meta/track-event";
 
 function RouteTracker() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    const w = window as any;
-    if (typeof w.fbq === "function") {
-      w.fbq("track", "PageView");
-      console.log(`[Meta Pixel] PageView tracked dynamically for ${pathname}`);
-    }
+    // Avoid double-firing on initial page load if already handled, or let trackEvent dual-dispatch
+    trackEvent("PageView", {
+      path: pathname,
+      search: searchParams?.toString() || "",
+    });
   }, [pathname, searchParams]);
 
   return null;

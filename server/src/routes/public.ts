@@ -1,11 +1,13 @@
 import { Hono } from "hono";
 import Product from "../models/Product";
+import Category from "../models/Category";
 import Order from "../models/Order";
 import Transaction from "../models/Transaction";
 import Setting from "../models/Setting";
 import { sendCapiEvent } from "../utils/metaCapi";
 import { sendOrderDeliveryEmail } from "../utils/mailer";
 import { createZiniPayInvoice, verifyZiniPayInvoice } from "../utils/zinipay";
+import { getSetting } from "../utils/settingsCache";
 import path from "path";
 import fs from "fs";
 
@@ -17,8 +19,10 @@ function generateOrderId(): string {
   return `DIGI-${num}`;
 }
 
+import { executeCanbosoPurchase, getCanbosoConfig } from "../services/canbosoClient";
+
 /**
- * Fulfills an order once payment is confirmed via ZiniPay
+ * Fulfills an order once payment is confirmed via ZiniPay / bKash / Admin
  */
 async function fulfillPaidOrder(
   order: any,
@@ -33,9 +37,78 @@ async function fulfillPaidOrder(
   if (paymentDetails?.paymentMethod) {
     order.paymentMethod = paymentDetails.paymentMethod;
   }
+
+  // 1. Canboso Automated Purchasing & Instant Provisioning
+  const canbosoConfig = await getCanbosoConfig();
+  const dollarRate = canbosoConfig.dollarRate || 127;
+  order.dollarRateUsed = dollarRate;
+
+  let totalCostUsd = order.costUsd || 0;
+  const downloadUrls: { title: string; link: string }[] = [];
+
+  for (const item of order.items) {
+    const prodId = item.productId?._id || item.productId;
+    const prod = (await Product.findById(prodId)) as any;
+
+    if (prod) {
+      // Check if product is connected to Canboso Buyer API
+      if (prod.canbosoProductId && canbosoConfig.autoFulfill && prod.autoFulfill !== false) {
+        order.fulfillmentStatus = "processing";
+        try {
+          const purchaseRes = await executeCanbosoPurchase({
+            orderId: order.orderId,
+            productId: prod.canbosoProductId,
+            quantity: item.quantity || 1,
+            customerEmail: order.email,
+            slotMonths: order.slotMonths || item.slotMonths,
+          });
+
+          if (purchaseRes.success) {
+            order.fulfillmentStatus = "completed";
+            order.canbosoOrderCode = purchaseRes.orderCode;
+            if (purchaseRes.deliveryAccounts && purchaseRes.deliveryAccounts.length > 0) {
+              order.deliveryAccounts = (order.deliveryAccounts || []).concat(purchaseRes.deliveryAccounts);
+            }
+            const itemCost = purchaseRes.costUsd || prod.canbosoCostUsd || 0;
+            item.costUsd = itemCost;
+            totalCostUsd += itemCost * (item.quantity || 1);
+          } else {
+            order.fulfillmentStatus = "failed";
+            order.fulfillmentError = purchaseRes.errorMessage || "Canboso automated purchase failed";
+            console.warn(`[Canboso Fulfillment Warning] Order ${order.orderId}:`, purchaseRes.errorMessage);
+          }
+        } catch (err: any) {
+          order.fulfillmentStatus = "failed";
+          order.fulfillmentError = err.message;
+          console.error(`[Canboso Fulfillment Exception] Order ${order.orderId}:`, err);
+        }
+      } else {
+        // Static or non-Canboso product
+        if (!order.fulfillmentStatus || order.fulfillmentStatus === "unfulfilled") {
+          order.fulfillmentStatus = "completed";
+        }
+      }
+
+      // Resolve traditional download urls if any
+      const link =
+        prod.deliveryLink ||
+        (prod.filePath ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/${prod.filePath}` : "");
+      if (link) {
+        downloadUrls.push({ title: prod.title, link });
+      }
+    }
+  }
+
+  // 2. Financial Accounting (USD for Admin, BDT for Users)
+  order.costUsd = Number(totalCostUsd.toFixed(2));
+  order.costBdt = Math.round(order.costUsd * dollarRate);
+  order.totalUsd = Number((order.total / dollarRate).toFixed(2));
+  order.profitUsd = Number((order.totalUsd - order.costUsd).toFixed(2));
+  order.profitBdt = Math.round(order.total - order.costBdt);
+
   await order.save();
 
-  // Create or update Transaction record in payment ledger
+  // 3. Create or update Transaction record in payment ledger
   const trxID = paymentDetails?.transactionId || order.transactionId || `TXN-${order.orderId}-${Date.now()}`;
   await Transaction.findOneAndUpdate(
     { orderId: order._id },
@@ -52,7 +125,7 @@ async function fulfillPaidOrder(
     { upsert: true, new: true }
   );
 
-  // Trigger server-side Meta CAPI Purchase event
+  // 4. Trigger server-side Meta CAPI Purchase event
   await sendCapiEvent({
     eventName: "Purchase",
     eventId: order.metaEventId,
@@ -75,22 +148,7 @@ async function fulfillPaidOrder(
     },
   });
 
-  // Resolve secure download urls
-  const downloadUrls: { title: string; link: string }[] = [];
-  for (const item of order.items) {
-    const prodId = item.productId?._id || item.productId;
-    const prod = await Product.findById(prodId);
-    if (prod) {
-      const link =
-        prod.deliveryLink ||
-        (prod.filePath ? `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000"}/${prod.filePath}` : "");
-      if (link) {
-        downloadUrls.push({ title: prod.title, link });
-      }
-    }
-  }
-
-  // Send delivery email asynchronously
+  // 5. Send delivery email with credentials & download links
   if (order.email) {
     sendOrderDeliveryEmail({
       toEmail: order.email,
@@ -99,19 +157,20 @@ async function fulfillPaidOrder(
       totalAmount: order.total,
       items: order.items.map((i: any) => ({ title: i.title, price: i.price, quantity: i.quantity })),
       downloadUrls,
+      deliveryAccounts: order.deliveryAccounts || [],
     }).catch((err) => console.error("Email delivery send error:", err));
   }
 }
 
-// 0. Get public settings
+// 0. Get public settings (fast in-memory cached)
 publicRouter.get("/settings/public", async (c) => {
   try {
-    const pixelSetting = await Setting.findOne({ key: "meta_pixel" });
-    const companySetting = await Setting.findOne({ key: "company_info" });
+    const pixelSetting = await getSetting("meta_pixel");
+    const companySetting = await getSetting("company_info");
     return c.json({
       success: true,
-      pixelId: pixelSetting?.value?.pixelId || process.env.NEXT_PUBLIC_META_PIXEL_ID || "",
-      companyInfo: companySetting?.value || {},
+      pixelId: pixelSetting?.pixelId || process.env.NEXT_PUBLIC_META_PIXEL_ID || "",
+      companyInfo: companySetting || {},
     });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
@@ -132,7 +191,7 @@ publicRouter.post("/meta-capi", async (c) => {
     const ip = c.req.header("x-forwarded-for") || c.req.header("x-real-ip") || "127.0.0.1";
     const sourceUrl = eventSourceUrl || c.req.header("referer") || process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
-    const sent = await sendCapiEvent({
+    const result = await sendCapiEvent({
       eventName,
       eventId,
       eventSourceUrl: sourceUrl,
@@ -147,28 +206,28 @@ publicRouter.post("/meta-capi", async (c) => {
       customData: params || {},
     });
 
-    return c.json({ success: true, eventId, dispatched: sent });
+    return c.json({ success: result.success, eventId: result.eventId, response: result.response });
   } catch (error: any) {
     console.error("Error in /api/meta-capi relay:", error);
     return c.json({ success: false, error: error.message }, 500);
   }
 });
 
-// 1. Get all active products
+// 1. Get all active products (optimized lean query)
 publicRouter.get("/products", async (c) => {
   try {
-    const products = await Product.find({ active: true }).select("-filePath");
+    const products = await Product.find({ active: true }).select("-filePath").lean();
     return c.json({ success: true, products });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }
 });
 
-// 2. Get product by slug
+// 2. Get product by slug (lean query)
 publicRouter.get("/products/:slug", async (c) => {
   try {
     const slug = c.req.param("slug");
-    const product = await Product.findOne({ slug, active: true }).select("-filePath");
+    const product = await Product.findOne({ slug, active: true }).select("-filePath").lean();
     if (!product) {
       return c.json({ success: false, message: "Product not found" }, 404);
     }
@@ -178,25 +237,151 @@ publicRouter.get("/products/:slug", async (c) => {
   }
 });
 
+// 2.1 Get active categories (admin-ordered) with their products for homepage (lean queries)
+publicRouter.get("/categories", async (c) => {
+  try {
+    let categories = await Category.find({ active: true }).sort({ order: 1, createdAt: 1 }).lean();
+
+    // If categories table is empty, auto-seed from distinct categories in products
+    if (categories.length === 0) {
+      const distinctCats = await Product.distinct("category", { active: true });
+      const distinctTypes = await Product.distinct("type", { active: true });
+      const slugs = Array.from(new Set([...distinctCats.filter(Boolean), ...distinctTypes.filter(Boolean)]));
+
+      const defaultNames: Record<string, { name: string; desc: string }> = {
+        ai: { name: "এআই টুলস ও সাবস্ক্রিপশন (AI Tools)", desc: "ChatGPT Plus, Claude 3.5 Pro সহ সেরা প্রিমিয়াম এআই অ্যাকাউন্টস" },
+        streaming: { name: "স্ট্রিমিং ও বিনোদন (Streaming & OTT)", desc: "Netflix 4K UHD, Spotify Premium, YouTube Premium এর অফিসিয়াল অফার" },
+        creative: { name: "গ্রাফিক্স ও ক্রিয়েটিভ সফটওয়্যার (Creative)", desc: "Canva Pro, Adobe Creative Cloud, CapCut Pro সহ দরকারি সব ডিজাইন টুলস" },
+        dev: { name: "ডেভেলপার ও কোডিং টুলস (Dev Tools)", desc: "Cursor Pro, GitHub Copilot সহ আধুনিক প্রোগ্রামিং রিসোর্স" },
+        vpn: { name: "ভিপিএন ও অনলাইন সিকিউরিটি (VPN)", desc: "NordVPN সহ প্রিমিয়াম হাই-স্পিড সিকিউর ভিপিএন অ্যাকাউন্ট" },
+        account: { name: "প্রাইভেট একাউন্টস", desc: "১০০% ফুল মেয়াদ রিপ্লেসমেন্ট ওয়ারেন্টিসহ পার্সোনাল প্রিমিয়াম একাউন্ট" },
+        slot: { name: "টিম ও ফ্যামিলি স্লট", desc: "ব্যক্তিগত জিমেইল বা ইউজারনেমে সাশ্রয়ী সাবস্ক্রিপশন অ্যাক্টিভেশন" },
+        license: { name: "সফটওয়্যার লাইসেন্স কী", desc: "অরিজিনাল ভেরিফাইড সফটওয়্যার লাইসেন্স কোড ও ডিজিটাল এক্টিভেশন কি" },
+      };
+
+      for (let i = 0; i < slugs.length; i++) {
+        const slug = slugs[i];
+        const meta = defaultNames[slug] || { name: slug.toUpperCase(), desc: `${slug} ক্যাটাগরির প্রিমিয়াম সেবা` };
+        await Category.findOneAndUpdate(
+          { slug },
+          { $setOnInsert: { name: meta.name, slug, description: meta.desc, order: i + 1, active: true } },
+          { upsert: true }
+        );
+      }
+      categories = await Category.find({ active: true }).sort({ order: 1, createdAt: 1 }).lean();
+    }
+
+    // For each category, fetch its products efficiently
+    const result = await Promise.all(
+      categories.map(async (cat: any) => {
+        const products = await Product.find({
+          active: true,
+          $or: [{ category: cat.slug }, { type: cat.slug }],
+        })
+          .select("-filePath")
+          .limit(20)
+          .lean();
+        return {
+          _id: cat._id,
+          name: cat.name,
+          slug: cat.slug,
+          description: cat.description,
+          order: cat.order,
+          products,
+        };
+      })
+    );
+    return c.json({ success: true, categories: result });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 2.2 Get products by category slug (for /category/[slug] route pages)
+publicRouter.get("/categories/:slug", async (c) => {
+  try {
+    const slug = c.req.param("slug").toLowerCase();
+    const catDoc = await Category.findOne({ slug }).lean() as any;
+    const products = await Product.find({
+      active: true,
+      $or: [{ category: slug }, { type: slug }],
+    }).select("-filePath").lean();
+
+    return c.json({
+      success: true,
+      category: {
+        name: catDoc?.name || slug,
+        slug,
+        description: catDoc?.description || "",
+      },
+      total: products.length,
+      products,
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // 3. Initiate Checkout & Create ZiniPay Hosted Invoice
 publicRouter.post("/checkout", async (c) => {
   try {
     const body = await c.req.json();
-    const { productId, name, email, phone, metaEventId, fbp, fbc } = body;
+    const { productId, items: rawItems, name, email, phone, metaEventId, fbp, fbc, slotMonths } = body;
 
-    const product = await Product.findById(productId);
-    if (!product || !product.active) {
-      return c.json({ success: false, message: "Product not found or inactive" }, 404);
+    // Validate customer contact info
+    if (!name || !email || !phone) {
+      const missingFields: string[] = [];
+      if (!name) missingFields.push("name");
+      if (!email) missingFields.push("email");
+      if (!phone) missingFields.push("phone");
+      return c.json({ success: false, message: `Missing required fields: ${missingFields.join(", ")}` }, 400);
     }
 
-    // Check if required checkout fields are provided
-    const missingFields: string[] = [];
-    if (product.checkoutFields.includes("name") && !name) missingFields.push("name");
-    if (product.checkoutFields.includes("email") && !email) missingFields.push("email");
-    if (product.checkoutFields.includes("phone") && !phone) missingFields.push("phone");
+    let orderItems: any[] = [];
+    let orderTotal = 0;
+    let mainProduct: any = null;
 
-    if (missingFields.length > 0) {
-      return c.json({ success: false, message: `Missing required fields: ${missingFields.join(", ")}` }, 400);
+    if (rawItems && Array.isArray(rawItems) && rawItems.length > 0) {
+      for (const item of rawItems) {
+        const id = item.productId || item._id || item.id;
+        const p = (await Product.findById(id)) as any;
+        if (p && p.active) {
+          const qty = Math.max(1, Number(item.quantity) || 1);
+          orderItems.push({
+            productId: p._id,
+            title: p.title,
+            price: p.price,
+            quantity: qty,
+            costUsd: p.canbosoCostUsd || 0,
+            canbosoProductId: p.canbosoProductId,
+            slotMonths: slotMonths ? Number(slotMonths) : undefined,
+          });
+          orderTotal += p.price * qty;
+          if (!mainProduct) mainProduct = p;
+        }
+      }
+    } else if (productId) {
+      const product = (await Product.findById(productId)) as any;
+      if (!product || !product.active) {
+        return c.json({ success: false, message: "Product not found or inactive" }, 404);
+      }
+      orderItems = [
+        {
+          productId: product._id,
+          title: product.title,
+          price: product.price,
+          quantity: 1,
+          costUsd: product.canbosoCostUsd || 0,
+          canbosoProductId: product.canbosoProductId,
+          slotMonths: slotMonths ? Number(slotMonths) : undefined,
+        },
+      ];
+      orderTotal = product.price;
+      mainProduct = product;
+    }
+
+    if (orderItems.length === 0) {
+      return c.json({ success: false, message: "No valid products found for checkout" }, 400);
     }
 
     const orderId = generateOrderId();
@@ -206,20 +391,22 @@ publicRouter.post("/checkout", async (c) => {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+    // Financial Accounting setup
+    const canbosoConfig = await getCanbosoConfig();
+    const dollarRate = canbosoConfig.dollarRate || 127;
+    const totalCostUsd = orderItems.reduce((acc, i) => acc + ((i.costUsd || 0) * i.quantity), 0);
+    const totalCostBdt = Math.round(totalCostUsd * dollarRate);
+    const totalUsd = Number((orderTotal / dollarRate).toFixed(2));
+    const profitUsd = Number((totalUsd - totalCostUsd).toFixed(2));
+    const profitBdt = Math.round(orderTotal - totalCostBdt);
+
     const newOrder = new Order({
       orderId,
       name,
       email,
       phone,
-      items: [
-        {
-          productId: product._id,
-          title: product.title,
-          price: product.price,
-          quantity: 1,
-        },
-      ],
-      total: product.price,
+      items: orderItems,
+      total: orderTotal,
       status: "pending",
       paymentGateway: "zinipay",
       metaEventId,
@@ -227,16 +414,24 @@ publicRouter.post("/checkout", async (c) => {
       fbc,
       userAgent,
       ip,
+      slotMonths: slotMonths ? Number(slotMonths) : undefined,
+      fulfillmentStatus: "unfulfilled",
+      costUsd: totalCostUsd,
+      costBdt: totalCostBdt,
+      totalUsd,
+      profitUsd,
+      profitBdt,
+      dollarRateUsed: dollarRate,
     });
 
     // Create ZiniPay Invoice
     const ziniInvoice = await createZiniPayInvoice({
       cus_name: name || "Guest Customer",
       cus_email: email || "customer@digitalcorebd.com",
-      amount: product.price,
+      amount: orderTotal,
       metadata: {
         order_id: orderId,
-        product_id: String(product._id),
+        product_id: String(mainProduct?._id || orderItems[0].productId),
         metaEventId,
         customer_phone: phone || "",
       },
@@ -256,7 +451,7 @@ publicRouter.post("/checkout", async (c) => {
     await sendCapiEvent({
       eventName: "InitiateCheckout",
       eventId: metaEventId,
-      eventSourceUrl: `${siteUrl}/checkout/${product.slug}`,
+      eventSourceUrl: `${siteUrl}/checkout`,
       userData: {
         email,
         phone,
@@ -268,8 +463,8 @@ publicRouter.post("/checkout", async (c) => {
       },
       customData: {
         currency: "BDT",
-        value: product.price,
-        content_ids: [String(product._id)],
+        value: orderTotal,
+        content_ids: orderItems.map((i) => String(i.productId)),
         content_type: "product",
       },
     });
@@ -375,8 +570,7 @@ publicRouter.get("/order-status/:orderId", async (c) => {
       }
     }
 
-    const companySetting = await Setting.findOne({ key: "company_info" });
-    const companyInfo = companySetting?.value || {};
+    const companyInfo = (await getSetting("company_info")) || {};
 
     return c.json({
       success: true,
@@ -407,6 +601,10 @@ publicRouter.get("/order-status/:orderId", async (c) => {
                 : undefined,
           };
         }),
+        deliveryAccounts: order.status === "paid" ? (order.deliveryAccounts || []) : [],
+        fulfillmentStatus: order.fulfillmentStatus || (order.status === "paid" ? "completed" : "unfulfilled"),
+        canbosoOrderCode: order.canbosoOrderCode,
+        slotMonths: order.slotMonths,
       },
       companyInfo,
     });

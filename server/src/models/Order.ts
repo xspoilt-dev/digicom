@@ -7,15 +7,34 @@ export interface IOrderItem {
   quantity: number;
 }
 
+export interface IDeliveryAccount {
+  user: string;
+  password?: string;
+  verifyEmail?: string;
+  expiryText?: string;
+  otherInfo?: string;
+}
+
 export interface IOrder extends Document {
-  orderId: string; // custom human-readable ID (e.g. DIGI-1001)
+  orderId: string; // custom human-readable ID (e.g. KB-1001)
   name?: string;
   email?: string;
   phone?: string;
+  customerEmail?: string; // target email for slot invite/activation
+  slotMonths?: number;    // duration in months for slot purchases
+  quantity?: number;
   items: IOrderItem[];
   total: number;
   status: "pending" | "processing" | "paid" | "failed" | "cancelled";
-  paymentGateway: "zinipay" | "bkash" | "eps";
+  
+  // Upstream Canboso Buyer API Fulfillment fields
+  fulfillmentStatus?: "unfulfilled" | "waiting_seller" | "completed" | "failed";
+  autoCompleted?: boolean;
+  upstreamOrderCode?: string;
+  idempotencyKey?: string;
+  deliveryAccounts?: IDeliveryAccount[];
+
+  paymentGateway: "zinipay" | "bkash" | "eps" | "manual";
   zinipayInvoiceId?: string;
   zinipayPaymentUrl?: string;
   paymentMethod?: string;
@@ -38,6 +57,9 @@ const OrderSchema: Schema = new Schema(
     name: { type: String },
     email: { type: String },
     phone: { type: String },
+    customerEmail: { type: String },
+    slotMonths: { type: Number },
+    quantity: { type: Number, default: 1 },
     items: [
       {
         productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
@@ -53,6 +75,23 @@ const OrderSchema: Schema = new Schema(
       default: "pending",
       required: true,
     },
+    fulfillmentStatus: {
+      type: String,
+      enum: ["unfulfilled", "waiting_seller", "completed", "failed"],
+      default: "unfulfilled",
+    },
+    autoCompleted: { type: Boolean, default: false },
+    upstreamOrderCode: { type: String },
+    idempotencyKey: { type: String },
+    deliveryAccounts: [
+      {
+        user: { type: String, required: true },
+        password: { type: String },
+        verifyEmail: { type: String },
+        expiryText: { type: String },
+        otherInfo: { type: String },
+      },
+    ],
     paymentGateway: { type: String, default: "zinipay", required: true },
     zinipayInvoiceId: { type: String },
     zinipayPaymentUrl: { type: String },

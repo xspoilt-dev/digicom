@@ -9,7 +9,8 @@ interface Product {
   description: string;
   price: number;
   compareAtPrice?: number;
-  type: "course" | "pdf" | "video" | "zip" | "other";
+  type: "account" | "slot" | "license" | "course" | "pdf" | "video" | "zip" | "other";
+  serviceTag?: string;
   filePath?: string;
   deliveryLink?: string;
   thumbnailPath?: string;
@@ -312,11 +313,14 @@ export default function ProductsPage() {
                     value={selectedProduct.type}
                     onChange={(e) => setSelectedProduct({ ...selectedProduct, type: e.target.value as any })}
                   >
+                    <option value="account">Private Account (Instant Delivery)</option>
+                    <option value="slot">Team / Workspace Slot (Email Invite)</option>
+                    <option value="license">Software License Key</option>
                     <option value="course">Video Course</option>
                     <option value="pdf">PDF Book</option>
                     <option value="video">Video Guide</option>
                     <option value="zip">ZIP File</option>
-                    <option value="other">Other File</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
               </div>

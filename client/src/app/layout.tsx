@@ -4,8 +4,16 @@ import Script from "next/script";
 import { PixelRouteTracker } from "@/components/PixelRouteTracker";
 
 export const metadata: Metadata = {
-  title: "Digitalcorebd.com - Premium Digital Hub",
-  description: "Premium Digital Products & Courses Guest Purchase Storefront",
+  title: "KaloBazar | প্রিমিয়াম ডিজিটাল প্রোডাক্ট মার্কেটপ্লেস",
+  description: "KaloBazar - বাংলাদেশের বিশ্বস্ত ডিজিটাল প্রোডাক্ট, ভিডিও কোর্স ও রিসোর্স মার্কেটপ্লেস। ইনস্ট্যান্ট ডেলিভারি ও শতভাগ নিরাপদ পেমেন্ট।",
+  keywords: ["KaloBazar", "কালবাজার", "digital products", "courses", "ebooks", "scripts", "Bangladesh digital store"],
+  openGraph: {
+    title: "KaloBazar | প্রিমিয়াম ডিজিটাল প্রোডাক্ট মার্কেটপ্লেস",
+    description: "ইনস্ট্যান্ট ডেলিভারি ও নিরাপদ পেমেন্ট সহ সেরা ডিজিটাল প্রোডাক্ট, ভিডিও কোর্স ও রিসোর্স কালেকশন।",
+    siteName: "KaloBazar",
+    locale: "bn_BD",
+    type: "website",
+  },
 };
 
 export default async function RootLayout({
@@ -24,8 +32,8 @@ export default async function RootLayout({
       const data = await res.json();
       pixelId = data.pixelId;
     }
-  } catch (error) {
-    console.error("Failed to load public settings for Meta Pixel ID:", error);
+  } catch {
+    // API server not reachable at build time; fallback gracefully
   }
 
   // Fallback to Env if DB fails or is empty
@@ -34,12 +42,12 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="bn">
+    <html lang="bn" data-theme="kalobazar">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap"
           rel="stylesheet"
         />
       </head>

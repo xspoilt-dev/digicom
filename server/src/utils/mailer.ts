@@ -15,7 +15,7 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
     // 1. Fetch Email Settings and Company Info from database
     const emailConfigSetting = await Setting.findOne({ key: "email_settings" });
     const apiKey = emailConfigSetting?.value?.resendApiKey || process.env.RESEND_API_KEY;
-    const fromEmail = emailConfigSetting?.value?.fromEmail || "Digitalcorebd.com <noreply@digitalcorebd.com>";
+    const fromEmail = emailConfigSetting?.value?.fromEmail || "KaloBazar <noreply@kalobazar.com>";
 
     const companyInfoSetting = await Setting.findOne({ key: "company_info" });
     const companyInfo = companyInfoSetting?.value || {};
@@ -48,9 +48,9 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
     const linksHtml = downloadUrls
       .map(
         (url) => `
-      <div style="background-color: #feffec; border: 1px dashed #fbbf24; border-radius: 12px; padding: 16px; margin-bottom: 12px; text-align: center;">
-        <span style="font-size: 13px; font-weight: 700; color: #451a03; display: block; margin-bottom: 6px;">${url.title}</span>
-        <a href="${url.link}" target="_blank" style="background-color: #facc15; color: #451a03; font-weight: 800; font-size: 14px; text-decoration: none; padding: 10px 24px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(250, 204, 21, 0.2);">
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin-bottom: 12px; text-align: center;">
+        <span style="font-size: 14px; font-weight: 700; color: #0f172a; display: block; margin-bottom: 8px;">${url.title}</span>
+        <a href="${url.link}" target="_blank" style="background-color: #0f172a; color: #ffffff; font-weight: 800; font-size: 13px; text-decoration: none; padding: 10px 24px; border-radius: 8px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(15, 23, 42, 0.2);">
           Download Product
         </a>
       </div>`
@@ -63,7 +63,7 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Order Confirmed</title>
+        <title>Order Confirmed - KaloBazar</title>
       </head>
       <body style="margin: 0; padding: 0; background-color: #f8fafc; font-family: 'Inter', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased;">
         <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8fafc; padding: 32px 0;">
@@ -72,12 +72,12 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
               <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);">
                 <!-- Header -->
                 <tr>
-                  <td style="background-color: #facc15; padding: 32px; text-align: center;">
-                    <div style="font-size: 28px; font-weight: 900; color: #451a03; letter-spacing: -0.025em; margin-bottom: 4px;">
-                      Digitalcorebd.com
+                  <td style="background-color: #0f172a; padding: 32px; text-align: center;">
+                    <div style="font-size: 28px; font-weight: 900; color: #ffffff; letter-spacing: -0.025em; margin-bottom: 4px;">
+                      KaloBazar
                     </div>
-                    <span style="font-size: 12px; font-weight: 700; color: #78350f; text-transform: uppercase; letter-spacing: 0.1em;">
-                      Order Delivery Receipt
+                    <span style="font-size: 11px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.1em;">
+                      Official Order Delivery Receipt
                     </span>
                   </td>
                 </tr>
@@ -97,7 +97,7 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
                       <span style="font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 12px;">
                         Your Downloads
                       </span>
-                      ${linksHtml || `<p style="font-size: 13px; color: #94a3b8; italic;">No files attached to this product catalog</p>`}
+                      ${linksHtml || `<p style="font-size: 13px; color: #94a3b8; font-style: italic;">No files attached to this product catalog</p>`}
                     </div>
 
                     <!-- ORDER RECEIPTS -->
@@ -129,7 +129,7 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
                     </div>
 
                     <!-- Support Info -->
-                    <div style="margin-top: 40px; background-color: #f1f5f9; border-radius: 16px; padding: 20px; text-align: center;">
+                    <div style="margin-top: 40px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 16px; padding: 20px; text-align: center;">
                       <span style="font-size: 13px; font-weight: 700; color: #334155; display: block; margin-bottom: 4px;">Need Help?</span>
                       <p style="font-size: 12px; color: #64748b; margin: 0 0 12px 0;">If you face any issues with your download, contact our WhatsApp support instantly.</p>
                       <a href="${whatsappLink}" target="_blank" style="font-size: 13px; font-weight: 700; color: #16a34a; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
@@ -141,8 +141,8 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
 
                 <!-- Footer -->
                 <tr>
-                  <td style="background-color: #0f172a; padding: 24px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #1e293b;">
-                    &copy; 2026 Digitalcorebd.com. All rights reserved.
+                  <td style="background-color: #09090b; padding: 24px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px solid #1e293b;">
+                    &copy; 2026 KaloBazar. All rights reserved.
                   </td>
                 </tr>
               </table>
@@ -163,7 +163,7 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
       body: JSON.stringify({
         from: fromEmail,
         to: [toEmail],
-        subject: `Your Order ${orderId} - Digitalcorebd.com`,
+        subject: `Your Order ${orderId} - KaloBazar`,
         html: htmlContent,
       }),
     });

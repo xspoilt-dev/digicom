@@ -12,8 +12,8 @@ import fs from "fs";
 
 const adminRouter = new Hono();
 
-const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "digicom_super_secret_jwt_admin_token_2026";
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@digitalcorebd.com";
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "kalobazar_super_secret_jwt_admin_token_2026";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@kalobazar.com";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@2026!Secured";
 const LEGACY_ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin-secret-token";
 

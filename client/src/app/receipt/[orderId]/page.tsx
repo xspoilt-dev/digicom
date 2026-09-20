@@ -5,11 +5,20 @@ import Link from "next/link";
 import { trackEvent } from "@/lib/meta/track-event";
 import Footer from "@/components/Footer";
 
+interface DeliveryAccount {
+  user: string;
+  password?: string;
+  verifyEmail?: string;
+  expiryText?: string;
+  otherInfo?: string;
+}
+
 interface OrderItem {
   id: string;
   title: string;
   price: number;
   type: string;
+  duration?: string;
   isWebDisplay: boolean;
   deliveryLink?: string;
   downloadUrl?: string;
@@ -20,8 +29,15 @@ interface Order {
   name?: string;
   email?: string;
   phone?: string;
+  customerEmail?: string;
+  slotMonths?: number;
+  quantity?: number;
   total: number;
   status: "pending" | "processing" | "paid" | "failed" | "cancelled";
+  fulfillmentStatus?: "unfulfilled" | "waiting_seller" | "completed" | "failed";
+  autoCompleted?: boolean;
+  upstreamOrderCode?: string;
+  deliveryAccounts?: DeliveryAccount[];
   paymentGateway?: string;
   paymentUrl?: string;
   metaEventId?: string;
@@ -34,13 +50,13 @@ interface Order {
 
 // Icons
 const SuccessShield = () => (
-  <svg className="w-12 h-12 text-success" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg className="w-12 h-12 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
   </svg>
 );
 
 const WarningShield = () => (
-  <svg className="w-12 h-12 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+  <svg className="w-12 h-12 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
   </svg>
 );
@@ -63,6 +79,25 @@ const RefreshIcon = () => (
   </svg>
 );
 
+const CopyIcon = () => (
+  <svg className="w-3.5 h-3.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+  </svg>
+);
+
+const EyeIcon = () => (
+  <svg className="w-3.5 h-3.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+  </svg>
+);
+
+const EyeOffIcon = () => (
+  <svg className="w-3.5 h-3.5 inline-block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" />
+  </svg>
+);
+
 export default function ReceiptPage({ params }: { params: Promise<{ orderId: string }> }) {
   const resolvedParams = use(params);
   const orderId = resolvedParams.orderId;
@@ -71,6 +106,8 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
   const [error, setError] = useState("");
+  const [revealedPasswords, setRevealedPasswords] = useState<Record<number, boolean>>({});
+  const [copiedField, setCopiedField] = useState<string | null>(null);
 
   const purchaseTrackedRef = useRef(false);
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -85,8 +122,8 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
       } else {
         setError(data.message || "অর্ডার তথ্য পাওয়া যায়নি।");
       }
-    } catch (err) {
-      setError("সার্ভারের সাথে যোগাযোগ করা যায়নি।");
+    } catch {
+      setError("সার্ভারের সাথে যোগাযোগ করা সম্ভব হয়নি।");
     } finally {
       setLoading(false);
       if (showCheckingIndicator) setChecking(false);
@@ -120,20 +157,38 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
           num_items: order.items.length,
         },
         {
-          eventId: order.metaEventId || undefined,
-          email: order.email,
+          email: order.email || order.customerEmail,
           phone: order.phone,
+          skipCapi: false,
         }
       );
     }
-  }, [order?.status, order]);
+  }, [order]);
+
+  const copyToClipboard = (text: string, fieldId: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedField(fieldId);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  const toggleReveal = (idx: number) => {
+    setRevealedPasswords((prev) => ({ ...prev, [idx]: !prev[idx] }));
+  };
+
+  const copyAllCredentials = () => {
+    if (!order?.deliveryAccounts || order.deliveryAccounts.length === 0) return;
+    const lines = order.deliveryAccounts.map((acc, i) => {
+      return `[Account #${i + 1}]\nUser: ${acc.user}\nPassword: ${acc.password || "N/A"}\nRecovery: ${acc.verifyEmail || "N/A"}\nValidity: ${acc.expiryText || "Active"}\n`;
+    });
+    copyToClipboard(lines.join("\n"), "all");
+  };
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200" data-theme="lightyellow">
-        <div className="flex flex-col items-center gap-4">
-          <span className="loading loading-spinner loading-lg text-primary"></span>
-          <span className="text-primary font-bold text-sm">অর্ডার ভেরিফাই করা হচ্ছে...</span>
+      <div className="min-h-screen flex items-center justify-center bg-[#090d16] text-white">
+        <div className="flex flex-col items-center gap-3">
+          <span className="loading loading-spinner loading-lg text-cyan-400"></span>
+          <span className="text-xs font-bold text-slate-400">অর্ডার ভেরিফাই করা হচ্ছে...</span>
         </div>
       </div>
     );
@@ -141,146 +196,133 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
 
   if (error || !order) {
     return (
-      <div className="min-h-screen flex flex-col justify-between bg-base-200" data-theme="lightyellow">
-        <div className="container mx-auto px-4 py-16 flex-1 flex items-center justify-center">
-          <div className="card w-full max-w-md bg-base-100 border border-base-300 shadow-xl rounded-3xl p-8 text-center">
-            <h2 className="text-2xl font-black text-error mb-4">ভুল অর্ডার</h2>
-            <p className="text-sm text-base-content/70 mb-6">{error || "অর্ডারটি সিস্টেমে পাওয়া যায়নি।"}</p>
-            <Link href="/" className="btn btn-primary rounded-xl font-bold shadow-md">
-              হোমপেজে ফিরে যান
-            </Link>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#090d16] p-4 text-white">
+        <div className="bg-[#0d1527] border border-slate-800 shadow-xl rounded-3xl p-8 max-w-md w-full text-center">
+          <div className="flex justify-center mb-4">
+            <WarningShield />
           </div>
+          <h2 className="text-lg font-black text-white mb-2">অর্ডার পাওয়া যায়নি</h2>
+          <p className="text-xs text-slate-400 mb-6">{error || "অর্ডারের কোনো রেকর্ড মেলেনি।"}</p>
+          <Link href="/" className="btn btn-primary rounded-xl font-bold w-full text-sm">
+            হোমপেজে ফিরে যান
+          </Link>
         </div>
-        <Footer />
       </div>
     );
   }
 
-  const statusBadges: Record<string, string> = {
-    pending: "badge-warning text-stone-900",
-    processing: "badge-primary text-primary-content",
-    paid: "badge-success text-success-content",
-    failed: "badge-error text-error-content",
-    cancelled: "badge-ghost text-base-content/60",
-  };
-
-  const statusTexts: Record<string, string> = {
-    pending: "পেমেন্ট বাকি আছে",
-    processing: "ভেরিফিকেশন চলছে",
-    paid: "পরিশোধিত / ভেরিফাইড",
-    failed: "ব্যর্থ হয়েছে",
-    cancelled: "বাতিল হয়েছে",
-  };
-
   return (
-    <div className="min-h-screen flex flex-col bg-base-200 text-base-content" data-theme="lightyellow">
-      {/* Top Navbar */}
-      <div className="navbar bg-base-100 shadow-sm sticky top-0 z-50 px-4 md:px-8 border-b border-base-300">
-        <div className="navbar-start gap-2">
+    <div className="min-h-screen flex flex-col bg-[#090d16] text-slate-100">
+      <header className="navbar bg-[#0b1120] border-b border-slate-800 px-4 md:px-8">
+        <div className="navbar-start">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center font-black text-lg text-primary-content shadow-xs">
-              D
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan-500 to-blue-600 text-white flex items-center justify-center font-black text-sm">
+              KB
             </div>
-            <span className="font-extrabold text-base md:text-lg tracking-tight text-base-content">
-              Digitalcorebd.com
-            </span>
+            <span className="text-lg font-black text-white">KaloBazar</span>
           </Link>
         </div>
-        <div className="navbar-end gap-2">
-          <Link href="/" className="btn btn-ghost btn-sm font-bold text-xs md:text-sm">
-            হোমপেজ
-          </Link>
-          <Link href="/shop" className="btn btn-ghost btn-sm font-bold text-xs md:text-sm">
-            শপ
-          </Link>
+        <div className="navbar-end">
+          <span className="badge badge-outline border-slate-700 text-slate-300 text-xs font-bold px-3 py-2">
+            ইনভয়েস: {order.orderId}
+          </span>
         </div>
-      </div>
+      </header>
 
-      <main className="container mx-auto px-4 py-8 md:py-12 flex-1 max-w-3xl">
-        <div className="text-center mb-8">
-          <h1 className="text-2xl md:text-3xl font-black text-base-content tracking-tight">
-            ইনভয়েস বিবরণী
-          </h1>
-          <p className="text-xs md:text-sm text-base-content/60 mt-1">
-            ইনভয়েস আইডিঃ <span className="font-mono font-bold text-primary">#{order.orderId}</span>
-          </p>
-        </div>
+      <main className="container mx-auto px-4 md:px-8 py-8 md:py-12 flex-1 max-w-3xl">
+        {/* Order Meta Header Card */}
+        <div className="bg-[#0e1628] border border-slate-800 rounded-3xl p-6 md:p-8 shadow-sm mb-6">
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-slate-800">
+            <div>
+              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">অর্ডার কোড</div>
+              <div className="text-lg md:text-xl font-black text-white flex items-center gap-2">
+                {order.orderId}
+                {order.upstreamOrderCode && (
+                  <span className="badge badge-xs bg-slate-800 border-slate-700 text-cyan-400 text-[9px] font-mono px-2 py-1">
+                    API: {order.upstreamOrderCode}
+                  </span>
+                )}
+              </div>
+            </div>
 
-        {/* Invoice Summary Card */}
-        <div className="card bg-base-100 border border-base-300 shadow-sm rounded-3xl p-6 md:p-8 mb-6">
-          <div className="flex flex-wrap justify-between items-center gap-3 mb-6 pb-4 border-b border-base-200">
-            <span className="font-bold text-base md:text-lg text-base-content">পেমেন্ট স্টেটাস</span>
-            <span className={`badge ${statusBadges[order.status] || "badge-ghost"} py-3 px-4 font-bold text-xs`}>
-              {statusTexts[order.status] || order.status}
-            </span>
+            <div>
+              <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">বর্তমান অবস্থা</div>
+              <div>
+                {order.status === "paid" && (
+                  <span className="badge badge-success text-white font-bold text-xs px-3 py-2">
+                    ✓ পরিশোধিত ও সক্রিয়
+                  </span>
+                )}
+                {order.status === "pending" && (
+                  <span className="badge badge-warning text-black font-bold text-xs px-3 py-2">
+                    পেমেন্ট অপেক্ষমাণ
+                  </span>
+                )}
+                {order.status === "processing" && (
+                  <span className="badge badge-info text-white font-bold text-xs px-3 py-2">
+                    ভেরিফিকেশন চলছে
+                  </span>
+                )}
+                {(order.status === "failed" || order.status === "cancelled") && (
+                  <span className="badge badge-error text-white font-bold text-xs px-3 py-2">
+                    ব্যর্থ / বাতিল
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
 
-          <div className="bg-base-200 rounded-2xl p-5 mb-6 text-xs md:text-sm space-y-2 border border-base-300">
-            {order.name && (
-              <div className="flex justify-between flex-wrap gap-1">
-                <span className="font-bold text-base-content/80">গ্রাহকের নাম:</span>
-                <span className="font-semibold text-base-content">{order.name}</span>
-              </div>
-            )}
-            {order.email && (
-              <div className="flex justify-between flex-wrap gap-1">
-                <span className="font-bold text-base-content/80">ইমেইল এড্রেস:</span>
-                <span className="font-semibold text-base-content">{order.email}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 py-4 text-xs">
+            <div>
+              <span className="text-slate-400">গ্রাহকের নাম:</span>{" "}
+              <span className="font-bold text-white">{order.name || "গেস্ট কাস্টমার"}</span>
+            </div>
+            <div>
+              <span className="text-slate-400">যোগাযোগের ইমেইল:</span>{" "}
+              <span className="font-bold text-white">{order.email || "N/A"}</span>
+            </div>
+            {order.customerEmail && (
+              <div className="sm:col-span-2 bg-cyan-950/30 border border-cyan-500/20 rounded-xl p-2.5 flex items-center justify-between">
+                <div>
+                  <span className="text-cyan-400 font-bold">টিম স্লট / ইনভাইট ইমেইল:</span>{" "}
+                  <span className="font-bold text-white">{order.customerEmail}</span>
+                </div>
+                {order.slotMonths && (
+                  <span className="badge badge-sm bg-cyan-500/20 text-cyan-300 font-bold">
+                    {order.slotMonths} মাসের এক্সেস
+                  </span>
+                )}
               </div>
             )}
             {order.phone && (
-              <div className="flex justify-between flex-wrap gap-1">
-                <span className="font-bold text-base-content/80">মোবাইল নম্বর:</span>
-                <span className="font-semibold text-base-content">{order.phone}</span>
+              <div>
+                <span className="text-slate-400">মোবাইল:</span>{" "}
+                <span className="font-bold text-white">{order.phone}</span>
               </div>
             )}
-            <div className="flex justify-between flex-wrap gap-1">
-              <span className="font-bold text-base-content/80">পেমেন্ট মাধ্যম:</span>
-              <span className="font-semibold text-base-content">
-                {order.paymentMethod ? `${order.paymentMethod.toUpperCase()} (অনলাইন)` : "ZiniPay অনলাইন পেমেন্ট"}
-              </span>
-            </div>
             {order.transactionId && (
-              <div className="flex justify-between flex-wrap gap-1">
-                <span className="font-bold text-base-content/80">ট্রানজেকশন আইডি:</span>
-                <span className="font-mono font-bold text-primary">{order.transactionId}</span>
+              <div>
+                <span className="text-slate-400">TrxID:</span>{" "}
+                <span className="font-bold text-cyan-400 font-mono">{order.transactionId}</span>
               </div>
             )}
-            <div className="pt-2 border-t border-base-300 flex justify-between items-center">
-              <span className="font-bold text-base-content">মোট ইনভয়েস মূল্য:</span>
-              <span className="text-xl md:text-2xl font-black text-primary">৳{order.total}</span>
-            </div>
           </div>
 
-          <h3 className="font-bold text-sm md:text-base text-base-content mb-4 pb-2 border-b border-base-200">
-            ক্রয়কৃত পণ্যসমূহ
-          </h3>
-          <div className="divide-y divide-base-200">
-            {order.items.map((item, idx) => (
-              <div key={idx} className="py-3 flex flex-wrap justify-between items-center gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="font-bold text-xs md:text-sm text-base-content">{item.title}</span>
-                  <span className="badge badge-primary badge-xs py-2 px-2 font-bold text-[10px]">
-                    {item.type === "course" ? "ভিডিও কোর্স" : item.type === "pdf" ? "পিডিএফ বই" : "ডিজিটাল ফাইল"}
-                  </span>
-                </div>
-                <span className="font-bold text-xs md:text-sm text-base-content">৳{item.price}</span>
-              </div>
-            ))}
+          <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
+            <span className="font-bold text-slate-300">পরিশোধিত মূল্য:</span>
+            <span className="text-xl md:text-2xl font-black text-cyan-400">৳{order.total}</span>
           </div>
         </div>
 
-        {/* Pending Payment Action Card */}
+        {/* Pending Payment Card */}
         {order.status === "pending" && (
-          <div className="card bg-base-100 border-2 border-warning/70 shadow-md rounded-3xl p-6 md:p-8 text-center mb-6">
+          <div className="bg-[#0e1628] border-2 border-amber-500/50 shadow-md rounded-3xl p-6 md:p-8 text-center mb-6">
             <div className="flex justify-center mb-4">
               <WarningShield />
             </div>
-            <h2 className="text-xl font-black text-base-content mb-2">
-              পেমেন্ট এখনও সম্পন্ন হয়নি
-            </h2>
-            <p className="text-xs md:text-sm text-base-content/75 max-w-md mx-auto mb-6 leading-relaxed">
-              আপনার ডিজিটাল ফাইলটি আনলক করতে নিচের বাটনে ক্লিক করে ZiniPay সুরক্ষিত গেটওয়েতে পেমেন্ট সম্পন্ন করুন।
+            <h2 className="text-xl font-black text-white mb-2">পেমেন্ট এখনও সম্পন্ন হয়নি</h2>
+            <p className="text-xs md:text-sm text-slate-300 max-w-md mx-auto mb-6 leading-relaxed">
+              আপনার ডিজিটাল অ্যাকাউন্টটি আনলক করতে নিচের বাটনে ক্লিক করে সুরক্ষিত ZiniPay গেটওয়েতে পেমেন্ট সম্পন্ন করুন।
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
@@ -295,60 +337,189 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
               <button
                 onClick={() => fetchOrderStatus(true)}
                 disabled={checking}
-                className="btn btn-outline rounded-xl font-bold px-6 w-full sm:w-auto text-sm gap-2"
+                className="btn btn-outline border-slate-700 text-slate-300 hover:bg-slate-800 rounded-xl font-bold px-6 w-full sm:w-auto text-sm gap-2"
               >
                 <RefreshIcon /> {checking ? "যাচাই করা হচ্ছে..." : "স্টেটাস রিফ্রেশ করুন"}
               </button>
             </div>
 
-            <div className="mt-6 pt-4 border-t border-base-200 text-xs text-base-content/60 flex items-center justify-center gap-2">
-              <span className="loading loading-spinner loading-xs text-primary"></span>
-              পেমেন্ট যাচাইয়ের জন্য অপেক্ষা করা হচ্ছে (স্বয়ংক্রিয়ভাবে আপডেট হবে)
+            <div className="mt-6 pt-4 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-center gap-2">
+              <span className="loading loading-spinner loading-xs text-cyan-400"></span>
+              পেমেন্ট ভেরিফিকেশনের জন্য অপেক্ষা করা হচ্ছে (স্বয়ংক্রিয়ভাবে আপডেট হবে)
             </div>
           </div>
         )}
 
         {/* Processing State Card */}
         {order.status === "processing" && (
-          <div className="card bg-base-100 border border-primary/50 shadow-md rounded-3xl p-6 md:p-8 text-center mb-6">
+          <div className="bg-[#0e1628] border border-cyan-500/50 shadow-md rounded-3xl p-6 md:p-8 text-center mb-6">
             <div className="flex justify-center mb-4">
               <WarningShield />
             </div>
-            <h2 className="text-lg md:text-xl font-black text-primary mb-2">
-              পেমেন্ট ভেরিফিকেশন চলছে
-            </h2>
-            <p className="text-xs md:text-sm text-base-content/75 max-w-md mx-auto mb-4 leading-relaxed">
-              আপনার পেমেন্ট সিস্টেমের সাথে যোগাযোগ করে ভেরিফাই করা হচ্ছে। ভেরিফিকেশন সম্পন্ন হওয়া মাত্র ডিজিটাল ফাইলের ডাউনলোড লিংক স্বয়ংক্রিয়ভাবে উন্মুক্ত হবে।
+            <h2 className="text-lg md:text-xl font-black text-cyan-400 mb-2">পেমেন্ট ভেরিফিকেশন চলছে</h2>
+            <p className="text-xs md:text-sm text-slate-300 max-w-md mx-auto mb-4 leading-relaxed">
+              পেমেন্ট গেটওয়ের সাথে যোগাযোগ করে অ্যাকাউন্ট বা ইনভাইট প্রস্তুত করা হচ্ছে। কিছুক্ষণের মধ্যে ডিটেইলস দৃশ্যমান হবে।
             </p>
-            <div className="inline-flex items-center gap-2 text-xs font-semibold text-primary">
-              <span className="loading loading-spinner loading-xs text-primary"></span>
-              পেমেন্ট চেক করা হচ্ছে... অনুগ্রহ করে অপেক্ষা করুন।
+            <div className="inline-flex items-center gap-2 text-xs font-semibold text-cyan-400">
+              <span className="loading loading-spinner loading-xs text-cyan-400"></span>
+              ভেরিফিকেশন চলছে... অনুগ্রহ করে অপেক্ষা করুন।
             </div>
           </div>
         )}
 
-        {/* Paid / Completed Card */}
+        {/* Paid / Completed - DIGITAL ACCOUNT CREDENTIALS & DELIVERY CARD */}
         {order.status === "paid" && (
-          <div className="card bg-base-100 border-2 border-success shadow-lg rounded-3xl p-6 md:p-8 mb-6">
+          <div className="bg-[#0e1628] border-2 border-emerald-500/80 shadow-2xl rounded-3xl p-6 md:p-8 mb-6">
             <div className="text-center mb-6">
               <div className="flex justify-center mb-3">
                 <SuccessShield />
               </div>
-              <h2 className="text-xl md:text-2xl font-black text-success">
+              <h2 className="text-xl md:text-2xl font-black text-emerald-400">
                 পেমেন্ট সফলভাবে সম্পন্ন হয়েছে!
               </h2>
-              <p className="text-xs md:text-sm text-base-content/70 mt-1">
-                নিচে দেওয়া লিংক থেকে আপনার ক্রয়কৃত ডিজিটাল ফাইলটি সংগ্রহ করুনঃ
+              <p className="text-xs md:text-sm text-slate-300 mt-1 font-medium">
+                আপনার ডিজিটাল অ্যাকাউন্ট ডিটেইলস বা সাবস্ক্রিপশন ইনভাইটেশন সক্রিয় করা হয়েছে।
               </p>
             </div>
 
-            <div className="space-y-4">
+            {/* If Delivery Accounts are provided */}
+            {order.deliveryAccounts && order.deliveryAccounts.length > 0 && (
+              <div className="space-y-4 mb-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    🔐 অ্যাকাউন্ট লগইন ক্রেডেনশিয়াল
+                  </span>
+                  <button
+                    onClick={copyAllCredentials}
+                    className="btn btn-xs btn-outline border-slate-700 text-cyan-400 hover:bg-slate-800 rounded-lg gap-1"
+                  >
+                    <CopyIcon /> {copiedField === "all" ? "কপি হয়েছে!" : "সব কপি করুন"}
+                  </button>
+                </div>
+
+                {order.deliveryAccounts.map((acc, idx) => {
+                  const isRevealed = revealedPasswords[idx];
+                  return (
+                    <div
+                      key={idx}
+                      className="bg-[#090d16] border border-slate-800 rounded-2xl p-4 sm:p-5 space-y-3"
+                    >
+                      {/* Username / User */}
+                      <div className="flex items-center justify-between gap-2 bg-[#121a2d] p-3 rounded-xl border border-slate-800">
+                        <div className="truncate">
+                          <div className="text-[10px] text-slate-400 font-bold uppercase">ইউজার / ইমেইল</div>
+                          <div className="text-sm font-mono font-bold text-white select-all">{acc.user}</div>
+                        </div>
+                        <button
+                          onClick={() => copyToClipboard(acc.user, `user-${idx}`)}
+                          className="btn btn-xs btn-ghost text-slate-300 hover:text-cyan-400"
+                        >
+                          <CopyIcon /> {copiedField === `user-${idx}` ? "কপি হয়েছে" : "কপি"}
+                        </button>
+                      </div>
+
+                      {/* Password */}
+                      {acc.password && (
+                        <div className="flex items-center justify-between gap-2 bg-[#121a2d] p-3 rounded-xl border border-slate-800">
+                          <div className="truncate">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">পাসওয়ার্ড</div>
+                            <div className="text-sm font-mono font-bold text-cyan-300 select-all">
+                              {isRevealed ? acc.password : "••••••••••••"}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <button
+                              onClick={() => toggleReveal(idx)}
+                              className="btn btn-xs btn-ghost text-slate-400 hover:text-white"
+                            >
+                              {isRevealed ? <EyeOffIcon /> : <EyeIcon />}
+                            </button>
+                            <button
+                              onClick={() => copyToClipboard(acc.password || "", `pass-${idx}`)}
+                              className="btn btn-xs btn-ghost text-slate-300 hover:text-cyan-400"
+                            >
+                              <CopyIcon /> {copiedField === `pass-${idx}` ? "কপি হয়েছে" : "কপি"}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Recovery / Verify Email if present */}
+                      {acc.verifyEmail && (
+                        <div className="flex items-center justify-between gap-2 bg-[#121a2d] p-3 rounded-xl border border-slate-800">
+                          <div className="truncate">
+                            <div className="text-[10px] text-slate-400 font-bold uppercase">রিকভারি / ভেরিফাই ইমেইল</div>
+                            <div className="text-xs font-mono text-slate-300 select-all">{acc.verifyEmail}</div>
+                          </div>
+                          <button
+                            onClick={() => copyToClipboard(acc.verifyEmail || "", `rec-${idx}`)}
+                            className="btn btn-xs btn-ghost text-slate-300 hover:text-cyan-400"
+                          >
+                            <CopyIcon /> {copiedField === `rec-${idx}` ? "কপি হয়েছে" : "কপি"}
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Expiry & Other Notes */}
+                      {(acc.expiryText || acc.otherInfo) && (
+                        <div className="text-[11px] text-slate-400 pt-1 space-y-1">
+                          {acc.expiryText && (
+                            <div>
+                              <span className="font-bold text-slate-300">মেয়াদ:</span> {acc.expiryText}
+                            </div>
+                          )}
+                          {acc.otherInfo && (
+                            <div>
+                              <span className="font-bold text-amber-400">নির্দেশনা:</span> {acc.otherInfo}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* If Slot / Team Invite Product */}
+            {order.customerEmail && (
+              <div className="bg-[#090d16] border border-cyan-500/30 rounded-2xl p-5 mb-6">
+                <div className="flex items-center gap-2 text-cyan-400 font-bold text-sm mb-2">
+                  <span>📧</span>
+                  <span>টিম ওয়ার্কস্পেস ইনভাইটেশন স্ট্যাটাস</span>
+                </div>
+                <p className="text-xs text-slate-300 leading-relaxed">
+                  আপনার প্রদানকৃত ইমেইল <strong className="text-white font-mono">{order.customerEmail}</strong> এ টিম
+                  ইনভাইটেশন লিংক প্রেরণ করা হয়েছে। অনুগ্রহ করে আপনার ইমেইল ইনবক্স বা স্প্যাম ফোল্ডার চেক করে ইনভাইটেশনটি
+                  গ্রহণ (Accept) করুন।
+                </p>
+                <div className="mt-3 flex items-center gap-2">
+                  <span className="badge badge-success badge-sm font-bold text-white">ইনভাইটেশন ডিসপ্যাচ সম্পন্ন</span>
+                  {order.slotMonths && (
+                    <span className="badge badge-outline border-slate-700 text-xs text-slate-300">
+                      {order.slotMonths} মাসের অ্যাক্টিভেশন
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Itemized Deliverables */}
+            <div className="space-y-3 pt-4 border-t border-slate-800">
+              <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">ক্রয়কৃত সার্ভিসসমূহ:</span>
               {order.items.map((item, idx) => (
-                <div key={idx} className="bg-base-200 border border-base-300 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div
+                  key={idx}
+                  className="bg-[#090d16] border border-slate-800/80 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
                   <div>
-                    <h4 className="font-bold text-sm md:text-base text-base-content">{item.title}</h4>
-                    <span className="badge badge-primary badge-xs py-2 px-2 font-bold text-[10px] mt-1">
-                      {item.type === "course" ? "ভিডিও কোর্স" : item.type === "pdf" ? "পিডিএফ বই" : "ডিজিটাল ফাইল"}
+                    <h4 className="font-bold text-sm text-white">{item.title}</h4>
+                    <span className="badge badge-primary badge-xs py-1.5 px-2 font-bold text-[10px] mt-1">
+                      {item.type === "slot"
+                        ? "টিম স্লট"
+                        : item.type === "account"
+                        ? "ইনস্ট্যান্ট অ্যাকাউন্ট"
+                        : "ডিজিটাল পণ্য"}
                     </span>
                   </div>
 
@@ -357,7 +528,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
                       <a
                         href={`${apiUrl}${item.downloadUrl}`}
                         download
-                        className="btn btn-primary btn-sm rounded-xl font-bold shadow-xs gap-1.5"
+                        className="btn btn-primary btn-sm rounded-xl font-bold shadow-sm gap-1.5"
                       >
                         <DownloadIcon /> ডাউনলোড করুন
                       </a>
@@ -367,43 +538,51 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
                         href={item.deliveryLink}
                         target="_blank"
                         rel="noreferrer"
-                        className="btn btn-outline btn-sm rounded-xl font-bold gap-1.5"
+                        className="btn btn-outline border-slate-700 text-slate-200 hover:bg-slate-800 btn-sm rounded-xl font-bold gap-1.5"
                       >
                         <LinkIcon /> সরাসরি দেখুন
                       </a>
                     )}
-                    {!item.isWebDisplay && (
-                      <span className="text-xs text-base-content/60 italic self-center">
-                        লিংকটি আপনার ইমেইল ঠিকানায় পাঠানো হয়েছে।
-                      </span>
-                    )}
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Support Box */}
+            <div className="mt-6 pt-4 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400">
+              <span>লগইন বা ইনভাইটেশনে কোনো সমস্যা হলে সাপোর্টে যোগাযোগ করুনঃ</span>
+              <a
+                href="https://t.me/kalobazar_support"
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-sm btn-outline border-cyan-500/50 text-cyan-400 hover:bg-cyan-500/10 rounded-xl font-bold"
+              >
+                টেলিগ্রাম সাপোর্ট →
+              </a>
             </div>
           </div>
         )}
 
         {/* Failed / Cancelled Card */}
         {(order.status === "failed" || order.status === "cancelled") && (
-          <div className="card bg-base-100 border-2 border-error/50 shadow-md rounded-3xl p-6 md:p-8 text-center mb-6">
-            <h2 className="text-lg md:text-xl font-black text-error mb-2">
+          <div className="bg-[#0e1628] border-2 border-red-500/50 shadow-md rounded-3xl p-6 md:p-8 text-center mb-6">
+            <h2 className="text-lg md:text-xl font-black text-red-400 mb-2">
               {order.status === "failed" ? "পেমেন্ট ব্যর্থ হয়েছে" : "অর্ডারটি বাতিল করা হয়েছে"}
             </h2>
-            <p className="text-xs md:text-sm text-base-content/75 max-w-md mx-auto mb-6 leading-relaxed">
-              পেমেন্ট প্রক্রিয়া সম্পন্ন করা যায়নি। অনুগ্রহ করে পুনরায় অর্ডার করুন অথবা সাপোর্টে যোগাযোগ করুন।
+            <p className="text-xs md:text-sm text-slate-300 max-w-md mx-auto mb-6 leading-relaxed">
+              পেমেন্ট প্রক্রিয়া সম্পন্ন করা যায়নি। অনুগ্রহ করে পুনরায় চেষ্টা করুন অথবা টেলিগ্রাম সাপোর্টে মেসেজ দিন।
             </p>
             <div className="flex justify-center gap-3">
               <Link href="/" className="btn btn-primary rounded-xl font-bold text-sm">
-                হোমপেজে ফিরে যান
+                মার্কেটপ্লেসে ফিরে যান
               </Link>
             </div>
           </div>
         )}
 
         <div className="text-center mt-6">
-          <Link href="/" className="btn btn-ghost btn-sm font-bold text-xs text-base-content/70">
-            ← হোমপেজে ফিরে যান
+          <Link href="/" className="btn btn-ghost btn-sm font-bold text-xs text-slate-400 hover:text-white">
+            ← মার্কেটপ্লেসে ফিরে যান
           </Link>
         </div>
       </main>

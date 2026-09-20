@@ -14,7 +14,7 @@ const publicRouter = new Hono();
 // Helper to generate a unique readable Order ID
 function generateOrderId(): string {
   const num = Math.floor(100000 + Math.random() * 900000);
-  return `DIGI-${num}`;
+  return `KB-${num}`;
 }
 
 /**
@@ -182,7 +182,7 @@ publicRouter.get("/products/:slug", async (c) => {
 publicRouter.post("/checkout", async (c) => {
   try {
     const body = await c.req.json();
-    const { productId, name, email, phone, metaEventId, fbp, fbc } = body;
+    const { productId, name, email, phone, customerEmail, slotMonths, quantity = 1, metaEventId, fbp, fbc } = body;
 
     const product = await Product.findById(productId);
     if (!product || !product.active) {
@@ -191,9 +191,14 @@ publicRouter.post("/checkout", async (c) => {
 
     // Check if required checkout fields are provided
     const missingFields: string[] = [];
-    if (product.checkoutFields.includes("name") && !name) missingFields.push("name");
-    if (product.checkoutFields.includes("email") && !email) missingFields.push("email");
-    if (product.checkoutFields.includes("phone") && !phone) missingFields.push("phone");
+    if (product.checkoutFields?.includes("name") && !name) missingFields.push("name");
+    if (product.checkoutFields?.includes("email") && !email) missingFields.push("email");
+    if (product.checkoutFields?.includes("phone") && !phone) missingFields.push("phone");
+    
+    // For slot products or slot_chatgpt_business, customerEmail is required
+    if ((product.type === "slot" || product.purchaseRequirements?.customerEmail) && !customerEmail && !email) {
+      missingFields.push("customerEmail");
+    }
 
     if (missingFields.length > 0) {
       return c.json({ success: false, message: `Missing required fields: ${missingFields.join(", ")}` }, 400);
@@ -206,21 +211,33 @@ publicRouter.post("/checkout", async (c) => {
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+    // Calculate total price based on duration multiplier or quantity
+    const orderQty = Math.max(1, Number(quantity) || 1);
+    let orderTotal = product.price * orderQty;
+    if (slotMonths && slotMonths > 1) {
+      // If product has slotMonths pricing multiplier
+      orderTotal = Math.round(product.price * (slotMonths / (product.purchaseRequirements?.allowedMonths?.[0] || 1)));
+    }
+
     const newOrder = new Order({
       orderId,
       name,
-      email,
+      email: email || customerEmail,
       phone,
+      customerEmail: customerEmail || email,
+      slotMonths: slotMonths ? Number(slotMonths) : undefined,
+      quantity: orderQty,
       items: [
         {
           productId: product._id,
           title: product.title,
           price: product.price,
-          quantity: 1,
+          quantity: orderQty,
         },
       ],
-      total: product.price,
+      total: orderTotal,
       status: "pending",
+      fulfillmentStatus: "unfulfilled",
       paymentGateway: "zinipay",
       metaEventId,
       fbp,
@@ -232,7 +249,7 @@ publicRouter.post("/checkout", async (c) => {
     // Create ZiniPay Invoice
     const ziniInvoice = await createZiniPayInvoice({
       cus_name: name || "Guest Customer",
-      cus_email: email || "customer@digitalcorebd.com",
+      cus_email: email || "customer@kalobazar.com",
       amount: product.price,
       metadata: {
         order_id: orderId,
@@ -385,8 +402,15 @@ publicRouter.get("/order-status/:orderId", async (c) => {
         name: order.name,
         email: order.email,
         phone: order.phone,
+        customerEmail: order.customerEmail,
+        slotMonths: order.slotMonths,
+        quantity: order.quantity || 1,
         total: order.total,
         status: order.status,
+        fulfillmentStatus: order.fulfillmentStatus || "unfulfilled",
+        autoCompleted: order.autoCompleted || false,
+        upstreamOrderCode: order.upstreamOrderCode,
+        deliveryAccounts: order.deliveryAccounts || [],
         paymentGateway: order.paymentGateway,
         paymentUrl: order.zinipayPaymentUrl,
         metaEventId: order.metaEventId,
@@ -398,7 +422,8 @@ publicRouter.get("/order-status/:orderId", async (c) => {
             id: prod?._id,
             title: item.title,
             price: item.price,
-            type: prod?.type,
+            type: prod?.type || "account",
+            duration: prod?.duration,
             isWebDisplay: prod?.isWebDisplay,
             deliveryLink: prod?.isWebDisplay ? prod.deliveryLink : undefined,
             downloadUrl:

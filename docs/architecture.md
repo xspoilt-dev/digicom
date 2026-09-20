@@ -56,10 +56,15 @@ The user interface follows the **Lumina Digital** design system (defined in deta
 
 The platform natively handles multiple product delivery models:
 
-1. **PDF/Ebook**: Instant downloadable file served securely from a private storage bucket (S3, Cloudflare R2, or local private volume).
-2. **Zip File (Software/Assets)**: Secure compressed archive download.
-3. **Video Files**: Single video download or embedded, secure streamable video player.
-4. **Online Courses**: A structured page displaying curriculum chapters, progress tracker (matching the 8px rounded track design), and HTML5 video content streaming.
+1. **Digital Accounts (Instant Login Delivery)**: Pre-provisioned private accounts (e.g., ChatGPT Plus, Claude Pro, Cursor, NordVPN) auto-fulfilled via the Canboso Buyer API. Delivers user, password, recovery email, and validity expiration immediately on-screen and via email.
+2. **Team / Workspace Slots (Email Invites)**: Workspace seat invites (e.g., ChatGPT Business Slot, Canva Team, Adobe CC) fulfilled via customer email. Supports slot duration selection (1, 3, 6, 12 months).
+3. **License Keys & Subscriptions**: Activation keys and pre-activated software subscriptions.
+4. **PDF/Ebook**: Instant downloadable file served securely from storage.
+5. **Zip File (Software/Assets)**: Secure compressed archive download.
+6. **Video Files & Courses**: Video downloads or streaming curriculum modules.
+
+> [!NOTE]
+> For the complete technical specification of the automated purchasing and upstream fulfillment engine, see [canboso-buyer-api-system.md](file:///home/xspoilt/Documents/digicom/docs/canboso-buyer-api-system.md).
 
 ---
 

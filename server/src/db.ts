@@ -1,12 +1,11 @@
 import mongoose from "mongoose";
 
-const MONGODB_URI = process.env.MONGODB_URI || "mongodb://localhost:27017/digicom";
-
 export async function connectDB() {
   try {
     if (mongoose.connection.readyState >= 1) return;
-    await mongoose.connect(MONGODB_URI);
-    console.log("MongoDB connected successfully");
+    const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/kalobazar";
+    await mongoose.connect(uri);
+    console.log(`MongoDB connected successfully to ${uri}`);
   } catch (error) {
     console.error("MongoDB connection error:", error);
     process.exit(1);

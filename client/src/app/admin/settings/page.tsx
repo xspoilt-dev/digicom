@@ -282,7 +282,7 @@ export default function SettingsPage() {
               </label>
               <input
                 type="text"
-                placeholder="Digitalcorebd.com <noreply@digitalcorebd.com>"
+                placeholder="KaloBazar <noreply@kalobazar.com>"
                 className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full"
                 value={settings.email_settings.fromEmail}
                 onChange={(e) =>

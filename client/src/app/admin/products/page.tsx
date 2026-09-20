@@ -25,8 +25,9 @@ interface Product {
   description: string;
   price: number;
   compareAtPrice?: number;
-  type: "course" | "pdf" | "video" | "zip" | "account" | "slot" | "license" | "other";
+  type: "account" | "slot" | "license" | "course" | "pdf" | "video" | "zip" | "other";
   category?: string;
+  serviceTag?: string;
   filePath?: string;
   deliveryLink?: string;
   thumbnailPath?: string;
@@ -535,8 +536,8 @@ export default function ProductsPage() {
                     value={selectedProduct.type}
                     onChange={(e) => setSelectedProduct({ ...selectedProduct, type: e.target.value as any })}
                   >
-                    <option value="account">Private Account</option>
-                    <option value="slot">Team / Workspace Slot</option>
+                    <option value="account">Private Account (Instant Delivery)</option>
+                    <option value="slot">Team / Workspace Slot (Email Invite)</option>
                     <option value="license">Software License Key</option>
                     <option value="course">Video Course</option>
                     <option value="pdf">PDF Book</option>

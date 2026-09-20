@@ -16,7 +16,7 @@ const publicRouter = new Hono();
 // Helper to generate a unique readable Order ID
 function generateOrderId(): string {
   const num = Math.floor(100000 + Math.random() * 900000);
-  return `DIGI-${num}`;
+  return `KB-${num}`;
 }
 
 import { executeCanbosoPurchase, getCanbosoConfig } from "../services/canbosoClient";
@@ -326,7 +326,7 @@ publicRouter.get("/categories/:slug", async (c) => {
 publicRouter.post("/checkout", async (c) => {
   try {
     const body = await c.req.json();
-    const { productId, items: rawItems, name, email, phone, metaEventId, fbp, fbc, slotMonths } = body;
+    const { productId, items: rawItems, name, email, phone, customerEmail, slotMonths, quantity = 1, metaEventId, fbp, fbc } = body;
 
     // Validate customer contact info
     if (!name || !email || !phone) {
@@ -403,11 +403,13 @@ publicRouter.post("/checkout", async (c) => {
     const newOrder = new Order({
       orderId,
       name,
-      email,
+      email: email || customerEmail,
       phone,
+      customerEmail: customerEmail || email,
       items: orderItems,
       total: orderTotal,
       status: "pending",
+      fulfillmentStatus: "unfulfilled",
       paymentGateway: "zinipay",
       metaEventId,
       fbp,
@@ -415,7 +417,6 @@ publicRouter.post("/checkout", async (c) => {
       userAgent,
       ip,
       slotMonths: slotMonths ? Number(slotMonths) : undefined,
-      fulfillmentStatus: "unfulfilled",
       costUsd: totalCostUsd,
       costBdt: totalCostBdt,
       totalUsd,
@@ -579,8 +580,16 @@ publicRouter.get("/order-status/:orderId", async (c) => {
         name: order.name,
         email: order.email,
         phone: order.phone,
+        customerEmail: order.customerEmail,
+        slotMonths: order.slotMonths,
+        quantity: order.quantity || 1,
         total: order.total,
         status: order.status,
+        fulfillmentStatus: order.fulfillmentStatus || (order.status === "paid" ? "completed" : "unfulfilled"),
+        autoCompleted: order.autoCompleted || false,
+        upstreamOrderCode: order.upstreamOrderCode,
+        canbosoOrderCode: order.canbosoOrderCode,
+        deliveryAccounts: order.status === "paid" ? (order.deliveryAccounts || []) : [],
         paymentGateway: order.paymentGateway,
         paymentUrl: order.zinipayPaymentUrl,
         metaEventId: order.metaEventId,
@@ -592,7 +601,8 @@ publicRouter.get("/order-status/:orderId", async (c) => {
             id: prod?._id,
             title: item.title,
             price: item.price,
-            type: prod?.type,
+            type: prod?.type || "account",
+            duration: prod?.duration,
             isWebDisplay: prod?.isWebDisplay,
             deliveryLink: prod?.isWebDisplay ? prod.deliveryLink : undefined,
             downloadUrl:
@@ -601,10 +611,6 @@ publicRouter.get("/order-status/:orderId", async (c) => {
                 : undefined,
           };
         }),
-        deliveryAccounts: order.status === "paid" ? (order.deliveryAccounts || []) : [],
-        fulfillmentStatus: order.fulfillmentStatus || (order.status === "paid" ? "completed" : "unfulfilled"),
-        canbosoOrderCode: order.canbosoOrderCode,
-        slotMonths: order.slotMonths,
       },
       companyInfo,
     });

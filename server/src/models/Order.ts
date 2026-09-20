@@ -18,14 +18,28 @@ export interface IOrderItem {
   slotMonths?: number;
 }
 
+export interface IDeliveryAccount {
+  user: string;
+  password?: string;
+  verifyEmail?: string;
+  expiryText?: string;
+  otherInfo?: string;
+}
+
 export interface IOrder extends Document {
-  orderId: string; // custom human-readable ID (e.g. DIGI-1001)
+  orderId: string; // custom human-readable ID (e.g. KB-1001)
   name?: string;
   email?: string;
   phone?: string;
+  customerEmail?: string; // target email for slot invite/activation
+  slotMonths?: number;    // duration in months for slot purchases
+  quantity?: number;
   items: IOrderItem[];
   total: number;
   status: "pending" | "processing" | "paid" | "failed" | "cancelled";
+  autoCompleted?: boolean;
+  upstreamOrderCode?: string;
+  idempotencyKey?: string;
   paymentGateway: "zinipay" | "bkash" | "eps" | "manual";
   zinipayInvoiceId?: string;
   zinipayPaymentUrl?: string;
@@ -42,7 +56,6 @@ export interface IOrder extends Document {
 
   // Canboso Upstream Fulfillment & Accounts
   canbosoOrderCode?: string;
-  slotMonths?: number;
   fulfillmentStatus: "unfulfilled" | "processing" | "completed" | "failed" | "manual";
   fulfillmentError?: string;
   deliveryAccounts?: IDeliveryAccount[];
@@ -65,6 +78,9 @@ const OrderSchema: Schema = new Schema(
     name: { type: String },
     email: { type: String },
     phone: { type: String },
+    customerEmail: { type: String },
+    slotMonths: { type: Number },
+    quantity: { type: Number, default: 1 },
     items: [
       {
         productId: { type: Schema.Types.ObjectId, ref: "Product", required: true },
@@ -83,6 +99,9 @@ const OrderSchema: Schema = new Schema(
       default: "pending",
       required: true,
     },
+    autoCompleted: { type: Boolean, default: false },
+    upstreamOrderCode: { type: String },
+    idempotencyKey: { type: String },
     paymentGateway: { type: String, default: "zinipay", required: true },
     zinipayInvoiceId: { type: String },
     zinipayPaymentUrl: { type: String },
@@ -99,7 +118,6 @@ const OrderSchema: Schema = new Schema(
 
     // Canboso Upstream Fulfillment & Accounts
     canbosoOrderCode: { type: String },
-    slotMonths: { type: Number },
     fulfillmentStatus: {
       type: String,
       enum: ["unfulfilled", "processing", "completed", "failed", "manual"],

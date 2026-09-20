@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 export default function Footer() {
   const [companyInfo, setCompanyInfo] = useState<{
@@ -21,7 +22,7 @@ export default function Footer() {
         if (data.success && data.companyInfo) {
           setCompanyInfo(data.companyInfo);
         }
-      } catch (err) {
+      } catch {
         // Fallback gracefully
       }
     }
@@ -37,46 +38,53 @@ export default function Footer() {
   const whatsappUrl = `https://wa.me/${cleanNumber}`;
 
   return (
-    <footer className="footer sm:footer-horizontal bg-base-100 text-base-content border-t border-base-300 py-6 px-4 md:px-8 items-center justify-between">
-      <aside className="flex items-center gap-3">
-        <div className="w-8 h-8 rounded-xl bg-primary flex items-center justify-center font-black text-sm text-primary-content shadow-xs shrink-0">
-          D
-        </div>
-        <div>
-          <span className="font-extrabold text-sm tracking-tight text-base-content">
-            {companyInfo.name || "Digitalcorebd.com"}
-          </span>
-          <p className="text-xs text-base-content/60 mt-0.5">
-            © ২০২৬ সর্বস্বত্ব সংরক্ষিত।
-          </p>
-        </div>
-      </aside>
+    <footer className="bg-base-100 text-base-content border-t border-base-300 py-8 px-4 md:px-8 mt-auto">
+      <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+        
+        {/* Brand Logo and Copyright */}
+        <aside className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center font-black text-sm text-primary-content shadow-sm shrink-0">
+            KB
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-base tracking-tight text-base-content">
+                {companyInfo.name || "KaloBazar"}
+              </span>
+              <span className="badge badge-accent badge-xs font-bold text-[9px] uppercase px-1.5 py-0.5">
+                Official
+              </span>
+            </div>
+            <p className="text-xs text-base-content/60 mt-0.5">
+              © ২০২৬ KaloBazar. সর্বস্বত্ব সংরক্ষিত।
+            </p>
+          </div>
+        </aside>
 
-      <nav className="flex flex-wrap items-center gap-4 sm:gap-6 text-xs font-semibold text-base-content/75">
-        <a href="/" className="link link-hover hover:text-primary transition-colors">
-          হোমপেজ
-        </a>
-        <a href="/shop" className="link link-hover hover:text-primary transition-colors">
-          সকল পণ্য
-        </a>
-        <a
-          href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="link link-hover text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1.5 transition-colors"
-        >
-          <svg className="w-4 h-4 fill-emerald-600" viewBox="0 0 24 24" style={{ width: "16px", height: "16px" }}>
-            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 2.015.82 2.796.821 3.183 0 5.769-2.587 5.77-5.767 0-3.18-2.587-5.806-5.77-5.806zm3.398 8.163c-.144.405-.837.774-1.17.824-.312.045-.694.073-2.12-.516-1.594-.658-2.618-2.28-2.698-2.387-.079-.107-.648-.862-.648-1.644 0-.783.41-1.168.556-1.328.146-.16.32-.2.428-.2.107 0 .214.002.308.006.1.006.234-.038.366.28.134.318.456 1.11.496 1.19.04.08.067.173.013.28-.053.107-.08.173-.16.267-.079.093-.167.208-.239.28-.079.08-.162.167-.069.327.093.16.414.684.888 1.107.61.543 1.124.71 1.284.79.16.08.254.067.348-.04.093-.107.401-.467.508-.627.107-.16.214-.133.36-.08.147.053.935.44 1.095.52.16.08.267.12.307.187.04.067.04.387-.104.792z"/>
-          </svg>
-          হোয়াটসঅ্যাপ সাপোর্ট
-        </a>
-        <a
-          href={`mailto:${companyInfo.email || "support@digitalcorebd.com"}`}
-          className="link link-hover hover:text-primary transition-colors"
-        >
-          ইমেইল
-        </a>
-      </nav>
+        {/* Quick Links & WhatsApp Action */}
+        <nav className="flex flex-wrap items-center justify-center gap-5 sm:gap-7 text-xs font-semibold text-base-content/80">
+          <Link href="/" className="hover:text-primary transition-colors">
+            মার্কেটপ্লেস
+          </Link>
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1.5 transition-colors"
+          >
+            <svg className="w-4 h-4 fill-emerald-600 shrink-0" viewBox="0 0 24 24">
+              <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.664-.699c.971.53 2.015.82 2.796.821 3.183 0 5.769-2.587 5.77-5.767 0-3.18-2.587-5.806-5.77-5.806zm3.398 8.163c-.144.405-.837.774-1.17.824-.312.045-.694.073-2.12-.516-1.594-.658-2.618-2.28-2.698-2.387-.079-.107-.648-.862-.648-1.644 0-.783.41-1.168.556-1.328.146-.16.32-.2.428-.2.107 0 .214.002.308.006.1.006.234-.038.366.28.134.318.456 1.11.496 1.19.04.08.067.173.013.28-.053.107-.08.173-.16.267-.079.093-.167.208-.239.28-.079.08-.162.167-.069.327.093.16.414.684.888 1.107.61.543 1.124.71 1.284.79.16.08.254.067.348-.04.093-.107.401-.467.508-.627.107-.16.214-.133.36-.08.147.053.935.44 1.095.52.16.08.267.12.307.187.04.067.04.387-.104.792z"/>
+            </svg>
+            হোয়াটসঅ্যাপ হেল্পডেস্ক
+          </a>
+          <a
+            href={`mailto:${companyInfo.email || "support@kalobazar.com"}`}
+            className="hover:text-primary transition-colors"
+          >
+            ইমেইল সাপোর্ট
+          </a>
+        </nav>
+      </div>
     </footer>
   );
 }

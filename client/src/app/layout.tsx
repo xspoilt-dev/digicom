@@ -9,6 +9,14 @@ import CartDrawer from "@/components/CartDrawer";
 export const metadata: Metadata = {
   title: "Digitalcorebd.com - Premium Digital Hub",
   description: "Premium Digital Accounts, Workspace Slots & Software Subscriptions",
+  keywords: ["Digitalcorebd", "digital accounts", "canva pro", "netflix", "cursor pro", "chatgpt plus", "Bangladesh digital store"],
+  openGraph: {
+    title: "Digitalcorebd.com - Premium Digital Hub",
+    description: "Premium Digital Accounts, Workspace Slots & Software Subscriptions with instant automated delivery.",
+    siteName: "Digitalcorebd",
+    locale: "bn_BD",
+    type: "website",
+  },
 };
 
 export default async function RootLayout({
@@ -27,8 +35,8 @@ export default async function RootLayout({
       const data = await res.json();
       pixelId = data.pixelId;
     }
-  } catch (error) {
-    console.error("Failed to load public settings for Meta Pixel ID:", error);
+  } catch {
+    // API server not reachable at build time; fallback gracefully
   }
 
   // Fallback to Env if DB fails or is empty
@@ -37,12 +45,12 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="bn">
+    <html lang="bn" data-theme="kalobazar">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap"
           rel="stylesheet"
         />
       </head>

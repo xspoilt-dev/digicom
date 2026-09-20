@@ -117,8 +117,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           localStorage.removeItem("admin_token");
           setIsAuthenticated(false);
         }
-      } catch (err) {
-        // Fallback: if offline or network issue, keep token if exists
+      } catch {
+        // Offline or network issue: preserve existing state
         setIsAuthenticated(true);
       } finally {
         setIsLoading(false);
@@ -157,10 +157,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           router.push("/admin/dashboard");
         }
       } else {
-        setLoginError(data.message || "Invalid administrator credentials.");
+        setLoginError(data.message || "ভুল এডমিন ইমেইল বা পাসওয়ার্ড।");
       }
-    } catch (err) {
-      setLoginError("Failed to communicate with the authentication server.");
+    } catch {
+      setLoginError("এডমিন সার্ভারের সাথে যোগাযোগ করা সম্ভব হয়নি।");
     } finally {
       setSubmittingLogin(false);
     }
@@ -174,10 +174,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200" data-theme="lightyellow">
+      <div className="min-h-screen flex items-center justify-center bg-base-200">
         <div className="flex flex-col items-center gap-3">
           <span className="loading loading-spinner loading-lg text-primary"></span>
-          <span className="text-sm font-bold text-base-content/70">Authenticating session...</span>
+          <span className="text-xs font-bold text-base-content/70">এডমিন সেশন যাচাই করা হচ্ছে...</span>
         </div>
       </div>
     );
@@ -186,18 +186,18 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Professional Email & Password Login Screen
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200 px-4 py-12" data-theme="lightyellow">
-        <div className="card w-full max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6 sm:p-10">
+      <div className="min-h-screen flex items-center justify-center bg-base-200 px-4 py-12">
+        <div className="card w-full max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6 sm:p-10 animate-fadeIn">
           
           <div className="text-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center font-black text-2xl text-primary-content shadow-md mx-auto mb-4">
-              D
+            <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center font-black text-xl text-primary-content shadow-md mx-auto mb-4">
+              KB
             </div>
             <h1 className="text-2xl font-black text-base-content tracking-tight">
-              Admin Portal
+              KaloBazar Admin
             </h1>
             <p className="text-xs text-base-content/60 mt-1 font-medium">
-              Digitalcorebd store management & control center
+              মার্কেটপ্লেস কন্ট্রোল ও ম্যানেজমেন্ট পোর্টাল
             </p>
           </div>
 
@@ -209,15 +209,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="form-control">
-              <label className="label">
-                <span className="label-text font-bold text-xs md:text-sm text-base-content/85">Admin Email</span>
+              <label className="label py-1">
+                <span className="label-text font-bold text-xs text-base-content/85">Admin Email</span>
               </label>
               <div className="relative flex items-center">
                 <input
                   type="email"
                   required
                   autoComplete="username"
-                  placeholder="admin@digitalcorebd.com"
+                  placeholder="admin@kalobazar.com"
                   className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full pl-10 text-sm"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
@@ -229,8 +229,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             <div className="form-control">
-              <label className="label">
-                <span className="label-text font-bold text-xs md:text-sm text-base-content/85">Password</span>
+              <label className="label py-1">
+                <span className="label-text font-bold text-xs text-base-content/85">Password</span>
               </label>
               <div className="relative flex items-center">
                 <input
@@ -260,22 +260,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               type="submit"
               disabled={submittingLogin}
-              className="btn btn-primary w-full rounded-xl font-bold mt-4 shadow-lg text-sm"
+              className="btn btn-primary w-full rounded-xl font-bold mt-4 shadow-md text-sm py-3"
             >
               {submittingLogin ? (
                 <>
                   <span className="loading loading-spinner loading-xs"></span>
-                  Signing In...
+                  সাইন ইন হচ্ছে...
                 </>
               ) : (
-                "Sign In to Dashboard"
+                "এডমিন ড্যাশবোর্ডে প্রবেশ করুন"
               )}
             </button>
           </form>
 
           <div className="mt-8 pt-6 border-t border-base-200 text-center">
             <Link href="/" className="text-xs font-bold text-base-content/60 hover:text-primary transition-colors">
-              ← Return to Storefront
+              ← মার্কেটপ্লেস স্টোরফ্রন্টে ফিরে যান
             </Link>
           </div>
         </div>
@@ -295,16 +295,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   ];
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row bg-base-200 text-base-content" data-theme="lightyellow">
+    <div className="min-h-screen flex flex-col md:flex-row bg-base-200 text-base-content">
       
       {/* Mobile Top App Bar */}
       <header className="md:hidden flex items-center justify-between px-4 py-3 bg-base-100 border-b border-base-300 sticky top-0 z-40 shadow-xs">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-black text-sm text-primary-content shadow-xs">
-            D
+          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-black text-xs text-primary-content shadow-xs">
+            KB
           </div>
           <div>
-            <div className="font-extrabold text-sm tracking-tight text-base-content">Digitalcorebd</div>
+            <div className="font-extrabold text-sm tracking-tight text-base-content">KaloBazar</div>
             <div className="text-[10px] text-base-content/50 font-semibold mt-[-2px]">Admin Portal</div>
           </div>
         </div>
@@ -334,12 +334,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       >
         {/* Brand Header */}
         <div className="pb-6 border-b border-base-200 mb-6 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-black text-xl text-primary-content shadow-xs">
-              D
+          <Link href="/" className="flex items-center gap-3 group">
+            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-black text-base text-primary-content shadow-xs group-hover:scale-105 transition-transform">
+              KB
             </div>
             <div>
-              <div className="font-extrabold text-lg tracking-tight text-base-content">Digitalcorebd</div>
+              <div className="flex items-center gap-1.5">
+                <div className="font-extrabold text-lg tracking-tight text-base-content">KaloBazar</div>
+                <span className="badge badge-accent badge-xs font-bold text-[8px] uppercase">Admin</span>
+              </div>
               <div className="text-[10px] text-base-content/60 font-semibold mt-[-3px]">Store Management</div>
             </div>
           </Link>
@@ -374,14 +377,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Admin User Profile Card & Logout */}
         <div className="mt-6 pt-4 border-t border-base-200 space-y-3">
           <div className="flex items-center gap-3 px-2">
-            <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-xs">
-              {(adminUser?.email || "A").slice(0, 1).toUpperCase()}
+            <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-black text-xs">
+              {(adminUser?.email || "K").slice(0, 1).toUpperCase()}
             </div>
             <div className="overflow-hidden flex-1">
               <div className="font-bold text-xs truncate text-base-content">
-                {adminUser?.email || "admin@digitalcorebd.com"}
+                {adminUser?.email || "admin@kalobazar.com"}
               </div>
-              <div className="text-[10px] font-semibold text-success">Super Admin</div>
+              <div className="text-[10px] font-semibold text-emerald-600">Super Admin</div>
             </div>
           </div>
 

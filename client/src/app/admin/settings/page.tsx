@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useModal } from "@/context/ModalContext";
 import {
   Settings,
@@ -15,9 +16,7 @@ import {
   Mail,
   Smartphone,
   Building,
-  Key,
   CreditCard,
-  ChevronRight,
   Eye,
   EyeOff,
   Wallet,
@@ -26,6 +25,9 @@ import {
   Zap,
   Sparkles,
   Bot,
+  Check,
+  Copy,
+  ExternalLink,
 } from "lucide-react";
 
 interface CapiLogEntry {
@@ -51,8 +53,13 @@ interface CapiLogEntry {
   createdAt: string;
 }
 
+type SettingsTab = "ai" | "canboso" | "store" | "payments" | "email" | "meta" | "logs";
+
 export default function SettingsPage() {
   const { showAlert, showConfirm } = useModal();
+  const [activeTab, setActiveTab] = useState<SettingsTab>("ai");
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
   const [settings, setSettings] = useState<any>({
     company_info: { name: "", address: "", email: "", whatsapp: "", bkashNumber: "" },
     meta_pixel: { pixelId: "", accessToken: "", testEventCode: "" },
@@ -66,7 +73,9 @@ export default function SettingsPage() {
       autoGenerateOnImport: true,
     },
   });
+
   const [loading, setLoading] = useState(true);
+  const [savingKey, setSavingKey] = useState<string | null>(null);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
 
   // OpenRouter AI Test State
@@ -100,6 +109,19 @@ export default function SettingsPage() {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
     };
+  };
+
+  // Sync tab with URL hash on mount & hash change
+  useEffect(() => {
+    const hash = window.location.hash.replace("#", "") as SettingsTab;
+    if (["ai", "canboso", "store", "payments", "email", "meta", "logs"].includes(hash)) {
+      setActiveTab(hash);
+    }
+  }, []);
+
+  const handleTabChange = (tab: SettingsTab) => {
+    setActiveTab(tab);
+    window.location.hash = tab;
   };
 
   const fetchSettings = async () => {
@@ -200,6 +222,7 @@ export default function SettingsPage() {
   }, [apiUrl]);
 
   const handleSettingsSubmit = async (key: string, value: any) => {
+    setSavingKey(key);
     try {
       const res = await fetch(`${apiUrl}/api/admin/settings`, {
         method: "POST",
@@ -210,7 +233,7 @@ export default function SettingsPage() {
       if (data.success) {
         await showAlert({
           title: "Settings Saved",
-          message: "Settings configuration updated successfully.",
+          message: "Settings updated and active across the store.",
           type: "success",
         });
         fetchSettings();
@@ -224,9 +247,11 @@ export default function SettingsPage() {
     } catch (err) {
       await showAlert({
         title: "Error",
-        message: "Error updating settings.",
+        message: "Network error updating settings.",
         type: "error",
       });
+    } finally {
+      setSavingKey(null);
     }
   };
 
@@ -290,44 +315,613 @@ export default function SettingsPage() {
     setShowTokens((prev) => ({ ...prev, [field]: !prev[field] }));
   };
 
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedKey(id);
+    setTimeout(() => setCopiedKey(null), 2000);
+  };
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center p-16">
-        <span className="loading loading-spinner loading-lg text-primary"></span>
+      <div className="flex items-center justify-center p-24">
+        <div className="flex flex-col items-center gap-3">
+          <span className="loading loading-spinner loading-lg text-amber-500"></span>
+          <span className="text-xs font-bold text-stone-600">Loading system settings...</span>
+        </div>
       </div>
     );
   }
 
+  // Preset model options
+  const PRESET_MODELS = [
+    { id: "google/gemma-4-26b-a4b-it:free", name: "Google Gemma 4 (26B) - Free & Fast", tag: "Free" },
+    { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 (70B) - High Quality Free", tag: "Free" },
+    { id: "deepseek/deepseek-chat", name: "DeepSeek V3 (Chat) - High Performance", tag: "Ultra Low Cost" },
+    { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1 (Reasoning) - Free", tag: "Free" },
+    { id: "meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 (8B) - Lightweight", tag: "Free" },
+    { id: "mistralai/mistral-small-24b-instruct-2501:free", name: "Mistral Small (24B) - Free", tag: "Free" },
+    { id: "openai/gpt-4o-mini", name: "OpenAI GPT-4o Mini - Reliable", tag: "Paid" },
+    { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet - Best Quality", tag: "Paid" },
+  ];
+
+  const tabsConfig = [
+    {
+      id: "ai" as SettingsTab,
+      label: "OpenRouter AI",
+      icon: Sparkles,
+      badge: settings.openrouter_settings?.apiKey ? "Active" : "Setup",
+      badgeColor: settings.openrouter_settings?.apiKey ? "bg-amber-100 text-amber-950 font-bold" : "bg-stone-100 text-stone-600",
+    },
+    {
+      id: "canboso" as SettingsTab,
+      label: "Canboso Automation",
+      icon: Server,
+      badge: settings.canboso_settings?.apiKey ? "Connected" : "Setup",
+      badgeColor: settings.canboso_settings?.apiKey ? "bg-emerald-100 text-emerald-900 font-bold" : "bg-stone-100 text-stone-600",
+    },
+    {
+      id: "store" as SettingsTab,
+      label: "Store & Brand",
+      icon: Building,
+    },
+    {
+      id: "payments" as SettingsTab,
+      label: "Payments & bKash",
+      icon: CreditCard,
+    },
+    {
+      id: "email" as SettingsTab,
+      label: "Email Gateway",
+      icon: Mail,
+      badge: settings.email_settings?.resendApiKey ? "Active" : undefined,
+      badgeColor: "bg-blue-100 text-blue-900 font-bold",
+    },
+    {
+      id: "meta" as SettingsTab,
+      label: "Meta Pixel & CAPI",
+      icon: ShieldCheck,
+      badge: settings.meta_pixel?.pixelId ? "Active" : undefined,
+      badgeColor: "bg-purple-100 text-purple-900 font-bold",
+    },
+    {
+      id: "logs" as SettingsTab,
+      label: "CAPI Logs",
+      icon: Activity,
+      count: capiLogs.length,
+    },
+  ];
+
   return (
-    <div className="space-y-8 animate-fadeIn max-w-7xl mx-auto pb-12">
-      <div>
-        <h1 className="text-2xl sm:text-3xl font-black text-stone-900 flex items-center gap-2.5">
-          <Settings className="w-7 h-7 text-amber-500" /> System Configuration
-        </h1>
-        <p className="text-xs sm:text-sm text-stone-600 font-medium mt-1">
-          Configure company profile, bKash instructions, Meta Pixel & Conversions API (CAPI), and email gateways
-        </p>
+    <div className="space-y-6 animate-fadeIn max-w-6xl mx-auto pb-16">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-200/80 pb-5">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-stone-900 flex items-center gap-2.5">
+            <Settings className="w-7 h-7 text-amber-500" /> Settings &amp; Integrations
+          </h1>
+          <p className="text-xs sm:text-sm text-stone-600 font-medium mt-1">
+            Configure OpenRouter AI, Canboso automation, store profile, payment gateways, and analytics
+          </p>
+        </div>
+
+        {/* Quick Diagnostics Badges */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <span
+            className={`badge border-none text-xs font-bold py-2.5 px-3 flex items-center gap-1.5 ${
+              settings.openrouter_settings?.apiKey ? "bg-amber-100 text-amber-950" : "bg-stone-100 text-stone-600"
+            }`}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>AI: {settings.openrouter_settings?.apiKey ? "Ready" : "No Token"}</span>
+          </span>
+
+          <span
+            className={`badge border-none text-xs font-bold py-2.5 px-3 flex items-center gap-1.5 ${
+              settings.canboso_settings?.apiKey ? "bg-emerald-100 text-emerald-950" : "bg-stone-100 text-stone-600"
+            }`}
+          >
+            <Server className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Canboso: {settings.canboso_settings?.apiKey ? "Ready" : "No Key"}</span>
+          </span>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        {/* Brand & Support Settings Form */}
-        <div className="bg-white border-2 border-stone-200 p-6 sm:p-8 rounded-3xl shadow-sm space-y-6">
-          <div className="border-b border-stone-100 pb-4">
-            <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
-              <Building className="w-5 h-5 text-amber-500" /> Brand & Support Settings
-            </h2>
-            <p className="text-xs text-stone-500 mt-1">Public store identity and payment instructions shown to customers</p>
+      {/* Modern Tabs Navigation Bar */}
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar border-b border-stone-200">
+        {tabsConfig.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all border shrink-0 ${
+                isActive
+                  ? "bg-amber-400 text-stone-950 border-amber-400 shadow-xs"
+                  : "bg-white text-stone-600 border-stone-200/80 hover:bg-stone-100 hover:text-stone-900"
+              }`}
+            >
+              <Icon className={`w-4 h-4 ${isActive ? "text-stone-950" : "text-stone-500"}`} />
+              <span>{tab.label}</span>
+              {tab.badge && (
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-md ${tab.badgeColor || ""}`}>
+                  {tab.badge}
+                </span>
+              )}
+              {tab.count !== undefined && tab.count > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-stone-200 text-stone-800 font-mono font-bold">
+                  {tab.count}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* TAB CONTENT PANELS */}
+
+      {/* 1. OPENROUTER AI TAB */}
+      {activeTab === "ai" && (
+        <div className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-5">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                <Sparkles className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
+                  OpenRouter AI Marketing Copywriter
+                </h2>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Write catchy Bengali titles and comprehensive marketing descriptions for Bangladeshi customers automatically
+                </p>
+              </div>
+            </div>
+            <a
+              href="https://openrouter.ai/models"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5 self-start sm:self-auto"
+            >
+              <Bot className="w-3.5 h-3.5 text-amber-500" />
+              <span>Explore 200+ Models</span>
+              <ExternalLink className="w-3 h-3 text-stone-400" />
+            </a>
           </div>
-          
+
+          <div className="space-y-5">
+            {/* API Key */}
+            <div className="form-control w-full">
+              <label className="label py-1">
+                <span className="label-text font-bold text-xs text-stone-800">
+                  OpenRouter API Key (sk-or-v1-...) *
+                </span>
+              </label>
+              <div className="relative flex items-center">
+                <input
+                  type={showTokens["openrouter"] ? "text" : "password"}
+                  placeholder="sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full font-mono text-xs pr-10"
+                  value={settings.openrouter_settings?.apiKey || ""}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      openrouter_settings: {
+                        ...settings.openrouter_settings,
+                        apiKey: e.target.value.trim(),
+                      },
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => toggleTokenVisibility("openrouter")}
+                  className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
+                >
+                  {showTokens["openrouter"] ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <label className="label py-1">
+                <span className="label-text-alt text-stone-500">
+                  Get your free API key at{" "}
+                  <a
+                    href="https://openrouter.ai/keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-amber-600 underline font-bold"
+                  >
+                    openrouter.ai/keys
+                  </a>
+                  . Free models like <span className="font-mono font-bold text-stone-700">google/gemma-4-26b-a4b-it:free</span> require zero balance!
+                </span>
+              </label>
+            </div>
+
+            {/* Model Preset and Custom Input */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control w-full">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-800">Quick Model Preset</span>
+                </label>
+                <select
+                  className="select select-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl bg-stone-50/80 text-stone-900 text-xs font-semibold"
+                  value={
+                    PRESET_MODELS.some((m) => m.id === settings.openrouter_settings?.model)
+                      ? settings.openrouter_settings?.model
+                      : "custom"
+                  }
+                  onChange={(e) => {
+                    if (e.target.value !== "custom") {
+                      setSettings({
+                        ...settings,
+                        openrouter_settings: {
+                          ...settings.openrouter_settings,
+                          model: e.target.value,
+                        },
+                      });
+                    }
+                  }}
+                >
+                  {PRESET_MODELS.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name} ({m.tag})
+                    </option>
+                  ))}
+                  <option value="custom">Custom Model (Paste Any OpenRouter Model ID)</option>
+                </select>
+                <label className="label py-1">
+                  <span className="label-text-alt text-stone-500">Choose a recommended preset to auto-fill</span>
+                </label>
+              </div>
+
+              <div className="form-control w-full">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-800">
+                    Model Identifier (Editable / Paste Any Model)
+                  </span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. google/gemma-4-26b-a4b-it:free"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs font-mono font-bold"
+                  value={settings.openrouter_settings?.model || ""}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      openrouter_settings: {
+                        ...settings.openrouter_settings,
+                        model: e.target.value.trim(),
+                      },
+                    })
+                  }
+                />
+                <label className="label py-1">
+                  <span className="label-text-alt text-stone-500">
+                    You can paste any model like <span className="font-mono font-bold">google/gemma-4-26b-a4b-it:free</span>
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            {/* Custom Instructions */}
+            <div className="form-control w-full">
+              <label className="label py-1">
+                <span className="label-text font-bold text-xs text-stone-800">
+                  Custom Copywriting Rules / Instructions (Optional)
+                </span>
+              </label>
+              <textarea
+                rows={3}
+                placeholder="e.g. সর্বদাই ইনস্ট্যান্ট অটো ডেলিভারি, বিকাশ পেমেন্ট এবং ফুল মেয়াদ রিপ্লেসমেন্ট ওয়ারেন্টির কথা বিশেষভাবে উল্লেখ করবে।"
+                className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50/80 text-stone-900 text-xs leading-relaxed"
+                value={settings.openrouter_settings?.customInstructions || ""}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    openrouter_settings: {
+                      ...settings.openrouter_settings,
+                      customInstructions: e.target.value,
+                    },
+                  })
+                }
+              />
+              <label className="label py-1">
+                <span className="label-text-alt text-stone-500">
+                  Appended to the AI system prompt to enforce your store&apos;s specific marketing tone or warranty promises
+                </span>
+              </label>
+            </div>
+
+            {/* Auto-generate Toggle */}
+            <div className="bg-stone-50/90 border border-stone-200/90 rounded-2xl p-4">
+              <label className="label cursor-pointer justify-start gap-3 p-0">
+                <input
+                  type="checkbox"
+                  className="toggle toggle-warning toggle-sm"
+                  checked={settings.openrouter_settings?.autoGenerateOnImport !== false}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      openrouter_settings: {
+                        ...settings.openrouter_settings,
+                        autoGenerateOnImport: e.target.checked,
+                      },
+                    })
+                  }
+                />
+                <div>
+                  <span className="label-text font-bold text-xs text-stone-900 block">
+                    AI Copywriting Assistant in Canboso Import Modal
+                  </span>
+                  <span className="text-[11px] text-stone-500 block">
+                    Enables 1-click &apos;✨ AI দিয়ে বাংলায় লিখুন&apos; button when importing products from Canboso stock
+                  </span>
+                </div>
+              </label>
+            </div>
+
+            {/* Test Result Banner */}
+            {testAiResult && (
+              <div
+                className={`p-4 rounded-2xl border text-xs font-semibold space-y-1.5 ${
+                  testAiResult.success
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                    : "bg-rose-50 border-rose-200 text-rose-900"
+                }`}
+              >
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  {testAiResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  )}
+                  <span>{testAiResult.message}</span>
+                </div>
+                {testAiResult.response && (
+                  <div className="font-mono text-[11px] text-stone-700 bg-white/80 p-2 rounded-lg border border-emerald-100">
+                    Model Response: &quot;{testAiResult.response}&quot; (Model: {testAiResult.model})
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-stone-100">
+              <button
+                onClick={() => handleSettingsSubmit("openrouter_settings", settings.openrouter_settings)}
+                disabled={savingKey === "openrouter_settings"}
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm flex-1"
+              >
+                {savingKey === "openrouter_settings" ? "Saving..." : "Save OpenRouter AI Settings"}
+              </button>
+              <button
+                type="button"
+                onClick={handleTestAi}
+                disabled={testingAi || !settings.openrouter_settings?.apiKey}
+                className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold flex items-center gap-2 px-6"
+              >
+                {testingAi ? (
+                  <span className="loading loading-spinner loading-xs text-amber-400"></span>
+                ) : (
+                  <Sparkles className="w-4 h-4 text-amber-400" />
+                )}
+                <span>{testingAi ? "Testing OpenRouter..." : "Test AI Connection"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2. CANBOSO AUTOMATION TAB */}
+      {activeTab === "canboso" && (
+        <div className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-5">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                <Server className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
+                  Canboso Buyer API &amp; Upstream Automation
+                </h2>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Automated stock import, real-time fulfillment purchase, and currency conversion rate
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/admin/canboso"
+                className="btn btn-outline btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5"
+              >
+                <span>Browse Upstream Stock</span>
+                <ExternalLink className="w-3 h-3 text-stone-400" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Upstream Balance Banner */}
+          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-50/90 to-stone-50 border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center font-black shadow-xs shrink-0">
+                <DollarSign className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold text-stone-500 block uppercase tracking-wider">
+                  Canboso Upstream Wallet Balance
+                </span>
+                {canbosoBalance ? (
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xl font-black text-stone-950 font-mono">
+                      ${Number(canbosoBalance.balanceUsd || 0).toFixed(2)} USD
+                    </span>
+                    <span className="text-xs font-semibold text-stone-500">
+                      ({Number(canbosoBalance.balanceVnd || 0).toLocaleString()} VND)
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-xs font-medium text-stone-500">
+                    Click &apos;Check Balance&apos; to query your live spendable balance
+                  </span>
+                )}
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleCheckCanbosoBalance}
+              disabled={checkingCanbosoBalance || !settings.canboso_settings.apiKey}
+              className="btn bg-stone-950 hover:bg-stone-800 text-white btn-sm rounded-xl font-bold text-xs flex items-center gap-2 px-4 shrink-0 shadow-xs"
+            >
+              <Wallet className={`w-3.5 h-3.5 ${checkingCanbosoBalance ? "animate-spin" : "text-amber-400"}`} />
+              <span>{checkingCanbosoBalance ? "Checking..." : "Check Live Balance"}</span>
+            </button>
+          </div>
+
+          {canbosoBalanceError && (
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+              <span>{canbosoBalanceError}</span>
+            </div>
+          )}
+
+          <div className="space-y-5">
+            {/* Bearer Token */}
+            <div className="form-control w-full">
+              <label className="label py-1">
+                <span className="label-text font-bold text-xs text-stone-800">
+                  Canboso Buyer API Bearer Token *
+                </span>
+              </label>
+              <div className="relative flex items-center">
+                <input
+                  type={showTokens["canboso"] ? "text" : "password"}
+                  placeholder="e.g. 19|GzN5x7g84K3xV69NmsGf9oI17i8oO..."
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full font-mono text-xs pr-10"
+                  value={settings.canboso_settings.apiKey}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      canboso_settings: { ...settings.canboso_settings, apiKey: e.target.value.trim() },
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => toggleTokenVisibility("canboso")}
+                  className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
+                >
+                  {showTokens["canboso"] ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <label className="label py-1">
+                <span className="label-text-alt text-stone-500">
+                  From Canboso Developer Dashboard. Endpoint: https://canboso.com/api/v2/telegram-buyer
+                </span>
+              </label>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Dollar Exchange Rate */}
+              <div className="form-control w-full">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-800">
+                    Dollar Exchange Rate (BDT per 1 USD) *
+                  </span>
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type="number"
+                    min="1"
+                    step="0.5"
+                    placeholder="127"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-bold pl-10"
+                    value={settings.canboso_settings.dollarRate || 127}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        canboso_settings: {
+                          ...settings.canboso_settings,
+                          dollarRate: parseFloat(e.target.value) || 127,
+                        },
+                      })
+                    }
+                  />
+                  <DollarSign className="w-4 h-4 text-stone-400 absolute left-3.5" />
+                </div>
+                <label className="label py-1">
+                  <span className="label-text-alt text-stone-500">
+                    Default: 127 BDT per 1 USD. Used for margin calculations and product import pricing.
+                  </span>
+                </label>
+              </div>
+
+              {/* Instant Automation Fulfillment Toggle */}
+              <div className="form-control w-full flex flex-col justify-center">
+                <div className="bg-stone-50/90 border border-stone-200/90 rounded-2xl p-3.5">
+                  <label className="label cursor-pointer justify-start gap-3 p-0">
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-warning toggle-sm"
+                      checked={settings.canboso_settings.autoFulfill !== false}
+                      onChange={(e) =>
+                        setSettings({
+                          ...settings,
+                          canboso_settings: {
+                            ...settings.canboso_settings,
+                            autoFulfill: e.target.checked,
+                          },
+                        })
+                      }
+                    />
+                    <div>
+                      <span className="label-text font-bold text-xs text-stone-900 block">
+                        Instant Automated Fulfillment
+                      </span>
+                      <span className="text-[11px] text-stone-500 block">
+                        Instantly triggers upstream Canboso purchase &amp; delivers credentials upon order payment
+                      </span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-stone-100">
+              <button
+                onClick={() => handleSettingsSubmit("canboso_settings", settings.canboso_settings)}
+                disabled={savingKey === "canboso_settings"}
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full"
+              >
+                {savingKey === "canboso_settings" ? "Saving..." : "Save Canboso API Settings"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. STORE & BRAND TAB */}
+      {activeTab === "store" && (
+        <div className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="flex items-center gap-3 border-b border-stone-100 pb-5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <Building className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-stone-900">Brand Identity &amp; Support Profile</h2>
+              <p className="text-xs text-stone-500 mt-0.5">Public store name and customer support contact channels</p>
+            </div>
+          </div>
+
           <div className="space-y-4">
             <div className="form-control w-full">
               <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">Company / Brand Name</span>
+                <span className="label-text font-bold text-xs text-stone-800">Store / Brand Name *</span>
               </label>
               <input
                 type="text"
-                className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm font-semibold"
+                placeholder="Kalobazar.shop"
+                className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-semibold"
                 value={settings.company_info.name}
                 onChange={(e) =>
                   setSettings({
@@ -338,128 +932,330 @@ export default function SettingsPage() {
               />
             </div>
 
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">Support Contact Email</span>
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  type="email"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm pl-10"
-                  value={settings.company_info.email}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      company_info: { ...settings.company_info, email: e.target.value },
-                    })
-                  }
-                />
-                <Mail className="w-4 h-4 text-stone-400 absolute left-3.5" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control w-full">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-800">Support Contact Email</span>
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type="email"
+                    placeholder="support@kalobazar.shop"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm pl-10"
+                    value={settings.company_info.email}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        company_info: { ...settings.company_info, email: e.target.value },
+                      })
+                    }
+                  />
+                  <Mail className="w-4 h-4 text-stone-400 absolute left-3.5" />
+                </div>
+              </div>
+
+              <div className="form-control w-full">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-800">WhatsApp Helpline Number</span>
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    placeholder="+88017xxxxxxxx"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm pl-10 font-mono"
+                    value={settings.company_info.whatsapp || settings.company_info.whatsappNumber || ""}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        company_info: {
+                          ...settings.company_info,
+                          whatsapp: e.target.value,
+                          whatsappNumber: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                  <Smartphone className="w-4 h-4 text-stone-400 absolute left-3.5" />
+                </div>
+                <label className="label py-1">
+                  <span className="label-text-alt text-stone-500">
+                    Linked in store footer, checkout helpdesk, and receipt pages
+                  </span>
+                </label>
               </div>
             </div>
 
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">bKash / Nagad Wallet Number</span>
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  type="text"
-                  placeholder="e.g. 017xxxxxxxx"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm pl-10 font-mono font-bold"
-                  value={settings.company_info.bkashNumber}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      company_info: { ...settings.company_info, bkashNumber: e.target.value },
-                    })
-                  }
-                />
-                <Smartphone className="w-4 h-4 text-stone-400 absolute left-3.5" />
-              </div>
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500 font-medium">
-                  Website Notice: Bkash/nagad er maddhome payment korun
-                </span>
-              </label>
+            <div className="pt-3 border-t border-stone-100">
+              <button
+                onClick={() => handleSettingsSubmit("company_info", settings.company_info)}
+                disabled={savingKey === "company_info"}
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full"
+              >
+                {savingKey === "company_info" ? "Saving..." : "Save Store Profile"}
+              </button>
             </div>
+          </div>
+        </div>
+      )}
 
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">WhatsApp Support Number</span>
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  type="text"
-                  placeholder="e.g. 017xxxxxxxx or +88017xxxxxxxx"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm pl-10 font-mono"
-                  value={settings.company_info.whatsapp || settings.company_info.whatsappNumber || ""}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      company_info: {
-                        ...settings.company_info,
-                        whatsapp: e.target.value,
-                        whatsappNumber: e.target.value,
-                      },
-                    })
-                  }
-                />
-                <Smartphone className="w-4 h-4 text-stone-400 absolute left-3.5" />
-              </div>
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500">Linked in store footer and order confirmation</span>
-              </label>
+      {/* 4. PAYMENTS TAB */}
+      {activeTab === "payments" && (
+        <div className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="flex items-center gap-3 border-b border-stone-100 pb-5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <CreditCard className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-stone-900">Payment Gateways &amp; bKash Setup</h2>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Configure manual mobile banking numbers (bKash/Nagad) and automated hosted payment gateway
+              </p>
             </div>
           </div>
 
-          <button
-            onClick={() => handleSettingsSubmit("company_info", settings.company_info)}
-            className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full"
-          >
-            Save Brand Settings
-          </button>
-        </div>
+          <div className="space-y-6">
+            {/* Section 1: bKash / Nagad Manual Wallet */}
+            <div className="bg-stone-50/80 border border-stone-200/80 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-stone-900">1. Manual Mobile Banking (bKash / Nagad)</h3>
+                  <p className="text-xs text-stone-500">Shown to customers on the checkout page for Send Money / Payment</p>
+                </div>
+                <span className="badge bg-amber-100 text-amber-900 font-bold border-none text-[10px]">
+                  Manual Verification
+                </span>
+              </div>
 
-        {/* Meta Pixel & Conversions API Settings Form */}
-        <div className="bg-white border-2 border-stone-200 p-6 sm:p-8 rounded-3xl shadow-sm space-y-6">
-          <div className="border-b border-stone-100 pb-4">
-            <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-amber-500" /> Meta Pixel & Conversions API (CAPI)
-            </h2>
-            <p className="text-xs text-stone-500 mt-1">
-              Dual-dispatch tracking with shared eventId deduplication and SHA-256 hashing
-            </p>
+              <div className="form-control w-full">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-800">bKash / Nagad Wallet Number</span>
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type="text"
+                    placeholder="e.g. 017xxxxxxxx"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-white w-full text-sm pl-10 font-mono font-bold"
+                    value={settings.company_info.bkashNumber}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        company_info: { ...settings.company_info, bkashNumber: e.target.value },
+                      })
+                    }
+                  />
+                  <Smartphone className="w-4 h-4 text-stone-400 absolute left-3.5" />
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleSettingsSubmit("company_info", settings.company_info)}
+                disabled={savingKey === "company_info"}
+                className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold btn-sm"
+              >
+                {savingKey === "company_info" ? "Saving..." : "Save bKash Number"}
+              </button>
+            </div>
+
+            {/* Section 2: Automated Hosted Gateway */}
+            <div className="bg-stone-50/80 border border-stone-200/80 rounded-2xl p-5 space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-black text-stone-900">2. Automated Hosted Payment Gateway (Zinipay)</h3>
+                  <p className="text-xs text-stone-500">Instant automatic payment verification and order status confirmation</p>
+                </div>
+                <span className="badge bg-emerald-100 text-emerald-900 font-bold border-none text-[10px]">
+                  Instant Automation
+                </span>
+              </div>
+
+              <div className="form-control w-full">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-800">Gateway API Key</span>
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showTokens["gateway"] ? "text" : "password"}
+                    placeholder="sandbox_test_... or live_prod_..."
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-white w-full font-mono text-xs pr-10"
+                    value={settings.zinipay_settings.apiKey}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        zinipay_settings: { ...settings.zinipay_settings, apiKey: e.target.value.trim() },
+                      })
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleTokenVisibility("gateway")}
+                    className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
+                  >
+                    {showTokens["gateway"] ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+
+              <button
+                onClick={() => handleSettingsSubmit("zinipay_settings", settings.zinipay_settings)}
+                disabled={savingKey === "zinipay_settings"}
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold btn-sm shadow-sm"
+              >
+                {savingKey === "zinipay_settings" ? "Saving..." : "Save Gateway Key"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 5. EMAIL GATEWAY TAB */}
+      {activeTab === "email" && (
+        <div className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="flex items-center gap-3 border-b border-stone-100 pb-5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <Mail className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-stone-900">Resend Email Gateway Configuration</h2>
+              <p className="text-xs text-stone-500 mt-0.5">Automated delivery receipts and digital credentials dispatching</p>
+            </div>
           </div>
 
           <div className="space-y-4">
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">Meta Pixel ID</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. 123456789012345"
-                className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm font-mono font-bold"
-                value={settings.meta_pixel.pixelId}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    meta_pixel: { ...settings.meta_pixel, pixelId: e.target.value.trim() },
-                  })
-                }
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control w-full">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-800">Resend API Key *</span>
+                </label>
+                <div className="relative flex items-center">
+                  <input
+                    type={showTokens["resend"] ? "text" : "password"}
+                    placeholder="re_xxxxxxxxxxxxxxxxxxxxxx"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs font-mono pr-10"
+                    value={settings.email_settings.resendApiKey}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        email_settings: { ...settings.email_settings, resendApiKey: e.target.value.trim() },
+                      })
+                    }
+                  />
+                  <button
+                    type="button"
+                    onClick={() => toggleTokenVisibility("resend")}
+                    className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
+                  >
+                    {showTokens["resend"] ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <label className="label py-1">
+                  <span className="label-text-alt text-stone-500">
+                    From your <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-amber-600 underline font-bold">Resend Dashboard</a>
+                  </span>
+                </label>
+              </div>
+
+              <div className="form-control w-full">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-800">From Domain Email (Authorized in Resend) *</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="Kalobazar.shop <noreply@kalobazar.shop>"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm"
+                  value={settings.email_settings.fromEmail}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      email_settings: { ...settings.email_settings, fromEmail: e.target.value.trim() },
+                    })
+                  }
+                />
+                <label className="label py-1">
+                  <span className="label-text-alt text-stone-500">
+                    Must use your verified domain on Resend (e.g. kalobazar.shop)
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <div className="pt-3 border-t border-stone-100">
+              <button
+                onClick={() => handleSettingsSubmit("email_settings", settings.email_settings)}
+                disabled={savingKey === "email_settings"}
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full"
+              >
+                {savingKey === "email_settings" ? "Saving..." : "Save Email Gateway Settings"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 6. META PIXEL & CAPI TAB */}
+      {activeTab === "meta" && (
+        <div className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="flex items-center gap-3 border-b border-stone-100 pb-5">
+            <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="text-lg font-black text-stone-900">Meta Pixel &amp; Conversions API (CAPI)</h2>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Dual-dispatch server-side tracking with shared eventId deduplication and SHA-256 customer data hashing
+              </p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="form-control w-full">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-800">Meta Pixel ID</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 123456789012345"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-mono font-bold"
+                  value={settings.meta_pixel.pixelId}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      meta_pixel: { ...settings.meta_pixel, pixelId: e.target.value.trim() },
+                    })
+                  }
+                />
+              </div>
+
+              <div className="form-control w-full">
+                <label className="label py-1">
+                  <span className="label-text font-bold text-xs text-stone-800">Meta Test Event Code (Optional)</span>
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. TEST12345 (Leave blank in production)"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-mono"
+                  value={settings.meta_pixel.testEventCode}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      meta_pixel: { ...settings.meta_pixel, testEventCode: e.target.value.trim() },
+                    })
+                  }
+                />
+              </div>
             </div>
 
             <div className="form-control w-full">
               <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">Meta Conversions API Access Token (EAAG...)</span>
+                <span className="label-text font-bold text-xs text-stone-800">
+                  Meta Conversions API Access Token (EAAG...)
+                </span>
               </label>
               <div className="relative flex items-center">
                 <input
                   type={showTokens["capi"] ? "text" : "password"}
                   placeholder="EAAGxxxxxxxxxxxxxxxxxxxxxxxx..."
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm pr-10 font-mono text-xs"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs pr-10 font-mono"
                   value={settings.meta_pixel.accessToken}
                   onChange={(e) =>
                     setSettings({
@@ -478,93 +1274,72 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">Meta Test Event Code (Optional)</span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. TEST12345 (Leave blank in production)"
-                className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm font-mono"
-                value={settings.meta_pixel.testEventCode}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    meta_pixel: { ...settings.meta_pixel, testEventCode: e.target.value.trim() },
-                  })
-                }
-              />
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500">
-                  Find this in Meta Events Manager &gt; Test Events tab
-                </span>
-              </label>
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <button
-              onClick={() => handleSettingsSubmit("meta_pixel", settings.meta_pixel)}
-              className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm flex-1"
-            >
-              Save Pixel Settings
-            </button>
-            <button
-              onClick={handleTestCapi}
-              disabled={testingCapi || !settings.meta_pixel.pixelId || !settings.meta_pixel.accessToken}
-              className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold flex items-center gap-2"
-            >
-              {testingCapi ? (
-                <span className="loading loading-spinner loading-xs text-amber-400"></span>
-              ) : (
-                <Send className="w-4 h-4 text-amber-400" />
-              )}
-              <span>Send Test CAPI Event</span>
-            </button>
-          </div>
-
-          {/* Test Event Result Banner */}
-          {testCapiResult && (
-            <div
-              className={`p-4 rounded-2xl border text-xs font-semibold space-y-1.5 ${
-                testCapiResult.success
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                  : "bg-rose-50 border-rose-200 text-rose-900"
-              }`}
-            >
-              <div className="flex items-center gap-2 font-bold text-sm">
-                {testCapiResult.success ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-rose-600" />
-                )}
-                <span>{testCapiResult.message}</span>
-              </div>
-              {testCapiResult.eventId && (
-                <div className="font-mono text-[11px] text-stone-600">
-                  Event ID: {testCapiResult.eventId}
+            {/* Test Event Result Banner */}
+            {testCapiResult && (
+              <div
+                className={`p-4 rounded-2xl border text-xs font-semibold space-y-1.5 ${
+                  testCapiResult.success
+                    ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                    : "bg-rose-50 border-rose-200 text-rose-900"
+                }`}
+              >
+                <div className="flex items-center gap-2 font-bold text-sm">
+                  {testCapiResult.success ? (
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <AlertCircle className="w-4 h-4 text-rose-600" />
+                  )}
+                  <span>{testCapiResult.message}</span>
                 </div>
-              )}
-              {testCapiResult.response && (
-                <pre className="bg-stone-900 text-stone-100 p-2.5 rounded-xl font-mono text-[10px] overflow-x-auto mt-2">
-                  {JSON.stringify(testCapiResult.response, null, 2)}
-                </pre>
-              )}
-            </div>
-          )}
-        </div>
+                {testCapiResult.eventId && (
+                  <div className="font-mono text-[11px] text-stone-600">
+                    Event ID: {testCapiResult.eventId}
+                  </div>
+                )}
+              </div>
+            )}
 
-        {/* Real-time Meta CAPI Event Delivery Logs Section */}
-        <div className="bg-white border-2 border-stone-200 p-6 sm:p-8 rounded-3xl shadow-sm space-y-6 lg:col-span-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-4">
-            <div>
-              <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
-                <Activity className="w-5 h-5 text-amber-500" /> Meta CAPI Live Delivery Logs
-              </h2>
-              <p className="text-xs text-stone-500 mt-1">
-                Real-time tracking of server events dispatched to Meta Graph API v21.0
-              </p>
+            <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-stone-100">
+              <button
+                onClick={() => handleSettingsSubmit("meta_pixel", settings.meta_pixel)}
+                disabled={savingKey === "meta_pixel"}
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm flex-1"
+              >
+                {savingKey === "meta_pixel" ? "Saving..." : "Save Pixel Settings"}
+              </button>
+              <button
+                onClick={handleTestCapi}
+                disabled={testingCapi || !settings.meta_pixel.pixelId || !settings.meta_pixel.accessToken}
+                className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold flex items-center gap-2 px-6"
+              >
+                {testingCapi ? (
+                  <span className="loading loading-spinner loading-xs text-amber-400"></span>
+                ) : (
+                  <Send className="w-4 h-4 text-amber-400" />
+                )}
+                <span>Send Test Event</span>
+              </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 7. CAPI LOGS TAB */}
+      {activeTab === "logs" && (
+        <div className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                <Activity className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-stone-900">Meta CAPI Live Delivery Logs</h2>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Real-time event tracking dispatched to Meta Graph API v21.0
+                </p>
+              </div>
+            </div>
+
             <div className="flex items-center gap-2">
               <button
                 onClick={fetchCapiLogs}
@@ -653,598 +1428,67 @@ export default function SettingsPage() {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={7} className="text-center py-10 text-stone-400 font-medium">
-                      {loadingLogs ? "Loading CAPI logs..." : "No CAPI events logged yet. Fire a test event or browse the store."}
+                    <td colSpan={7} className="text-center py-12 text-stone-400 font-medium">
+                      {loadingLogs ? "Loading CAPI logs..." : "No CAPI events logged yet."}
                     </td>
                   </tr>
                 )}
               </tbody>
             </table>
           </div>
+        </div>
+      )}
 
-          {/* Inspect Modal */}
-          {selectedLog && (
-            <div className="modal modal-open">
-              <div className="modal-box rounded-3xl max-w-2xl bg-white border border-stone-200 shadow-2xl p-6 text-stone-900">
-                <div className="flex items-center justify-between border-b border-stone-100 pb-3 mb-4">
-                  <h3 className="font-black text-lg text-stone-900 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-amber-500" />
-                    CAPI Event Payload: {selectedLog.eventName}
-                  </h3>
-                  <button
-                    onClick={() => setSelectedLog(null)}
-                    className="btn btn-sm btn-ghost btn-circle"
-                  >
-                    ✕
-                  </button>
+      {/* Inspect Modal for CAPI Event Payload */}
+      {selectedLog && (
+        <div className="modal modal-open">
+          <div className="modal-box rounded-3xl max-w-2xl bg-white border border-stone-200 shadow-2xl p-6 text-stone-900">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3 mb-4">
+              <h3 className="font-black text-lg text-stone-900 flex items-center gap-2">
+                <Activity className="w-5 h-5 text-amber-500" />
+                CAPI Event: {selectedLog.eventName}
+              </h3>
+              <button onClick={() => setSelectedLog(null)} className="btn btn-sm btn-ghost btn-circle">
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-3 bg-stone-50 p-3 rounded-xl">
+                <div>
+                  <span className="text-stone-500 block font-semibold">Event ID</span>
+                  <span className="font-mono font-bold">{selectedLog.eventId}</span>
                 </div>
-
-                <div className="space-y-3 text-xs">
-                  <div className="grid grid-cols-2 gap-3 bg-stone-50 p-3 rounded-xl">
-                    <div>
-                      <span className="text-stone-500 block font-semibold">Event ID</span>
-                      <span className="font-mono font-bold">{selectedLog.eventId}</span>
-                    </div>
-                    <div>
-                      <span className="text-stone-500 block font-semibold">Status / Code</span>
-                      <span className="font-bold">
-                        {selectedLog.status.toUpperCase()} ({selectedLog.httpStatusCode || "N/A"})
-                      </span>
-                    </div>
-                    <div>
-                      <span className="text-stone-500 block font-semibold">Customer Email (Masked)</span>
-                      <span className="font-mono">{selectedLog.userDataMasked?.emailMasked || "None"}</span>
-                    </div>
-                    <div>
-                      <span className="text-stone-500 block font-semibold">Customer Phone (Masked)</span>
-                      <span className="font-mono">{selectedLog.userDataMasked?.phoneMasked || "None"}</span>
-                    </div>
-                  </div>
-
-                  {selectedLog.errorMessage && (
-                    <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl font-medium">
-                      Error: {selectedLog.errorMessage}
-                    </div>
-                  )}
-
-                  <div>
-                    <span className="font-bold text-stone-700 block mb-1">Meta Graph API Response:</span>
-                    <pre className="bg-stone-900 text-stone-100 p-3 rounded-xl font-mono text-[11px] overflow-x-auto max-h-48">
-                      {JSON.stringify(selectedLog.responseBody, null, 2)}
-                    </pre>
-                  </div>
-
-                  {selectedLog.customData && Object.keys(selectedLog.customData).length > 0 && (
-                    <div>
-                      <span className="font-bold text-stone-700 block mb-1">Custom Data:</span>
-                      <pre className="bg-stone-900 text-stone-100 p-3 rounded-xl font-mono text-[11px] overflow-x-auto max-h-48">
-                        {JSON.stringify(selectedLog.customData, null, 2)}
-                      </pre>
-                    </div>
-                  )}
-                </div>
-
-                <div className="modal-action mt-6">
-                  <button
-                    onClick={() => setSelectedLog(null)}
-                    className="btn btn-sm bg-stone-900 text-white rounded-xl px-5"
-                  >
-                    Close
-                  </button>
+                <div>
+                  <span className="text-stone-500 block font-semibold">Status / Code</span>
+                  <span className="font-bold">
+                    {selectedLog.status.toUpperCase()} ({selectedLog.httpStatusCode || "N/A"})
+                  </span>
                 </div>
               </div>
-            </div>
-          )}
-        </div>
 
-        {/* Resend Email Dispatcher Settings Form */}
-        <div className="bg-white border-2 border-stone-200 p-6 sm:p-8 rounded-3xl shadow-sm space-y-6 lg:col-span-2">
-          <div className="border-b border-stone-100 pb-4">
-            <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
-              <Mail className="w-5 h-5 text-amber-500" /> Resend Email Gateway Configuration
-            </h2>
-            <p className="text-xs text-stone-500 mt-1">Automatic delivery receipt and digital download link dispatching</p>
-          </div>
+              {selectedLog.errorMessage && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-800 rounded-xl font-medium">
+                  Error: {selectedLog.errorMessage}
+                </div>
+              )}
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">Resend API Key</span>
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  type={showTokens["resend"] ? "text" : "password"}
-                  placeholder="re_xxxxxxxxxxxxxxxxxxxxxx"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm font-mono pr-10"
-                  value={settings.email_settings.resendApiKey}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      email_settings: { ...settings.email_settings, resendApiKey: e.target.value.trim() },
-                    })
-                  }
-                />
-                <button
-                  type="button"
-                  onClick={() => toggleTokenVisibility("resend")}
-                  className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
-                >
-                  {showTokens["resend"] ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+              <div>
+                <span className="font-bold text-stone-700 block mb-1">Response Body:</span>
+                <pre className="bg-stone-900 text-stone-100 p-3 rounded-xl font-mono text-[11px] overflow-x-auto max-h-48">
+                  {JSON.stringify(selectedLog.responseBody, null, 2)}
+                </pre>
               </div>
             </div>
 
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">From Domain Email (Authorized in Resend)</span>
-              </label>
-              <input
-                type="text"
-                placeholder="Kalobazar.shop <noreply@kalobazar.shop>"
-                className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm"
-                value={settings.email_settings.fromEmail}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    email_settings: { ...settings.email_settings, fromEmail: e.target.value.trim() },
-                  })
-                }
-              />
-            </div>
-          </div>
-
-          <button
-            onClick={() => handleSettingsSubmit("email_settings", settings.email_settings)}
-            className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full"
-          >
-            Save Email Gateway Configurations
-          </button>
-        </div>
-
-        {/* Payment Gateway Configuration Form */}
-        <div className="bg-white border-2 border-stone-200 p-6 sm:p-8 rounded-3xl shadow-sm space-y-6 lg:col-span-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-stone-100 pb-4">
-            <div>
-              <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
-                <CreditCard className="w-5 h-5 text-amber-500" /> Hosted Payment Gateway Integration
-              </h2>
-              <p className="text-xs text-stone-500 mt-1">Automated invoice generation and instant verification</p>
-            </div>
-            <span className="badge bg-emerald-100 text-emerald-800 border-none font-bold text-xs py-2 px-3">
-              Active Hosted Gateway
-            </span>
-          </div>
-
-          <div className="form-control w-full">
-            <label className="label py-1">
-              <span className="label-text font-bold text-xs text-stone-700">Gateway API Key</span>
-            </label>
-            <div className="relative flex items-center">
-              <input
-                type={showTokens["gateway"] ? "text" : "password"}
-                placeholder="sandbox_test_... or live_prod_..."
-                className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full font-mono text-xs pr-10"
-                value={settings.zinipay_settings.apiKey}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    zinipay_settings: { ...settings.zinipay_settings, apiKey: e.target.value.trim() },
-                  })
-                }
-              />
-              <button
-                type="button"
-                onClick={() => toggleTokenVisibility("gateway")}
-                className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
-              >
-                {showTokens["gateway"] ? <EyeOff size={16} /> : <Eye size={16} />}
+            <div className="modal-action mt-6">
+              <button onClick={() => setSelectedLog(null)} className="btn btn-sm bg-stone-900 text-white rounded-xl px-5">
+                Close
               </button>
             </div>
           </div>
-
-          <button
-            onClick={() => handleSettingsSubmit("zinipay_settings", settings.zinipay_settings)}
-            className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full"
-          >
-            Save Gateway Key
-          </button>
         </div>
-
-        {/* Canboso Buyer API & Upstream Automation Settings Form */}
-        <div className="bg-white border-2 border-stone-200 p-6 sm:p-8 rounded-3xl shadow-sm space-y-6 lg:col-span-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">
-            <div>
-              <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
-                <Server className="w-5 h-5 text-amber-500" /> Canboso Buyer API & Upstream Automation
-              </h2>
-              <p className="text-xs text-stone-500 mt-1">
-                Automated stock import, real-time fulfillment purchase, and currency conversion rate
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleCheckCanbosoBalance}
-                disabled={checkingCanbosoBalance || !settings.canboso_settings.apiKey}
-                className="btn btn-outline btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5"
-              >
-                <Wallet className={`w-3.5 h-3.5 ${checkingCanbosoBalance ? "animate-spin" : "text-amber-500"}`} />
-                <span>{checkingCanbosoBalance ? "Checking Balance..." : "Check Wallet Balance"}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Upstream Balance Banner */}
-          {canbosoBalance && (
-            <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center font-black">
-                  <DollarSign className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-[11px] font-bold text-stone-600 block uppercase tracking-wider">
-                    Canboso Upstream Balance
-                  </span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xl font-black text-stone-950">
-                      ${Number(canbosoBalance.balanceUsd || 0).toFixed(2)} USD
-                    </span>
-                    <span className="text-xs font-semibold text-stone-500">
-                      ({Number(canbosoBalance.balanceVnd || 0).toLocaleString()} VND)
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <span className="badge bg-emerald-100 text-emerald-800 border-none font-bold text-xs py-2 px-3">
-                Live & Connected
-              </span>
-            </div>
-          )}
-
-          {canbosoBalanceError && (
-            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-              <span>{canbosoBalanceError}</span>
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="form-control w-full md:col-span-2">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">
-                  Canboso Buyer API Bearer Token
-                </span>
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  type={showTokens["canboso"] ? "text" : "password"}
-                  placeholder="e.g. 19|GzN5x7g84K3xV69NmsGf9oI17i8oO... (From Canboso Developer Dashboard)"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full font-mono text-xs pr-10"
-                  value={settings.canboso_settings.apiKey}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      canboso_settings: { ...settings.canboso_settings, apiKey: e.target.value.trim() },
-                    })
-                  }
-                />
-                <button
-                  type="button"
-                  onClick={() => toggleTokenVisibility("canboso")}
-                  className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
-                >
-                  {showTokens["canboso"] ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500">
-                  Endpoint: https://canboso.com/api/v2/telegram-buyer (Purchases & Balance queries)
-                </span>
-              </label>
-            </div>
-
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">
-                  Dollar Exchange Rate (BDT per 1 USD)
-                </span>
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  type="number"
-                  min="1"
-                  step="0.5"
-                  placeholder="127"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm font-bold pl-10"
-                  value={settings.canboso_settings.dollarRate || 127}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      canboso_settings: {
-                        ...settings.canboso_settings,
-                        dollarRate: parseFloat(e.target.value) || 127,
-                      },
-                    })
-                  }
-                />
-                <DollarSign className="w-4 h-4 text-stone-400 absolute left-3.5" />
-              </div>
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500">
-                  Default: 127 BDT per Dollar. Used for storefront pricing and admin accounting ledger.
-                </span>
-              </label>
-            </div>
-
-            <div className="form-control w-full flex flex-col justify-center">
-              <label className="label cursor-pointer justify-start gap-3 p-0 mt-2">
-                <input
-                  type="checkbox"
-                  className="toggle toggle-warning"
-                  checked={settings.canboso_settings.autoFulfill !== false}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      canboso_settings: {
-                        ...settings.canboso_settings,
-                        autoFulfill: e.target.checked,
-                      },
-                    })
-                  }
-                />
-                <div>
-                  <span className="label-text font-bold text-xs text-stone-800 block">
-                    Instant Automated Fulfillment
-                  </span>
-                  <span className="text-[11px] text-stone-500 block">
-                    Automatically triggers upstream Canboso purchase & delivers digital credentials upon payment
-                  </span>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <button
-            onClick={() => handleSettingsSubmit("canboso_settings", settings.canboso_settings)}
-            className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full"
-          >
-            Save Canboso API Settings
-          </button>
-        </div>
-
-        {/* OpenRouter AI Marketing Copywriter Settings Form */}
-        <div className="bg-white border-2 border-stone-200 p-6 sm:p-8 rounded-3xl shadow-sm space-y-6 lg:col-span-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-amber-500" /> OpenRouter AI Marketing Copywriter
-                </h2>
-                <span className="badge bg-amber-100 text-amber-900 border-none font-bold text-xs py-1 px-2.5">
-                  Bangla Marketing AI
-                </span>
-              </div>
-              <p className="text-xs text-stone-500 mt-1">
-                Generate high-converting Bengali product titles and comprehensive marketing descriptions for Bangladeshi customers directly from Canboso product details.
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <a
-                href="https://openrouter.ai/models"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn btn-outline btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5"
-              >
-                <Bot className="w-3.5 h-3.5 text-amber-500" />
-                <span>Browse Models</span>
-              </a>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* OpenRouter API Key */}
-            <div className="form-control w-full md:col-span-2">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">
-                  OpenRouter API Key (sk-or-v1-...)
-                </span>
-              </label>
-              <div className="relative flex items-center">
-                <input
-                  type={showTokens["openrouter"] ? "text" : "password"}
-                  placeholder="sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full font-mono text-xs pr-10"
-                  value={settings.openrouter_settings?.apiKey || ""}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      openrouter_settings: {
-                        ...settings.openrouter_settings,
-                        apiKey: e.target.value.trim(),
-                      },
-                    })
-                  }
-                />
-                <button
-                  type="button"
-                  onClick={() => toggleTokenVisibility("openrouter")}
-                  className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
-                >
-                  {showTokens["openrouter"] ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500">
-                  Get your free or paid API key from{" "}
-                  <a
-                    href="https://openrouter.ai/keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-amber-600 underline font-semibold"
-                  >
-                    openrouter.ai/keys
-                  </a>
-                  . Free models like <span className="font-mono font-bold text-stone-700">google/gemma-4-26b-a4b-it:free</span> require zero cost!
-                </span>
-              </label>
-            </div>
-
-            {/* Quick Model Selector Dropdown */}
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">Choose Model Preset</span>
-              </label>
-              <select
-                className="select select-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl bg-stone-50 text-stone-900 text-xs font-semibold"
-                value={
-                  [
-                    "google/gemma-4-26b-a4b-it:free",
-                    "meta-llama/llama-3.3-70b-instruct:free",
-                    "deepseek/deepseek-chat",
-                    "deepseek/deepseek-r1:free",
-                    "meta-llama/llama-3.1-8b-instruct:free",
-                    "mistralai/mistral-small-24b-instruct-2501:free",
-                    "openai/gpt-4o-mini",
-                    "anthropic/claude-3.5-sonnet",
-                  ].includes(settings.openrouter_settings?.model)
-                    ? settings.openrouter_settings?.model
-                    : "custom"
-                }
-                onChange={(e) => {
-                  if (e.target.value !== "custom") {
-                    setSettings({
-                      ...settings,
-                      openrouter_settings: {
-                        ...settings.openrouter_settings,
-                        model: e.target.value,
-                      },
-                    });
-                  }
-                }}
-              >
-                <option value="google/gemma-4-26b-a4b-it:free">google/gemma-4-26b-a4b-it:free (Free & Fast - Recommended)</option>
-                <option value="meta-llama/llama-3.3-70b-instruct:free">meta-llama/llama-3.3-70b-instruct:free (Free - High Quality 70B)</option>
-                <option value="deepseek/deepseek-chat">deepseek/deepseek-chat (DeepSeek V3 - High Quality & Ultra Low Cost)</option>
-                <option value="deepseek/deepseek-r1:free">deepseek/deepseek-r1:free (Free - DeepSeek Reasoning)</option>
-                <option value="meta-llama/llama-3.1-8b-instruct:free">meta-llama/llama-3.1-8b-instruct:free (Free - Ultra Fast)</option>
-                <option value="mistralai/mistral-small-24b-instruct-2501:free">mistralai/mistral-small-24b-instruct-2501:free (Free - Mistral 24B)</option>
-                <option value="openai/gpt-4o-mini">openai/gpt-4o-mini (OpenAI Fast)</option>
-                <option value="anthropic/claude-3.5-sonnet">anthropic/claude-3.5-sonnet (Claude 3.5 Sonnet)</option>
-                <option value="custom">Custom Model (Paste or Type Any OpenRouter Model ID)</option>
-              </select>
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500">Pick from popular free & paid models or paste below</span>
-              </label>
-            </div>
-
-            {/* Custom Model Text Input */}
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">
-                  Model ID (or Paste Any Custom Model)
-                </span>
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. google/gemma-4-26b-a4b-it:free"
-                className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-xs font-mono font-bold"
-                value={settings.openrouter_settings?.model || ""}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    openrouter_settings: {
-                      ...settings.openrouter_settings,
-                      model: e.target.value.trim(),
-                    },
-                  })
-                }
-              />
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500">
-                  Exact model identifier (e.g. <span className="font-mono font-bold">google/gemma-4-26b-a4b-it:free</span>)
-                </span>
-              </label>
-            </div>
-
-            {/* Custom Instructions */}
-            <div className="form-control w-full md:col-span-2">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-700">
-                  Custom Tone & Rules (Optional)
-                </span>
-              </label>
-              <textarea
-                rows={2}
-                placeholder="e.g. সর্বদাই ইনস্ট্যান্ট অটো ডেলিভারি এবং ফুল মেয়াদ রিপ্লেসমেন্ট ওয়ারেন্টির কথা বিশেষভাবে উল্লেখ করবে।"
-                className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs"
-                value={settings.openrouter_settings?.customInstructions || ""}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    openrouter_settings: {
-                      ...settings.openrouter_settings,
-                      customInstructions: e.target.value,
-                    },
-                  })
-                }
-              />
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500">
-                  Extra marketing instructions appended to the AI prompt for store-specific tone or warranty details.
-                </span>
-              </label>
-            </div>
-          </div>
-
-          {/* Test Result Banner */}
-          {testAiResult && (
-            <div
-              className={`p-4 rounded-2xl border text-xs font-semibold space-y-1.5 ${
-                testAiResult.success
-                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
-                  : "bg-rose-50 border-rose-200 text-rose-900"
-              }`}
-            >
-              <div className="flex items-center gap-2 font-bold text-sm">
-                {testAiResult.success ? (
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                ) : (
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                )}
-                <span>{testAiResult.message}</span>
-              </div>
-              {testAiResult.response && (
-                <div className="font-mono text-[11px] text-stone-700 bg-white/80 p-2 rounded-lg border border-emerald-100 mt-1">
-                  Model Output: &quot;{testAiResult.response}&quot; (Model: {testAiResult.model})
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <button
-              onClick={() => handleSettingsSubmit("openrouter_settings", settings.openrouter_settings)}
-              className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm flex-1"
-            >
-              Save OpenRouter AI Settings
-            </button>
-            <button
-              type="button"
-              onClick={handleTestAi}
-              disabled={testingAi || !settings.openrouter_settings?.apiKey}
-              className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold flex items-center gap-2 px-6"
-            >
-              {testingAi ? (
-                <span className="loading loading-spinner loading-xs text-amber-400"></span>
-              ) : (
-                <Sparkles className="w-4 h-4 text-amber-400" />
-              )}
-              <span>{testingAi ? "Testing OpenRouter..." : "Test AI Connection"}</span>
-            </button>
-          </div>
-        </div>
-
-      </div>
+      )}
     </div>
   );
 }

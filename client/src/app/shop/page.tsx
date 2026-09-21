@@ -65,7 +65,7 @@ function ShopContent() {
   const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [currentPage, setCurrentPage] = useState<number>(1);
-  const itemsPerPage = 8;
+  const itemsPerPage = 15;
 
   // Cart & Router
   const { addToCart } = useCart();
@@ -201,7 +201,7 @@ function ShopContent() {
     <div className="min-h-screen flex flex-col bg-base-200" data-theme="lightyellow">
       <Navbar />
 
-      <main className="container mx-auto px-4 md:px-8 py-10 flex-1">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 flex-1 max-w-7xl">
         {error && (
           <div className="alert alert-error shadow-md mb-8">
             <span className="font-semibold">{error}</span>
@@ -209,7 +209,7 @@ function ShopContent() {
         )}
 
         {/* Unified Top Inline Filter Layout */}
-        <div className="card bg-base-100 p-6 rounded-3xl border border-base-300 shadow-sm mb-8">
+        <div className="card bg-base-100 p-4 sm:p-6 rounded-3xl border border-base-300 shadow-sm mb-8">
           <div className="flex flex-col md:flex-row items-stretch md:items-center gap-4 w-full">
             
             {/* Search input field */}
@@ -283,7 +283,7 @@ function ShopContent() {
               </p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
               {currentItems.map((product) => {
                 const typeLabel =
                   product.type === "account"

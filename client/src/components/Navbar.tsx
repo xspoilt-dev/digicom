@@ -1,14 +1,33 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
+import { Search, ShoppingCart, ShoppingBag, Layers } from "lucide-react";
 
 export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [categories, setCategories] = useState<{ _id?: string; name: string; slug: string }[]>([]);
   const { cartCount, openCart } = useCart();
   const router = useRouter();
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+  useEffect(() => {
+    async function loadCategories() {
+      try {
+        const res = await fetch(`${apiUrl}/api/categories`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.categories)) {
+          setCategories(data.categories.slice(0, 8));
+        }
+      } catch {
+        // Fallback gracefully
+      }
+    }
+    loadCategories();
+  }, [apiUrl]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -18,27 +37,27 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md shadow-xs border-b border-amber-200/80">
-      <div className="container mx-auto px-4 md:px-8">
-        <div className="navbar min-h-16 p-0 flex items-center justify-between">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="navbar min-h-16 p-0 flex items-center justify-between gap-4">
           {/* Logo Brand */}
-          <div className="navbar-start gap-2 w-auto">
-            <Link href="/" className="flex items-center gap-2 group">
+          <div className="navbar-start gap-2 w-auto shrink-0">
+            <Link href="/" className="flex items-center gap-2.5 group">
               <div className="w-10 h-10 rounded-2xl bg-amber-400 text-stone-950 flex items-center justify-center font-black text-xl shadow-xs group-hover:scale-105 transition-transform">
                 D
               </div>
               <div>
-                <span className="text-lg md:text-xl font-black tracking-tight text-stone-900 group-hover:text-amber-600 transition-colors">
+                <span className="text-lg md:text-xl font-black tracking-tight text-stone-900 group-hover:text-amber-700 transition-colors block leading-none">
                   Digitalcorebd.com
                 </span>
-                <div className="text-[10px] text-amber-700 font-bold mt-[-3px] block">
+                <div className="text-[10px] text-amber-700 font-bold mt-1 block leading-none">
                   ডিজিটাল একাউন্ট ও সাবস্ক্রিপশন
                 </div>
               </div>
             </Link>
           </div>
 
-          {/* Center Search Bar */}
-          <div className="navbar-center hidden md:flex w-full max-w-md mx-6">
+          {/* Center Search Bar (Expanded on PC desktop) */}
+          <div className="navbar-center hidden md:flex flex-1 max-w-lg lg:max-w-xl mx-4">
             <form onSubmit={handleSearchSubmit} className="relative w-full flex items-center">
               <input
                 type="text"
@@ -49,34 +68,30 @@ export default function Navbar() {
               />
               <button
                 type="submit"
-                className="btn btn-circle btn-sm btn-ghost absolute right-1 text-stone-500 hover:text-amber-600"
+                className="btn btn-circle btn-sm btn-ghost absolute right-1 text-stone-500 hover:text-amber-700"
                 aria-label="Search"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+                <Search className="w-4 h-4" />
               </button>
             </form>
           </div>
 
           {/* Navigation Right (Shop + Cart Button) */}
-          <div className="navbar-end gap-2 md:gap-3 w-auto">
+          <div className="navbar-end gap-2 sm:gap-3 w-auto shrink-0">
             <Link
               href="/shop"
-              className="btn btn-ghost btn-sm font-bold text-xs md:text-sm text-stone-700 hover:text-amber-600 rounded-full"
+              className="btn btn-ghost btn-sm font-bold text-xs sm:text-sm text-stone-700 hover:text-amber-700 rounded-full px-3"
             >
-              সব পণ্য
+              সকল পণ্য
             </Link>
 
             {/* Cart Trigger Button */}
             <button
               onClick={openCart}
-              className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none btn-sm rounded-full font-black shadow-xs flex items-center gap-1.5 px-3 md:px-4"
+              className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none btn-sm rounded-full font-black shadow-xs flex items-center gap-1.5 px-3.5 sm:px-4 active:scale-95"
               aria-label="Open Shopping Cart"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
+              <ShoppingCart className="w-4 h-4" />
               <span className="hidden sm:inline text-xs">কার্ট</span>
               {cartCount > 0 && (
                 <span className="badge badge-xs bg-stone-950 text-white font-black px-1.5 py-2 rounded-full text-[10px]">
@@ -99,15 +114,38 @@ export default function Navbar() {
             />
             <button
               type="submit"
-              className="btn btn-circle btn-xs btn-ghost absolute right-1 text-stone-500 hover:text-amber-600"
+              className="btn btn-circle btn-xs btn-ghost absolute right-1 text-stone-500 hover:text-amber-700"
               aria-label="Search"
             >
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
+              <Search className="w-3.5 h-3.5" />
             </button>
           </form>
         </div>
+
+        {/* Desktop Quick Category Strip */}
+        {categories.length > 0 && (
+          <div className="hidden md:flex items-center gap-2 py-2 border-t border-amber-100/70 overflow-x-auto text-xs">
+            <span className="font-bold text-stone-400 shrink-0 text-[11px] uppercase tracking-wider flex items-center gap-1">
+              <Layers className="w-3 h-3 text-amber-500" />
+              ক্যাটাগরি:
+            </span>
+            <Link
+              href="/shop"
+              className="px-2.5 py-1 rounded-lg text-stone-700 hover:text-amber-800 hover:bg-amber-50 font-semibold transition-colors shrink-0 text-xs"
+            >
+              সব পণ্য
+            </Link>
+            {categories.map((cat) => (
+              <Link
+                key={cat.slug}
+                href={`/category/${cat.slug}`}
+                className="px-2.5 py-1 rounded-lg text-stone-700 hover:text-amber-800 hover:bg-amber-50 font-semibold transition-colors shrink-0 text-xs"
+              >
+                {cat.name}
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </header>
   );

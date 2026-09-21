@@ -194,163 +194,213 @@ export default function ProductDetailPage({
   const categorySlug = product.category || product.type;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fafaf9] text-stone-900 pb-20 md:pb-0" data-theme="lightyellow">
+    <div className="min-h-screen flex flex-col bg-[#fafaf9] text-stone-900 pb-20 lg:pb-0" data-theme="lightyellow">
       <Navbar />
 
-      <main className="container mx-auto px-4 md:px-6 py-4 md:py-8 flex-1 max-w-3xl">
-
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-1.5 text-xs text-stone-400 mb-5 font-medium">
-          <Link href="/" className="hover:text-stone-600 transition-colors">হোম</Link>
-          <ChevronRight className="w-3 h-3" />
-          <Link href={`/category/${categorySlug}`} className="hover:text-stone-600 transition-colors capitalize">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex-1 max-w-7xl">
+        {/* Breadcrumb Navigation */}
+        <nav className="flex items-center gap-2 text-xs text-stone-400 mb-6 font-medium flex-wrap">
+          <Link href="/" className="hover:text-amber-600 transition-colors">হোম</Link>
+          <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
+          <Link href="/shop" className="hover:text-amber-600 transition-colors">শপ</Link>
+          <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
+          <Link href={`/category/${categorySlug}`} className="hover:text-amber-600 transition-colors capitalize">
             {getProductTypeLabel(product.type)}
           </Link>
-          <ChevronRight className="w-3 h-3" />
-          <span className="text-stone-600 line-clamp-1">{product.title}</span>
+          <ChevronRight className="w-3.5 h-3.5 text-stone-400" />
+          <span className="text-stone-700 font-bold line-clamp-1">{product.title}</span>
         </nav>
 
-        {/* Product Card */}
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden mb-6">
+        {/* 2-Column Responsive Layout (Stacked on Mobile, 2-Column on Desktop) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-10 items-start mb-12">
+          
+          {/* Left Column (5 Cols on PC): Image & Trust Badges */}
+          <div className="lg:col-span-5 space-y-4">
+            {/* Image Card */}
+            <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden p-3 sm:p-4">
+              <div className="relative w-full aspect-square bg-stone-100 rounded-2xl overflow-hidden group">
+                {product.thumbnailPath ? (
+                  <img
+                    src={`${apiUrl}/${product.thumbnailPath}`}
+                    alt={product.title}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-stone-400">
+                    <Package className="w-16 h-16" strokeWidth={1} />
+                    <span className="text-xs font-semibold uppercase tracking-widest">
+                      {getProductTypeLabel(product.type)}
+                    </span>
+                  </div>
+                )}
 
-          {/* Product Image */}
-          <div className="relative w-full aspect-[16/9] sm:aspect-[4/3] bg-stone-100 overflow-hidden">
-            {product.thumbnailPath ? (
-              <img
-                src={`${apiUrl}/${product.thumbnailPath}`}
-                alt={product.title}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-stone-400">
-                <Package className="w-16 h-16" strokeWidth={1} />
-                <span className="text-xs font-semibold uppercase tracking-widest">
-                  {getProductTypeLabel(product.type)}
-                </span>
+                {/* Discount Badge */}
+                {discountPercent && (
+                  <div className="absolute top-3 left-3">
+                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-xl shadow-xs">
+                      <Tag className="w-3.5 h-3.5" />
+                      {discountPercent}% OFF
+                    </span>
+                  </div>
+                )}
+
+                {/* Type Badge */}
+                <div className="absolute top-3 right-3">
+                  <span className="inline-flex items-center gap-1 bg-white/95 text-stone-900 border border-stone-200 text-xs font-bold px-3 py-1 rounded-xl shadow-xs">
+                    {getProductTypeLabel(product.type)}
+                  </span>
+                </div>
               </div>
-            )}
+            </div>
 
-            {/* Discount badge */}
-            {discountPercent && (
-              <div className="absolute top-3 left-3">
-                <span className="inline-flex items-center gap-1 bg-red-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm">
-                  <Tag className="w-3 h-3" />
-                  {discountPercent}% OFF
-                </span>
+            {/* Quick Guarantees (2 Columns) */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex items-center gap-3 p-3.5 bg-white rounded-2xl border border-stone-200/90 shadow-xs">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                  <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-stone-900">১০০% সিকিউর</div>
+                  <div className="text-[11px] text-stone-500 font-medium">বিকাশ, নগদ, কার্ড</div>
+                </div>
               </div>
-            )}
+              <div className="flex items-center gap-3 p-3.5 bg-white rounded-2xl border border-stone-200/90 shadow-xs">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
+                  <Truck className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-stone-900">তাৎক্ষণিক ডেলিভারি</div>
+                  <div className="text-[11px] text-stone-500 font-medium">অটোমেটিক স্ক্রিন ও ইমেইল</div>
+                </div>
+              </div>
+            </div>
 
-            {/* Type badge */}
-            <div className="absolute top-3 right-3">
-              <span className="inline-flex items-center gap-1 bg-amber-400 text-stone-950 text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm">
-                {getProductTypeLabel(product.type)}
-              </span>
+            {/* Delivery Assurance Notice */}
+            <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-200/70 flex items-center justify-center shrink-0 mt-0.5">
+                <Zap className="w-4 h-4 text-amber-800" />
+              </div>
+              <div>
+                <p className="text-xs font-bold text-stone-900">অটোমেটেড ডিজিটাল ডেলিভারি সিস্টেম</p>
+                <p className="text-[11px] text-stone-600 mt-0.5 leading-relaxed">
+                  পেমেন্ট সফল হওয়ার সাথে সাথে আপনি সরাসরি স্ক্রিনে প্রোডাক্ট দেখতে পাবেন এবং আপনার ইমেইলে সমস্ত ডিটেইলস স্বয়ংক্রিয়ভাবে পাঠিয়ে দেওয়া হবে।
+                </p>
+              </div>
             </div>
           </div>
 
-          {/* Product Info */}
-          <div className="p-4 sm:p-6">
+          {/* Right Column (7 Cols on PC): Product Title, Pricing, Actions, Description */}
+          <div className="lg:col-span-7 bg-white rounded-3xl border border-stone-200/90 shadow-sm p-6 sm:p-8 space-y-6">
+            
+            {/* Category Pill & Proof Indicators */}
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-100/80 px-3 py-1 rounded-full border border-amber-200">
+                <Package className="w-3.5 h-3.5" />
+                {getProductTypeLabel(product.type)}
+              </span>
 
-            {/* Social proof row */}
-            <div className="flex items-center gap-3 mb-3 flex-wrap">
-              <div className="flex items-center gap-1">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
-                ))}
-                <span className="text-xs font-bold text-stone-700 ml-1">4.9</span>
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <div className="flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/80">
+                  <div className="flex items-center text-amber-400">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+                    ))}
+                  </div>
+                  <span className="text-xs font-bold text-stone-800 ml-1">4.9</span>
+                </div>
+                <span className="inline-flex items-center gap-1 text-xs text-stone-500 bg-stone-100 px-2.5 py-1 rounded-full border border-stone-200">
+                  <Eye className="w-3 h-3 text-stone-400" />
+                  ৮৫০+ ভিউ
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+                  <TrendingUp className="w-3 h-3 text-amber-600" />
+                  ইন ডিমান্ড
+                </span>
               </div>
-              <span className="inline-flex items-center gap-1.5 text-xs text-stone-500 bg-stone-100 px-2.5 py-1 rounded-full border border-stone-200">
-                <Eye className="w-3 h-3" />
-                835 views
-              </span>
-              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
-                <TrendingUp className="w-3 h-3" />
-                13 sold
-              </span>
             </div>
 
-            {/* Title */}
-            <h1 className="text-xl sm:text-2xl font-bold text-stone-900 leading-snug mb-4">
-              {product.title}
-            </h1>
+            {/* Product Title */}
+            <div>
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-stone-900 leading-snug">
+                {product.title}
+              </h1>
+              {product.duration && (
+                <div className="flex items-center gap-2 text-xs sm:text-sm text-stone-500 mt-2 font-medium">
+                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>সাবস্ক্রিপশন মেয়াদ: <strong className="text-stone-800">{product.duration}</strong></span>
+                </div>
+              )}
+            </div>
 
-            {/* Price row */}
-            <div className="flex items-center justify-between p-3.5 bg-stone-50 rounded-xl border border-stone-200 mb-5">
-              <div className="flex items-baseline gap-2.5">
-                <span className="text-2xl sm:text-3xl font-black text-stone-900">
+            {/* Price Box */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 bg-gradient-to-r from-amber-50/70 via-stone-50 to-white rounded-2xl border border-amber-200/80 gap-3">
+              <div className="flex items-baseline gap-3">
+                <span className="text-3xl sm:text-4xl font-black text-stone-900">
                   ৳{product.price}
                 </span>
-                <span className="text-sm text-stone-400 line-through font-medium">
+                <span className="text-base sm:text-lg text-stone-400 line-through font-semibold">
                   ৳{comparePrice}
                 </span>
                 {discountPercent && (
-                  <span className="text-xs font-bold text-green-700 bg-green-50 px-2 py-0.5 rounded-md border border-green-200">
-                    ৳{comparePrice - product.price} সাশ্রয়
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-100/90 px-2.5 py-1 rounded-lg border border-emerald-200">
+                    ৳{comparePrice - product.price} সাশ্রয়
                   </span>
                 )}
               </div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200">
-                <CheckCircle className="w-3.5 h-3.5" />
-                স্টক আছে
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-full border border-emerald-200 self-start sm:self-auto">
+                <CheckCircle className="w-4 h-4 text-emerald-600" />
+                অফিশিয়াল স্টক এভেইলেবল
               </div>
             </div>
 
-            {/* Duration info */}
-            {product.duration && (
-              <div className="flex items-center gap-2 text-xs text-stone-500 mb-5">
-                <Clock className="w-3.5 h-3.5 shrink-0" />
-                <span>মেয়াদ: <strong className="text-stone-700">{product.duration}</strong></span>
-              </div>
-            )}
-
-            {/* Quantity */}
-            <div className="flex items-center gap-4 mb-5">
-              <span className="text-sm font-semibold text-stone-600">পরিমাণ:</span>
-              <div className="flex items-center border border-stone-300 rounded-xl bg-white overflow-hidden shadow-sm">
+            {/* Quantity Selector */}
+            <div className="flex items-center gap-4 py-2 border-y border-stone-100">
+              <span className="text-sm font-bold text-stone-700">পরিমাণ:</span>
+              <div className="flex items-center border border-stone-300 rounded-xl bg-white overflow-hidden shadow-2xs">
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="px-3 py-2 text-stone-600 hover:bg-stone-100 transition-colors"
-                  aria-label="Decrease"
+                  className="px-3.5 py-2 text-stone-600 hover:bg-stone-100 transition-colors"
+                  aria-label="Decrease quantity"
                 >
                   <Minus className="w-3.5 h-3.5" />
                 </button>
-                <span className="px-4 py-2 text-sm font-bold text-stone-900 min-w-[2.5rem] text-center border-x border-stone-300">
+                <span className="px-4 py-2 text-sm font-black text-stone-900 min-w-[2.5rem] text-center border-x border-stone-300">
                   {quantity}
                 </span>
                 <button
                   type="button"
                   onClick={() => setQuantity((q) => q + 1)}
-                  className="px-3 py-2 text-stone-600 hover:bg-stone-100 transition-colors"
-                  aria-label="Increase"
+                  className="px-3.5 py-2 text-stone-600 hover:bg-stone-100 transition-colors"
+                  aria-label="Increase quantity"
                 >
                   <Plus className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <span className="text-xs text-stone-500">
-                মোট: <strong className="text-stone-800">৳{product.price * quantity}</strong>
+              <span className="text-sm text-stone-500 font-medium">
+                সর্বমোট: <strong className="text-stone-900 font-black">৳{product.price * quantity}</strong>
               </span>
             </div>
 
-            {/* Action Buttons — Cart + Order Now */}
-            <div className="grid grid-cols-2 gap-3 mb-5">
+            {/* Action Buttons: Cart + Buy Now */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <button
                 type="button"
                 onClick={handleAddToCart}
-                className={`btn rounded-xl font-bold text-sm h-11 min-h-0 flex items-center justify-center gap-2 border-2 transition-all ${
+                className={`btn rounded-2xl font-bold text-sm h-12 min-h-0 flex items-center justify-center gap-2 border-2 transition-all shadow-xs active:scale-95 ${
                   addedToCart
                     ? "bg-emerald-500 text-white border-emerald-500"
-                    : "bg-white text-stone-900 border-stone-300 hover:border-amber-400 hover:bg-amber-50"
+                    : "bg-white text-stone-900 border-stone-300 hover:border-amber-400 hover:bg-amber-50/50"
                 }`}
               >
                 {addedToCart ? (
                   <>
                     <CheckCircle className="w-4 h-4" />
-                    Added!
+                    কার্টে যোগ হয়েছে!
                   </>
                 ) : (
                   <>
-                    <ShoppingCart className="w-4 h-4" />
+                    <ShoppingCart className="w-4 h-4 text-stone-700" />
                     কার্টে যোগ করুন
                   </>
                 )}
@@ -359,130 +409,191 @@ export default function ProductDetailPage({
               <button
                 type="button"
                 onClick={handleBuyNow}
-                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold text-sm h-11 min-h-0 flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all"
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-2xl font-bold text-sm h-12 min-h-0 flex items-center justify-center gap-2 shadow-sm hover:shadow-md transition-all active:scale-95"
               >
                 <Zap className="w-4 h-4" />
                 এখনই অর্ডার করুন
               </button>
             </div>
 
-            {/* Category page link */}
-            <Link
-              href={`/category/${categorySlug}`}
-              className="w-full flex items-center justify-center gap-2 py-2.5 text-xs font-semibold text-stone-500 hover:text-amber-700 border border-stone-200 hover:border-amber-300 rounded-xl transition-colors bg-white"
-            >
-              <Package className="w-3.5 h-3.5" />
-              এই ক্যাটাগরির সব পণ্য দেখুন
-              <ArrowRight className="w-3 h-3" />
-            </Link>
+            {/* Product Description Section */}
+            <div className="pt-4 border-t border-stone-100">
+              <h2 className="text-base font-bold text-stone-900 mb-3 flex items-center gap-2">
+                <Package className="w-4 h-4 text-amber-500" />
+                পণ্য সম্পর্কিত বিবরণ ও সুযোগ-সুবিধা
+              </h2>
+
+              <div className="text-sm text-stone-600 leading-relaxed space-y-3">
+                <p className="font-medium text-stone-800 bg-stone-50 p-4 rounded-xl border border-stone-200/80">
+                  {product.description}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
+                  {[
+                    `মেয়াদ: ${product.duration || "১ মাস / ১ বছর নির্ধারিত"}`,
+                    "১০০% অফিসিয়াল ও নিরাপদ সার্ভিস",
+                    "সম্পূর্ণ মেয়াদকালীন সাপোর্ট ও ওয়ারেন্টি",
+                    "তাৎক্ষণিক অটোমেটিক ডিজিটাল ডেলিভারি",
+                  ].map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 text-stone-700 bg-white border border-stone-200/80 p-2.5 rounded-xl shadow-2xs">
+                      <CheckCircle className="w-4 h-4 text-emerald-500 shrink-0" />
+                      <span className="text-xs font-semibold">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Category Page Link */}
+            <div className="pt-2">
+              <Link
+                href={`/category/${categorySlug}`}
+                className="w-full flex items-center justify-center gap-2 py-3 text-xs font-bold text-stone-600 hover:text-amber-700 border border-stone-200 hover:border-amber-400 rounded-xl transition-colors bg-stone-50/50 hover:bg-amber-50/30"
+              >
+                <Package className="w-4 h-4 text-amber-600" />
+                <span>{getProductTypeLabel(product.type)} ক্যাটাগরির অন্যান্য সব পণ্য দেখুন</span>
+                <ArrowRight className="w-3.5 h-3.5 text-amber-600" />
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* Trust badges */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
-          <div className="flex items-center gap-3 p-3.5 bg-white rounded-xl border border-stone-200 shadow-sm">
-            <div className="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-stone-800">১০০% সিকিউর পেমেন্ট</div>
-              <div className="text-[11px] text-stone-500">বিকাশ, নগদ, রকেট, কার্ড</div>
-            </div>
-          </div>
-          <div className="flex items-center gap-3 p-3.5 bg-white rounded-xl border border-stone-200 shadow-sm">
-            <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center shrink-0">
-              <Truck className="w-4 h-4 text-blue-600" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-stone-800">তাৎক্ষণিক ডেলিভারি</div>
-              <div className="text-[11px] text-stone-500">পেমেন্টের সাথে সাথেই</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Product Description */}
-        <div className="bg-white rounded-2xl border border-stone-200 shadow-sm p-5 sm:p-6 mb-6">
-          <h2 className="text-base font-bold text-stone-900 mb-4 pb-3 border-b border-stone-100 flex items-center gap-2">
-            <Package className="w-4 h-4 text-amber-500" />
-            পণ্য সম্পর্কিত বিস্তারিত
-          </h2>
-
-          <div className="text-sm text-stone-600 leading-relaxed space-y-3">
-            <p className="font-medium text-stone-800">{product.description}</p>
-            <p>
-              এটি একটি প্রিমিয়াম ডিজিটাল সার্ভিস। পেমেন্ট সম্পন্ন হওয়ার সাথে সাথে স্বয়ংক্রিয়ভাবে ডেলিভারি ক্রেডেনশিয়াল স্ক্রিন ও ইমেইলে পাঠানো হবে।
-            </p>
-            <ul className="space-y-2 pt-1">
-              {[
-                `মেয়াদ: ${product.duration || "১ মাস / ১ বছর"}`,
-                "১০০% অফিসিয়াল ও ভেরিফাইড সার্ভিস",
-                "মেয়াদকালীন সমস্যায় রিপ্লেসমেন্ট ওয়ারেন্টি",
-                "২৪/৭ সাপোর্ট সুবিধা",
-              ].map((item, i) => (
-                <li key={i} className="flex items-center gap-2 text-stone-600">
-                  <CheckCircle className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        {/* Related Products */}
+        {/* Related Products Carousel / Grid */}
         {relatedProducts.length > 0 && (
-          <section className="mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-base font-bold text-stone-900">সম্পর্কিত পণ্যসমূহ</h2>
+          <section className="mb-12">
+            <div className="flex items-center justify-between mb-6 pb-3 border-b border-stone-200/80">
+              <div className="flex items-center gap-3">
+                <div className="w-1.5 h-6 bg-amber-400 rounded-full"></div>
+                <h2 className="text-lg sm:text-xl font-black text-stone-900">সম্পর্কিত অন্যান্য পণ্যসমূহ</h2>
+              </div>
               <Link
                 href="/shop"
-                className="text-xs font-semibold text-amber-700 hover:text-amber-800 flex items-center gap-1"
+                className="text-xs sm:text-sm font-bold text-amber-700 hover:text-amber-800 flex items-center gap-1 bg-amber-50 hover:bg-amber-100 px-3 py-1.5 rounded-xl border border-amber-200 transition-colors"
               >
-                সব দেখুন <ArrowRight className="w-3 h-3" />
+                <span>সব দেখুন</span>
+                <ArrowRight className="w-3.5 h-3.5 text-amber-600" />
               </Link>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-3">
-              {relatedProducts.map((p) => (
-                <Link
-                  key={p._id}
-                  href={`/product/${p.slug}`}
-                  className="bg-white rounded-xl border border-stone-200 hover:border-amber-400 hover:shadow-md transition-all overflow-hidden group block"
-                >
-                  <figure className="relative h-28 sm:h-36 bg-stone-100 overflow-hidden">
-                    {p.thumbnailPath ? (
-                      <img
-                        src={`${apiUrl}/${p.thumbnailPath}`}
-                        alt={p.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <Package className="w-8 h-8 text-stone-300" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 lg:gap-5">
+              {relatedProducts.map((p) => {
+                const discount =
+                  p.compareAtPrice && p.compareAtPrice > p.price
+                    ? Math.round(((p.compareAtPrice - p.price) / p.compareAtPrice) * 100)
+                    : null;
+
+                return (
+                  <div
+                    key={p._id}
+                    className="bg-white rounded-2xl border border-stone-200/90 hover:border-amber-400 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between group"
+                  >
+                    <Link href={`/product/${p.slug}`} className="block">
+                      <figure className="relative aspect-square sm:aspect-[4/3] bg-stone-100 overflow-hidden">
+                        {p.thumbnailPath ? (
+                          <img
+                            src={`${apiUrl}/${p.thumbnailPath}`}
+                            alt={p.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="w-10 h-10 text-stone-300" />
+                          </div>
+                        )}
+                        {discount ? (
+                          <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] px-2 py-0.5 rounded-md shadow-xs">
+                            {discount}% ছাড়
+                          </span>
+                        ) : (
+                          <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] px-2 py-0.5 rounded-md shadow-xs">
+                            অফার
+                          </span>
+                        )}
+                        <span className="absolute top-2 right-2 bg-white/95 text-stone-800 font-bold text-[9px] px-2 py-0.5 rounded-md shadow-xs border border-stone-200">
+                          {getProductTypeLabel(p.type)}
+                        </span>
+                      </figure>
+                    </Link>
+
+                    <div className="p-3 sm:p-4 flex flex-col flex-1 justify-between gap-2">
+                      <div>
+                        <Link href={`/product/${p.slug}`} className="block">
+                          <h3 className="text-xs sm:text-sm font-bold text-stone-900 group-hover:text-amber-700 line-clamp-2 leading-snug transition-colors">
+                            {p.title}
+                          </h3>
+                        </Link>
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <div className="flex items-center text-amber-400">
+                            {[...Array(5)].map((_, i) => (
+                              <Star key={i} className="w-3 h-3 fill-amber-400 text-amber-400" />
+                            ))}
+                          </div>
+                          <span className="text-[11px] font-bold text-stone-700 ml-0.5">4.9</span>
+                        </div>
+                        <div className="flex items-baseline gap-2 mt-2">
+                          <span className="text-base sm:text-lg font-black text-stone-900">
+                            ৳{p.price}
+                          </span>
+                          {p.compareAtPrice && p.compareAtPrice > p.price && (
+                            <span className="text-xs text-stone-400 line-through">
+                              ৳{p.compareAtPrice}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    )}
-                    <span className="absolute top-2 right-2 bg-amber-400 text-stone-950 text-[9px] font-bold px-1.5 py-0.5 rounded-md">
-                      {getProductTypeLabel(p.type)}
-                    </span>
-                  </figure>
-                  <div className="p-3">
-                    <p className="text-xs font-semibold text-stone-800 line-clamp-2 leading-snug mb-1">
-                      {p.title}
-                    </p>
-                    <span className="text-sm font-black text-stone-900">৳{p.price}</span>
+
+                      <div className="grid grid-cols-2 gap-2 pt-2 border-t border-stone-100">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            addToCart({
+                              productId: p._id,
+                              title: p.title,
+                              price: p.price,
+                              compareAtPrice: p.compareAtPrice,
+                              thumbnailPath: p.thumbnailPath,
+                              type: p.type,
+                              slug: p.slug,
+                            })
+                          }
+                          className="w-full btn bg-white hover:bg-stone-50 text-stone-800 border border-stone-300 hover:border-amber-400 rounded-xl btn-xs sm:btn-sm font-bold text-xs h-8 sm:h-9 min-h-0 flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                        >
+                          <ShoppingCart className="w-3.5 h-3.5 text-stone-700" />
+                          <span>কার্ট</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            addToCart({
+                              productId: p._id,
+                              title: p.title,
+                              price: p.price,
+                              compareAtPrice: p.compareAtPrice,
+                              thumbnailPath: p.thumbnailPath,
+                              type: p.type,
+                              slug: p.slug,
+                            });
+                            router.push("/checkout");
+                          }}
+                          className="w-full btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl btn-xs sm:btn-sm font-bold text-xs h-8 sm:h-9 min-h-0 flex items-center justify-center gap-1.5 shadow-2xs active:scale-95"
+                        >
+                          <Zap className="w-3.5 h-3.5 text-stone-950" />
+                          <span>কিনুন</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           </section>
         )}
-
       </main>
 
       {/* Mobile Sticky Bottom Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-stone-200 px-4 py-3 shadow-xl">
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-stone-200 px-4 py-3 shadow-xl">
         <div className="flex items-center gap-3">
           <div className="shrink-0">
-            <div className="text-[10px] text-stone-400 font-medium uppercase tracking-wide">মূল্য</div>
+            <div className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">সর্বমোট</div>
             <div className="text-lg font-black text-stone-900 leading-none">৳{product.price * quantity}</div>
           </div>
           <div className="flex-1 grid grid-cols-2 gap-2">
@@ -496,12 +607,12 @@ export default function ProductDetailPage({
               }`}
             >
               <ShoppingCart className="w-3.5 h-3.5" />
-              {addedToCart ? "Added!" : "কার্ট"}
+              {addedToCart ? "যোগ হয়েছে!" : "কার্ট"}
             </button>
             <button
               type="button"
               onClick={handleBuyNow}
-              className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold text-xs h-10 min-h-0 flex items-center justify-center gap-1.5"
+              className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold text-xs h-10 min-h-0 flex items-center justify-center gap-1.5 shadow-xs"
             >
               <Zap className="w-3.5 h-3.5" />
               অর্ডার করুন

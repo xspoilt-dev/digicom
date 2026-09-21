@@ -133,7 +133,7 @@ export default function CategoryCampaignPage({
     <div className="min-h-screen flex flex-col bg-[#fafaf9] text-stone-900" data-theme="lightyellow">
       <Navbar />
 
-      <main className="container mx-auto px-4 md:px-8 py-6 md:py-10 flex-1 max-w-6xl">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 flex-1 max-w-7xl">
         {/* Breadcrumb Navigation */}
         <nav className="text-xs font-semibold text-stone-500 mb-6 flex items-center gap-2 flex-wrap">
           <Link href="/" className="hover:text-amber-600 transition-colors">হোমপেজ</Link>
@@ -144,18 +144,18 @@ export default function CategoryCampaignPage({
         </nav>
 
         {/* Compact Campaign Hero Banner */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-100/80 via-yellow-50/70 to-white border border-amber-300/80 p-3.5 sm:p-5 shadow-xs mb-4 sm:mb-6">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-100/80 via-yellow-50/70 to-white border border-amber-300/80 p-3.5 sm:p-5 md:p-6 shadow-xs mb-4 sm:mb-6">
           <div className="max-w-2xl relative z-10">
             <span className="inline-flex items-center gap-1 bg-amber-400 text-stone-950 font-black text-[10px] uppercase tracking-wider py-0.5 px-2.5 rounded-full shadow-2xs mb-2">
               <Layers className="w-3 h-3" />
               ক্যাটাগরি
             </span>
-            <h1 className="text-base sm:text-xl md:text-2xl font-black text-stone-900 leading-tight mb-2.5">
+            <h1 className="text-lg sm:text-xl md:text-2xl lg:text-3xl font-black text-stone-900 leading-tight mb-2.5">
               {categoryInfo.name}
             </h1>
 
             {/* Compact Trust Badges Row */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[10px] font-bold text-stone-800">
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[10px] sm:text-xs font-bold text-stone-800">
               <span className="bg-white/95 border border-amber-200 px-2.5 py-0.5 rounded-full shadow-2xs flex items-center gap-1">
                 <Zap className="w-3 h-3 text-amber-600" />
                 অটো-ডেলিভারি
@@ -234,8 +234,8 @@ export default function CategoryCampaignPage({
               </span>
             </div>
 
-            {/* Mobile: 2 items per row (`grid-cols-2`) */}
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6">
+            {/* Mobile: 2 items per row (`grid-cols-2`), Desktop: up to 5 cols */}
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
               {products.map((product) => {
                 const discount =
                   product.compareAtPrice && product.compareAtPrice > product.price

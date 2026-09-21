@@ -260,10 +260,10 @@ export default function StoreHome() {
       {/* Navbar with brand, search and live cart */}
       <Navbar />
 
-      {/* Top Slider Banner - Ultra-Compact Horizontal Layout in White & Yellow Theme */}
+      {/* Top Slider Banner - Fully Responsive for Mobile & PC */}
       {currentSlideProduct && (
         <section className="container mx-auto px-4 md:px-8 mt-4 sm:mt-6">
-          <div className="relative max-w-2xl mx-auto rounded-2xl sm:rounded-3xl bg-gradient-to-r from-amber-50/90 via-yellow-50/70 to-white text-stone-900 p-3 sm:p-4 shadow-sm border-2 border-amber-300/80 overflow-hidden">
+          <div className="relative max-w-7xl mx-auto rounded-2xl sm:rounded-3xl bg-gradient-to-r from-amber-50/90 via-yellow-50/70 to-white text-stone-900 p-3 sm:p-5 md:p-6 shadow-sm border-2 border-amber-300/80 overflow-hidden">
             
             {/* Prev Arrow */}
             {displaySliderProducts.length > 1 && (
@@ -272,10 +272,10 @@ export default function StoreHome() {
                 onClick={() =>
                   setActiveSlide((prev) => (prev - 1 + displaySliderProducts.length) % displaySliderProducts.length)
                 }
-                className="absolute left-1 sm:left-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 hover:bg-amber-100 text-stone-800 flex items-center justify-center transition-all shadow-xs border border-amber-200 active:scale-90"
+                className="absolute left-1.5 sm:left-3 top-1/2 -translate-y-1/2 z-20 w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/95 hover:bg-amber-100 text-stone-800 flex items-center justify-center transition-all shadow-xs border border-amber-200 active:scale-90"
                 aria-label="Previous Slide"
               >
-                <ChevronLeft className="w-4 h-4" />
+                <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             )}
 
@@ -284,19 +284,19 @@ export default function StoreHome() {
               <button
                 type="button"
                 onClick={() => setActiveSlide((prev) => (prev + 1) % displaySliderProducts.length)}
-                className="absolute right-1 sm:right-2 top-1/2 -translate-y-1/2 z-20 w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/95 hover:bg-amber-100 text-stone-800 flex items-center justify-center transition-all shadow-xs border border-amber-200 active:scale-90"
+                className="absolute right-1.5 sm:right-3 top-1/2 -translate-y-1/2 z-20 w-7 h-7 sm:w-9 sm:h-9 rounded-full bg-white/95 hover:bg-amber-100 text-stone-800 flex items-center justify-center transition-all shadow-xs border border-amber-200 active:scale-90"
                 aria-label="Next Slide"
               >
-                <ChevronRight className="w-4 h-4" />
+                <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             )}
 
             {/* Horizontal Content: Left Image, Right Details */}
-            <div className="flex items-center gap-3 sm:gap-4 px-6 sm:px-8">
+            <div className="flex items-center gap-3 sm:gap-6 md:gap-8 px-6 sm:px-10 md:px-12">
               {/* Product Thumbnail (Left) */}
               <Link
                 href={`/product/${currentSlideProduct.slug}`}
-                className="w-20 sm:w-24 md:w-28 aspect-[3/4] bg-white rounded-xl overflow-hidden shrink-0 border border-amber-200 block relative group shadow-2xs"
+                className="w-20 sm:w-28 md:w-36 lg:w-44 aspect-[3/4] bg-white rounded-xl sm:rounded-2xl overflow-hidden shrink-0 border border-amber-200 block relative group shadow-2xs"
               >
                 {currentSlideProduct.thumbnailPath ? (
                   <img
@@ -306,34 +306,48 @@ export default function StoreHome() {
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-amber-500">
-                    <Package className="w-8 h-8" />
+                    <Package className="w-8 h-8 md:w-12 md:h-12" />
                   </div>
                 )}
               </Link>
 
               {/* Product Details (Right) */}
-              <div className="flex-1 min-w-0 flex flex-col justify-between py-0.5">
+              <div className="flex-1 min-w-0 flex flex-col justify-between py-1">
+                {/* Type Badge on Desktop */}
+                <div className="hidden sm:inline-flex mb-1">
+                  <span className="text-[11px] font-bold text-amber-800 bg-amber-100/90 px-2.5 py-0.5 rounded-full border border-amber-200">
+                    {getProductTypeLabel(currentSlideProduct.type)}
+                  </span>
+                </div>
+
                 {/* Title */}
                 <Link
                   href={`/product/${currentSlideProduct.slug}`}
                   className="hover:text-amber-700 transition-colors block"
                 >
-                  <h2 className="text-xs sm:text-sm md:text-base font-bold text-stone-900 leading-snug line-clamp-2">
+                  <h2 className="text-xs sm:text-base md:text-xl lg:text-2xl font-black text-stone-900 leading-snug line-clamp-2">
                     {currentSlideProduct.title}
                   </h2>
                 </Link>
 
+                {/* Description snippet on Desktop */}
+                {currentSlideProduct.description && (
+                  <p className="hidden md:block text-xs lg:text-sm text-stone-600 mt-1 line-clamp-2 max-w-2xl">
+                    {currentSlideProduct.description}
+                  </p>
+                )}
+
                 {/* Price Row (Main Price + Strikethrough + Discount Badge) */}
-                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                  <span className="text-sm sm:text-base font-black text-amber-600">
+                <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2.5 flex-wrap">
+                  <span className="text-sm sm:text-lg md:text-2xl font-black text-amber-600">
                     ৳{currentSlideProduct.price}
                   </span>
                   {currentSlideProduct.compareAtPrice && currentSlideProduct.compareAtPrice > currentSlideProduct.price ? (
                     <>
-                      <span className="text-xs text-stone-400 line-through">
+                      <span className="text-xs sm:text-sm text-stone-400 line-through">
                         ৳{currentSlideProduct.compareAtPrice}
                       </span>
-                      <span className="text-[10px] bg-amber-400 text-stone-950 font-bold px-1.5 py-0.5 rounded-md shadow-2xs">
+                      <span className="text-[10px] sm:text-xs bg-amber-400 text-stone-950 font-bold px-2 py-0.5 rounded-md shadow-2xs">
                         {Math.round(
                           ((currentSlideProduct.compareAtPrice - currentSlideProduct.price) /
                             currentSlideProduct.compareAtPrice) *
@@ -344,10 +358,10 @@ export default function StoreHome() {
                     </>
                   ) : (
                     <>
-                      <span className="text-xs text-stone-400 line-through">
+                      <span className="text-xs sm:text-sm text-stone-400 line-through">
                         ৳{Math.round(currentSlideProduct.price * 1.5)}
                       </span>
-                      <span className="text-[10px] bg-amber-400 text-stone-950 font-bold px-1.5 py-0.5 rounded-md shadow-2xs">
+                      <span className="text-[10px] sm:text-xs bg-amber-400 text-stone-950 font-bold px-2 py-0.5 rounded-md shadow-2xs">
                         অফার
                       </span>
                     </>
@@ -355,7 +369,7 @@ export default function StoreHome() {
                 </div>
 
                 {/* Action Button: Golden-Yellow 'এখনই কিনুন' button */}
-                <div className="mt-2.5">
+                <div className="mt-2 sm:mt-3">
                   <button
                     type="button"
                     onClick={() => {
@@ -370,9 +384,9 @@ export default function StoreHome() {
                       });
                       router.push("/checkout");
                     }}
-                    className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl btn-xs sm:btn-sm h-7 sm:h-8 px-3.5 font-bold text-xs flex items-center gap-1.5 shadow-2xs active:scale-95"
+                    className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl sm:rounded-2xl btn-xs sm:btn-sm md:btn-md h-7 sm:h-9 md:h-10 px-3 sm:px-5 font-bold text-xs sm:text-sm inline-flex items-center gap-1.5 sm:gap-2 shadow-2xs active:scale-95"
                   >
-                    <ShoppingBag className="w-3.5 h-3.5" />
+                    <ShoppingBag className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>এখনই কিনুন</span>
                   </button>
                 </div>
@@ -381,13 +395,13 @@ export default function StoreHome() {
 
             {/* Pagination Dots at Bottom */}
             {displaySliderProducts.length > 1 && (
-              <div className="flex justify-center items-center gap-1 mt-2.5">
+              <div className="flex justify-center items-center gap-1 mt-2.5 sm:mt-3">
                 {displaySliderProducts.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setActiveSlide(idx)}
-                    className={`h-1 rounded-full transition-all duration-300 ${
-                      idx === activeSlide ? "w-5 bg-amber-500" : "w-1.5 bg-amber-200 hover:bg-amber-300"
+                    className={`h-1 sm:h-1.5 rounded-full transition-all duration-300 ${
+                      idx === activeSlide ? "w-6 sm:w-8 bg-amber-500" : "w-1.5 sm:w-2 bg-amber-200 hover:bg-amber-300"
                     }`}
                     aria-label={`Slide ${idx + 1}`}
                   />
@@ -398,8 +412,53 @@ export default function StoreHome() {
         </section>
       )}
 
+      {/* Trust & Value Proposition Strip (Desktop & Mobile) */}
+      <section className="container mx-auto px-4 md:px-8 mt-4 sm:mt-6">
+        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
+          <div className="bg-white border border-stone-200/90 rounded-2xl p-3 sm:p-4 flex items-center gap-3 shadow-2xs hover:border-amber-400 transition-all">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100/90 flex items-center justify-center shrink-0">
+              <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-700" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-stone-900 leading-tight">তাৎক্ষণিক ডেলিভারি</h4>
+              <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">পেমেন্টের সাথে সাথেই অটোমেশন</p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-stone-200/90 rounded-2xl p-3 sm:p-4 flex items-center gap-3 shadow-2xs hover:border-amber-400 transition-all">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-100/90 flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-stone-900 leading-tight">১০০% ভেরিফাইড</h4>
+              <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">অফিশিয়াল প্রিমিয়াম সার্ভিস</p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-stone-200/90 rounded-2xl p-3 sm:p-4 flex items-center gap-3 shadow-2xs hover:border-amber-400 transition-all">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-100/90 flex items-center justify-center shrink-0">
+              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-stone-900 leading-tight">ফুল মেয়াদ ওয়ারেন্টি</h4>
+              <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">যেকোনো সমস্যায় রিপ্লেসমেন্ট</p>
+            </div>
+          </div>
+
+          <div className="bg-white border border-stone-200/90 rounded-2xl p-3 sm:p-4 flex items-center gap-3 shadow-2xs hover:border-amber-400 transition-all">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100/90 flex items-center justify-center shrink-0">
+              <Star className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 fill-amber-400" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-stone-900 leading-tight">২৪/৭ সাপোর্ট</h4>
+              <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">হোয়াটসঅ্যাপ হেল্পডেস্ক সুবিধা</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Main product showcase — Category by Category */}
-      <main className="container mx-auto px-4 md:px-8 py-8 flex-1">
+      <main className="container mx-auto px-4 md:px-8 py-8 flex-1 max-w-7xl">
 
         {error && (
           <div className="alert alert-error shadow-md mb-6 text-sm">
@@ -416,10 +475,10 @@ export default function StoreHome() {
           /* No categories configured yet — fall back to flat product grid */
           <section className="mb-12">
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-1 h-6 bg-amber-400 rounded-full"></div>
-              <h2 className="text-lg font-bold text-stone-800">সকল পণ্য</h2>
+              <div className="w-1.5 h-6 bg-amber-400 rounded-full"></div>
+              <h2 className="text-lg sm:text-xl font-bold text-stone-800">সকল পণ্য</h2>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
               {filteredProducts.map((product) => (
                 <ProductCard key={product._id} product={product} apiUrl={apiUrl} addToCart={addToCart} router={router} />
               ))}
@@ -457,8 +516,8 @@ export default function StoreHome() {
                     </Link>
                   </div>
 
-                  {/* 2-col mobile, 3-4 col desktop grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-5">
+                  {/* 2-col mobile, 3-5 col desktop grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
                     {cat.products.map((product) => (
                       <ProductCard key={product._id} product={product} apiUrl={apiUrl} addToCart={addToCart} router={router} />
                     ))}

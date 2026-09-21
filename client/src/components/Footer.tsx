@@ -38,25 +38,25 @@ export default function Footer() {
   const whatsappUrl = `https://wa.me/${cleanNumber}`;
 
   return (
-    <footer className="bg-base-100 text-base-content border-t border-base-300 py-8 px-4 md:px-8 mt-auto">
-      <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+    <footer className="bg-white text-stone-800 border-t border-stone-200/90 py-8 mt-auto">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
         
         {/* Brand Logo and Copyright */}
         <aside className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center font-black text-sm text-primary-content shadow-sm shrink-0">
-            KB
+          <div className="w-10 h-10 rounded-2xl bg-amber-400 text-stone-950 flex items-center justify-center font-black text-xl shadow-xs shrink-0">
+            D
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base tracking-tight text-base-content">
-                {companyInfo.name || "KaloBazar"}
+              <span className="font-extrabold text-base tracking-tight text-stone-900">
+                {companyInfo.name || "Digitalcorebd.com"}
               </span>
-              <span className="badge badge-accent badge-xs font-bold text-[9px] uppercase px-1.5 py-0.5">
-                Official
+              <span className="bg-amber-100 text-amber-800 border border-amber-200 font-bold text-[9px] uppercase px-2 py-0.5 rounded-full">
+                অফিশিয়াল
               </span>
             </div>
-            <p className="text-xs text-base-content/60 mt-0.5">
-              © ২০২৬ KaloBazar. সর্বস্বত্ব সংরক্ষিত।
+            <p className="text-xs text-stone-500 mt-0.5">
+              © ২০২৬ {companyInfo.name || "Digitalcorebd.com"}. সর্বস্বত্ব সংরক্ষিত।
             </p>
           </div>
         </aside>

@@ -8,6 +8,7 @@ import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
 import { trackEvent } from "@/lib/meta/track-event";
 import { getFbCookies } from "@/lib/meta/cookies";
+import { ShoppingCart, ShieldCheck, Zap, ArrowLeft, CheckCircle, Package } from "lucide-react";
 
 export default function CheckoutPage() {
   const { cartItems, cartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
@@ -99,13 +100,13 @@ export default function CheckoutPage() {
     <div className="min-h-screen flex flex-col bg-base-200 text-base-content" data-theme="lightyellow">
       <Navbar />
 
-      <main className="container mx-auto px-4 md:px-8 py-8 md:py-12 flex-1 max-w-6xl">
+      <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 flex-1 max-w-7xl">
         {/* Page Title */}
-        <div className="text-center mb-6">
-          <h1 className="text-2xl md:text-3xl font-black text-stone-900">
+        <div className="text-center mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-black text-stone-900">
             অর্ডার চেকআউট
           </h1>
-          <p className="text-xs md:text-sm text-stone-500 mt-1 font-medium">
+          <p className="text-xs sm:text-sm text-stone-500 mt-1 font-medium">
             আপনার তথ্য দিয়ে বিকাশ, নগদ বা কার্ডের মাধ্যমে তাৎক্ষণিক পেমেন্ট সম্পন্ন করুন
           </p>
         </div>
@@ -113,9 +114,7 @@ export default function CheckoutPage() {
         {/* Delivery Info Banner */}
         <div className="mb-8 flex items-start gap-3 bg-emerald-50 border border-emerald-200 rounded-2xl px-4 py-3.5 max-w-3xl mx-auto">
           <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0 mt-0.5">
-            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-            </svg>
+            <CheckCircle className="w-4 h-4 text-emerald-600" />
           </div>
           <div>
             <p className="text-sm font-bold text-emerald-800">তাৎক্ষণিক ডিজিটাল ডেলিভারি</p>
@@ -128,8 +127,8 @@ export default function CheckoutPage() {
         {cartItems.length === 0 ? (
           /* Empty Cart State */
           <div className="card max-w-md mx-auto bg-white border-2 border-amber-200/80 rounded-3xl p-8 text-center shadow-lg space-y-4">
-            <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center mx-auto text-2xl font-black">
-              🛒
+            <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center mx-auto shadow-xs">
+              <ShoppingCart className="w-8 h-8" />
             </div>
             <h2 className="text-xl font-black text-stone-900">আপনার কার্ট খালি!</h2>
             <p className="text-xs text-stone-500">

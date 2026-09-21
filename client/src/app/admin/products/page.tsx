@@ -510,24 +510,36 @@ export default function ProductsPage() {
           aria-modal="true"
         >
           <div 
-            className="relative w-full max-w-2xl bg-white rounded-3xl border-2 border-stone-200 shadow-2xl p-5 sm:p-8 text-stone-900 my-auto max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-2xl bg-white rounded-3xl border-2 border-stone-200 shadow-2xl text-stone-900 my-auto max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <button
-              type="button"
-              onClick={() => setIsProductModalOpen(false)}
-              className="btn btn-sm btn-circle btn-ghost absolute right-4 top-4 text-stone-400 hover:text-stone-700"
-              aria-label="Close"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {/* Fixed Modal Header */}
+            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-stone-100 bg-white shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center font-bold shrink-0">
+                  <Package className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="font-black text-lg sm:text-xl text-stone-900 tracking-tight">
+                    {selectedProduct._id ? "Edit Product Details" : "Add New Digital Product"}
+                  </h2>
+                  <span className="text-[11px] text-stone-500 font-medium block">
+                    Product listing, Taka pricing, and automated delivery
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsProductModalOpen(false)}
+                className="btn btn-sm btn-circle btn-ghost text-stone-400 hover:text-stone-700"
+                aria-label="Close"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
-            <h2 className="font-black text-xl text-stone-900 mb-6 border-b border-stone-100 pb-3 flex items-center gap-2">
-              <Package className="w-5 h-5 text-amber-500" />
-              {selectedProduct._id ? "Edit Product Details" : "Add New Digital Product"}
-            </h2>
-
-            <form onSubmit={handleProductSubmit} className="space-y-5">
+            {/* Scrollable Form Body */}
+            <form id="product-admin-form" onSubmit={handleProductSubmit} className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-5">
               {/* Title & Slug */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="form-control w-full">
@@ -797,23 +809,25 @@ export default function ProductsPage() {
                 </div>
               </div>
 
-              {/* Submit Buttons */}
-              <div className="border-t border-stone-100 pt-4 flex items-center justify-end gap-3 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setIsProductModalOpen(false)}
-                  className="btn btn-sm bg-stone-100 hover:bg-stone-200 text-stone-700 border-none rounded-xl font-bold px-4"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-sm bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold px-6 shadow-xs"
-                >
-                  Save Product
-                </button>
-              </div>
             </form>
+
+            {/* Fixed Modal Footer */}
+            <div className="border-t border-stone-100 p-4 sm:p-5 bg-stone-50/95 backdrop-blur-xs flex items-center justify-end gap-3 shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsProductModalOpen(false)}
+                className="btn btn-sm bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-xl font-bold px-4"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="product-admin-form"
+                className="btn btn-sm bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold px-6 shadow-xs"
+              >
+                Save Product
+              </button>
+            </div>
           </div>
         </div>,
         document.body

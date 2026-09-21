@@ -418,11 +418,11 @@ export default function AdminCategoriesPage() {
           aria-modal="true"
         >
           <div 
-            className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-lg w-full overflow-hidden my-auto max-h-[90vh] overflow-y-auto"
+            className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-lg w-full my-auto max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden text-stone-900"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-stone-100">
+            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-stone-100 bg-white shrink-0">
               <div className="flex items-center gap-2.5">
                 <span className="p-2 rounded-xl bg-amber-100 text-amber-800">
                   <Layers className="w-5 h-5" />
@@ -441,7 +441,7 @@ export default function AdminCategoriesPage() {
             </div>
 
             {/* Modal Form */}
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
+            <form id="category-form" onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-4 flex-1 overflow-y-auto">
               <div className="form-control">
                 <label className="label py-1">
                   <span className="label-text font-bold text-xs text-stone-700">ক্যাটাগরির নাম *</span>
@@ -525,25 +525,27 @@ export default function AdminCategoriesPage() {
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-stone-100">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="btn btn-ghost rounded-xl text-xs font-bold"
-                >
-                  বাতিল
-                </button>
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 font-bold border-none rounded-xl px-5 text-xs flex items-center gap-1.5 shadow-sm"
-                >
-                  <Save className="w-3.5 h-3.5" />
-                  {submitting ? "সংরক্ষণ হচ্ছে..." : editingCategory ? "আপডেট করুন" : "ক্যাটাগরি তৈরি করুন"}
-                </button>
-              </div>
             </form>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2 p-4 sm:p-5 border-t border-stone-100 bg-stone-50/95 backdrop-blur-xs shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="btn btn-ghost rounded-xl text-xs font-bold"
+              >
+                বাতিল
+              </button>
+              <button
+                type="submit"
+                form="category-form"
+                disabled={submitting}
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 font-bold border-none rounded-xl px-5 text-xs flex items-center gap-1.5 shadow-sm"
+              >
+                <Save className="w-3.5 h-3.5" />
+                {submitting ? "সংরক্ষণ হচ্ছে..." : editingCategory ? "আপডেট করুন" : "ক্যাটাগরি তৈরি করুন"}
+              </button>
+            </div>
           </div>
         </div>,
         document.body

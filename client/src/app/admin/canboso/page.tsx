@@ -643,11 +643,11 @@ export default function CanbosoStockPage() {
           aria-modal="true"
         >
           <div 
-            className="relative w-full max-w-2xl bg-white rounded-3xl border-2 border-stone-200 shadow-2xl p-5 sm:p-8 text-stone-900 my-auto max-h-[90vh] overflow-y-auto"
+            className="relative w-full max-w-2xl bg-white rounded-3xl border-2 border-stone-200 shadow-2xl text-stone-900 my-auto max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-stone-100 pb-4 mb-5">
+            {/* Fixed Modal Header */}
+            <div className="flex items-center justify-between p-5 sm:p-6 border-b border-stone-100 bg-white shrink-0">
               <div>
                 <h3 className="font-black text-lg sm:text-xl text-stone-900 flex items-center gap-2">
                   <Package className="w-5 h-5 text-amber-500" />
@@ -660,14 +660,15 @@ export default function CanbosoStockPage() {
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="btn btn-sm btn-ghost btn-circle text-stone-400 hover:text-stone-700 -mr-2 -mt-2"
+                className="btn btn-sm btn-ghost btn-circle text-stone-400 hover:text-stone-700"
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleImportSubmit} className="space-y-5 text-xs">
+            {/* Scrollable Form Body */}
+            <form id="canboso-import-form" onSubmit={handleImportSubmit} className="flex-1 overflow-y-auto p-5 sm:p-7 space-y-5 text-xs">
               {/* Live Profit Estimator Banner */}
               <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-2 pb-2 border-b border-amber-200/60">
@@ -951,24 +952,26 @@ export default function CanbosoStockPage() {
                 </div>
               </div>
 
-              {/* Submit Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100 mt-6">
-                <button
-                  type="button"
-                  onClick={() => setIsModalOpen(false)}
-                  className="btn btn-sm bg-stone-100 hover:bg-stone-200 text-stone-700 border-none rounded-xl font-bold px-4"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingImport}
-                  className="btn btn-sm bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold px-6 shadow-xs disabled:bg-stone-200 disabled:text-stone-400"
-                >
-                  {submittingImport ? "Connecting..." : "Save & Connect Product"}
-                </button>
-              </div>
             </form>
+
+            {/* Fixed Modal Footer */}
+            <div className="flex items-center justify-end gap-3 p-4 sm:p-5 border-t border-stone-100 bg-stone-50/95 backdrop-blur-xs shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsModalOpen(false)}
+                className="btn btn-sm bg-white hover:bg-stone-100 text-stone-700 border border-stone-200 rounded-xl font-bold px-4"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="canboso-import-form"
+                disabled={submittingImport}
+                className="btn btn-sm bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold px-6 shadow-xs disabled:bg-stone-200 disabled:text-stone-400"
+              >
+                {submittingImport ? "Connecting..." : "Save & Connect Product"}
+              </button>
+            </div>
           </div>
         </div>,
         document.body

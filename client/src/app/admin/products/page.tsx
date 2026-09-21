@@ -331,11 +331,11 @@ export default function ProductsPage() {
             >
               {/* Product Cover Thumbnail */}
               {p.thumbnailPath ? (
-                <div className="h-44 w-full bg-stone-100 overflow-hidden relative border-b border-stone-100">
+                <div className="h-44 w-full bg-stone-50 overflow-hidden relative border-b border-stone-100 flex items-center justify-center p-2">
                   <img
                     src={`${apiUrl}/${p.thumbnailPath}`}
                     alt={p.title}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                   />
                   <div className="absolute top-2 right-2 flex flex-wrap gap-1">
                     {p.showInSlider && (
@@ -736,7 +736,7 @@ export default function ProductsPage() {
                     <img
                       src={`${apiUrl}/${selectedProduct.thumbnailPath}`}
                       alt="Thumbnail"
-                      className="w-16 h-16 object-cover rounded-xl border border-stone-200"
+                      className="w-16 h-16 object-contain rounded-xl border border-stone-200 bg-white p-0.5"
                     />
                     <div className="flex-1 overflow-hidden">
                       <span className="text-xs font-mono truncate block text-stone-700">

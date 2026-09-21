@@ -306,13 +306,13 @@ export default function StoreHome() {
               {/* Product Thumbnail (Left) */}
               <Link
                 href={`/product/${currentSlideProduct.slug}`}
-                className="w-20 sm:w-28 md:w-36 lg:w-44 aspect-[3/4] bg-white rounded-xl sm:rounded-2xl overflow-hidden shrink-0 border border-amber-200 block relative group shadow-2xs"
+                className="w-28 sm:w-36 md:w-44 lg:w-52 aspect-square bg-stone-50 rounded-2xl overflow-hidden shrink-0 border border-amber-200/80 flex items-center justify-center relative group shadow-xs"
               >
                 {currentSlideProduct.thumbnailPath ? (
                   <img
                     src={`${apiUrl}/${currentSlideProduct.thumbnailPath}`}
                     alt={currentSlideProduct.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-300 drop-shadow-2xs"
                   />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-amber-500">
@@ -594,12 +594,12 @@ function ProductCard({
     <div className="bg-white rounded-2xl border border-stone-200/90 hover:border-amber-400 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between group">
       {/* Product Image */}
       <Link href={`/product/${product.slug}`} className="block">
-        <figure className="relative aspect-square sm:aspect-[4/3] bg-stone-100 overflow-hidden">
+        <figure className="relative aspect-square bg-stone-50 overflow-hidden flex items-center justify-center p-2.5">
           {product.thumbnailPath ? (
             <img
               src={`${apiUrl}/${product.thumbnailPath}`}
               alt={product.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-2xs"
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center">

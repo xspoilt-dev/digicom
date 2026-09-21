@@ -218,12 +218,12 @@ export default function ProductDetailPage({
           <div className="lg:col-span-5 space-y-4">
             {/* Image Card */}
             <div className="bg-white rounded-3xl border border-stone-200/90 shadow-sm overflow-hidden p-3 sm:p-4">
-              <div className="relative w-full aspect-square bg-stone-100 rounded-2xl overflow-hidden group">
+              <div className="relative w-full aspect-square bg-stone-50 rounded-2xl overflow-hidden group flex items-center justify-center p-3">
                 {product.thumbnailPath ? (
                   <img
                     src={`${apiUrl}/${product.thumbnailPath}`}
                     alt={product.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-xs"
                   />
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center gap-3 text-stone-400">
@@ -487,12 +487,12 @@ export default function ProductDetailPage({
                     className="bg-white rounded-2xl border border-stone-200/90 hover:border-amber-400 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between group"
                   >
                     <Link href={`/product/${p.slug}`} className="block">
-                      <figure className="relative aspect-square sm:aspect-[4/3] bg-stone-100 overflow-hidden">
+                      <figure className="relative aspect-square bg-stone-50 overflow-hidden flex items-center justify-center p-2.5">
                         {p.thumbnailPath ? (
                           <img
                             src={`${apiUrl}/${p.thumbnailPath}`}
                             alt={p.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-2xs"
                           />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center">

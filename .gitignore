@@ -3,3 +3,6 @@ dist
 node_modules
 .agents
 .next
+server/uploads/*
+!server/uploads/thumbnails/.gitkeep
+!server/uploads/products/.gitkeep

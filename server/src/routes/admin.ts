@@ -18,6 +18,7 @@ import {
 } from "../services/canbosoClient";
 import path from "path";
 import fs from "fs";
+import sharp from "sharp";
 
 const adminRouter = new Hono();
 
@@ -446,10 +447,13 @@ adminRouter.post("/canboso/import", async (c) => {
       description,
       price,
       compareAtPrice,
+      comparePrice,
       type,
       category,
       thumbnailPath,
+      image,
       showInSlider,
+      isSlider,
       isFeatured,
       autoFulfill,
       purchaseRequirements,
@@ -461,6 +465,19 @@ adminRouter.post("/canboso/import", async (c) => {
     }
 
     const cleanSlug = String(slug).toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-");
+    const finalThumbnail = thumbnailPath || image || undefined;
+    const finalComparePrice =
+      compareAtPrice !== undefined && compareAtPrice !== null
+        ? Number(compareAtPrice)
+        : comparePrice !== undefined && comparePrice !== null
+        ? Number(comparePrice)
+        : undefined;
+    const finalShowInSlider =
+      showInSlider !== undefined
+        ? Boolean(showInSlider)
+        : isSlider !== undefined
+        ? Boolean(isSlider)
+        : false;
 
     const product = await Product.findOneAndUpdate(
       { $or: [{ canbosoProductId }, { slug: cleanSlug }] },
@@ -469,11 +486,11 @@ adminRouter.post("/canboso/import", async (c) => {
         slug: cleanSlug,
         description: description || `${title} - Premium Digital Subscription`,
         price: Number(price),
-        compareAtPrice: compareAtPrice ? Number(compareAtPrice) : undefined,
+        compareAtPrice: finalComparePrice,
         type: type || "account",
         category: category || "account",
-        thumbnailPath: thumbnailPath || undefined,
-        showInSlider: Boolean(showInSlider),
+        thumbnailPath: finalThumbnail,
+        showInSlider: finalShowInSlider,
         isFeatured: Boolean(isFeatured),
         autoFulfill: autoFulfill !== false,
         canbosoProductId,
@@ -662,21 +679,46 @@ adminRouter.post("/upload", async (c) => {
       fs.mkdirSync(uploadPathDir, { recursive: true });
     }
 
-    const fileExt = path.extname(file.name);
-    const uniqueFilename = `${Date.now()}-${Math.floor(Math.random() * 1000)}${fileExt}`;
-    const fullWritePath = path.join(uploadPathDir, uniqueFilename);
-
-    // Write file to disk
     const arrayBuffer = await file.arrayBuffer();
-    fs.writeFileSync(fullWritePath, Buffer.from(arrayBuffer));
+    const fileBuffer = Buffer.from(arrayBuffer);
 
-    // Return the server path to store in database
-    const relativePath = `uploads/${uploadDirName}/${uniqueFilename}`;
+    let savedFilename: string;
+    let relativePath: string;
+
+    if (type === "thumbnail") {
+      // Auto-convert product thumbnails to WebP for maximum compression and instant load speed
+      try {
+        const uniqueBase = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        savedFilename = `${uniqueBase}.webp`;
+        const fullWritePath = path.join(uploadPathDir, savedFilename);
+
+        await sharp(fileBuffer)
+          .rotate() // Respect EXIF orientation
+          .resize({ width: 1200, height: 1200, fit: "inside", withoutEnlargement: true })
+          .webp({ quality: 85, effort: 4 })
+          .toFile(fullWritePath);
+
+        relativePath = `uploads/thumbnails/${savedFilename}`;
+      } catch (sharpError: any) {
+        console.warn("Sharp WebP optimization failed, falling back to original format:", sharpError);
+        const fileExt = path.extname(file.name) || ".png";
+        savedFilename = `${Date.now()}-${Math.floor(Math.random() * 1000)}${fileExt}`;
+        const fullWritePath = path.join(uploadPathDir, savedFilename);
+        fs.writeFileSync(fullWritePath, fileBuffer);
+        relativePath = `uploads/thumbnails/${savedFilename}`;
+      }
+    } else {
+      const fileExt = path.extname(file.name);
+      savedFilename = `${Date.now()}-${Math.floor(Math.random() * 1000)}${fileExt}`;
+      const fullWritePath = path.join(uploadPathDir, savedFilename);
+      fs.writeFileSync(fullWritePath, fileBuffer);
+      relativePath = `uploads/${uploadDirName}/${savedFilename}`;
+    }
 
     return c.json({
       success: true,
       filePath: relativePath,
-      filename: file.name,
+      filename: savedFilename,
     });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);

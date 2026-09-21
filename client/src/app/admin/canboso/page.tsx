@@ -304,10 +304,13 @@ export default function CanbosoStockPage() {
           description: importForm.description,
           price: Number(importForm.priceBdt),
           comparePrice: Number(importForm.comparePriceBdt) || undefined,
+          compareAtPrice: Number(importForm.comparePriceBdt) || undefined,
           category: importForm.category,
           image: importForm.image || undefined,
+          thumbnailPath: importForm.image || undefined,
           isFeatured: importForm.isFeatured,
           isSlider: importForm.isSlider,
+          showInSlider: importForm.isSlider,
           autoFulfill: importForm.autoFulfill,
         }),
       });
@@ -870,17 +873,27 @@ export default function CanbosoStockPage() {
                   </label>
                 </div>
                 {importForm.image && (
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className="mt-2 flex items-center gap-3 p-2.5 bg-stone-50 rounded-xl border border-stone-200">
                     <img
                       src={
                         importForm.image.startsWith("http")
                           ? importForm.image
-                          : `${apiUrl}${importForm.image}`
+                          : `${apiUrl}/${importForm.image.replace(/^\//, "")}`
                       }
                       alt="Preview"
-                      className="w-12 h-12 object-cover rounded-lg border border-stone-200"
+                      className="w-14 h-14 object-contain rounded-lg border border-stone-200 bg-white p-0.5"
                     />
-                    <span className="text-[11px] text-stone-500">Image attached successfully</span>
+                    <div className="flex-1 overflow-hidden">
+                      <span className="text-[11px] font-bold text-emerald-600 block">✓ Image attached successfully</span>
+                      <span className="text-[10px] text-stone-500 font-mono truncate block">{importForm.image}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setImportForm((prev) => ({ ...prev, image: "" }))}
+                      className="btn btn-ghost btn-xs text-rose-500 font-bold"
+                    >
+                      Remove
+                    </button>
                   </div>
                 )}
               </div>

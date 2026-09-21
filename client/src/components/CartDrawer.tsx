@@ -94,7 +94,7 @@ export default function CartDrawer() {
                     <img
                       src={`${apiUrl}/${item.thumbnailPath}`}
                       alt={item.title}
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-contain p-0.5"
                     />
                   ) : (
                     <span className="text-amber-500 font-bold text-xs">DIGI</span>

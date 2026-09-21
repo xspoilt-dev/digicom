@@ -41,6 +41,7 @@ app.get("/uploads/*", async (c) => {
       
       if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
       else if (ext === ".png") contentType = "image/png";
+      else if (ext === ".webp") contentType = "image/webp";
       else if (ext === ".gif") contentType = "image/gif";
       else if (ext === ".svg") contentType = "image/svg+xml";
       else if (ext === ".pdf") contentType = "application/pdf";
@@ -48,6 +49,7 @@ app.get("/uploads/*", async (c) => {
       else if (ext === ".mp4") contentType = "video/mp4";
 
       c.header("Content-Type", contentType);
+      c.header("Cache-Control", "public, max-age=31536000, immutable");
       const fileBuffer = fs.readFileSync(filePath);
       return c.body(fileBuffer);
     }

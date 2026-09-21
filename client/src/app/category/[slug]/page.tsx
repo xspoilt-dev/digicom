@@ -249,12 +249,12 @@ export default function CategoryCampaignPage({
                   >
                     {/* Product Image */}
                     <Link href={`/product/${product.slug}`} className="block">
-                      <figure className="relative aspect-square sm:aspect-[4/3] bg-stone-100 overflow-hidden">
+                      <figure className="relative aspect-square bg-stone-50 overflow-hidden flex items-center justify-center p-2.5">
                         {product.thumbnailPath ? (
                           <img
                             src={`${apiUrl}/${product.thumbnailPath}`}
                             alt={product.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-2xs"
                           />
                         ) : (
                           <div className="text-stone-300 flex items-center justify-center h-full">

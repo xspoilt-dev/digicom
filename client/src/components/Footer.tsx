@@ -45,20 +45,20 @@ export default function Footer() {
         <aside className="flex items-center gap-3">
           <img
             src="/apple-touch-icon.png"
-            alt={companyInfo.name || "Digitalcorebd.com"}
+            alt={companyInfo.name || "Kalobazar.shop"}
             className="w-10 h-10 rounded-2xl object-cover shadow-xs shrink-0 border border-stone-200"
           />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-base tracking-tight text-stone-900">
-                {companyInfo.name || "Digitalcorebd.com"}
+                {companyInfo.name || "Kalobazar.shop"}
               </span>
               <span className="bg-amber-100 text-amber-800 border border-amber-200 font-bold text-[9px] uppercase px-2 py-0.5 rounded-full">
                 অফিশিয়াল
               </span>
             </div>
             <p className="text-xs text-stone-500 mt-0.5">
-              © ২০২৬ {companyInfo.name || "Digitalcorebd.com"}. সর্বস্বত্ব সংরক্ষিত।
+              © ২০২৬ {companyInfo.name || "Kalobazar.shop"}. সর্বস্বত্ব সংরক্ষিত।
             </p>
           </div>
         </aside>
@@ -80,7 +80,7 @@ export default function Footer() {
             হোয়াটসঅ্যাপ হেল্পডেস্ক
           </a>
           <a
-            href={`mailto:${companyInfo.email || "support@digitalcorebd.com"}`}
+            href={`mailto:${companyInfo.email || "support@kalobazar.shop"}`}
             className="hover:text-primary transition-colors"
           >
             ইমেইল সাপোর্ট

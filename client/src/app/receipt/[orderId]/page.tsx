@@ -220,11 +220,11 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
           <Link href="/" className="flex items-center gap-2.5">
             <img
               src="/apple-touch-icon.png"
-              alt="Digitalcorebd"
+              alt="Kalobazar.shop"
               className="w-9 h-9 rounded-xl object-cover shadow-xs border border-stone-200"
             />
             <span className="font-extrabold text-base md:text-lg tracking-tight text-base-content">
-              Digitalcorebd.com
+              Kalobazar.shop
             </span>
           </Link>
         </div>

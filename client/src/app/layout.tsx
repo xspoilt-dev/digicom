@@ -8,10 +8,10 @@ import { ModalProvider } from "@/context/ModalContext";
 import CartDrawer from "@/components/CartDrawer";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://digitalcorebd.com"),
-  title: "Digitalcorebd.com - Premium Digital Hub",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://kalobazar.shop"),
+  title: "Kalobazar.shop - Premium Digital Hub",
   description: "Premium Digital Accounts, Workspace Slots & Software Subscriptions",
-  keywords: ["Digitalcorebd", "digital accounts", "canva pro", "netflix", "cursor pro", "chatgpt plus", "Bangladesh digital store"],
+  keywords: ["Kalobazar", "Kalobazar.shop", "digital accounts", "canva pro", "netflix", "cursor pro", "chatgpt plus", "Bangladesh digital store"],
   icons: {
     icon: [
       { url: "/favicon.ico" },
@@ -26,9 +26,9 @@ export const metadata: Metadata = {
   },
   manifest: "/site.webmanifest",
   openGraph: {
-    title: "Digitalcorebd.com - Premium Digital Hub",
+    title: "Kalobazar.shop - Premium Digital Hub",
     description: "Premium Digital Accounts, Workspace Slots & Software Subscriptions with instant automated delivery.",
-    siteName: "Digitalcorebd",
+    siteName: "Kalobazar.shop",
     locale: "bn_BD",
     type: "website",
     images: [
@@ -36,7 +36,7 @@ export const metadata: Metadata = {
         url: "/android-chrome-512x512.png",
         width: 512,
         height: 512,
-        alt: "Digitalcorebd.com",
+        alt: "Kalobazar.shop",
       },
     ],
   },

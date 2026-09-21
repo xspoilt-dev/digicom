@@ -724,7 +724,7 @@ export default function SettingsPage() {
               </label>
               <input
                 type="text"
-                placeholder="Digitalcorebd <noreply@digitalcorebd.com>"
+                placeholder="Kalobazar.shop <noreply@kalobazar.shop>"
                 className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm"
                 value={settings.email_settings.fromEmail}
                 onChange={(e) =>

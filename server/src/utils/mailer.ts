@@ -22,8 +22,8 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
     // 1. Fetch Email Settings and Company Info from cache/db
     const emailConfig = (await getSetting("email_settings")) || {};
     const apiKey = emailConfig.resendApiKey || process.env.RESEND_API_KEY;
-    const fromEmail = emailConfig.fromEmail || "Digitalcorebd <noreply@digitalcorebd.com>";
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || "https://digitalcorebd.com";
+    const fromEmail = emailConfig.fromEmail || "Kalobazar.shop <noreply@kalobazar.shop>";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || "https://kalobazar.shop";
     const logoUrl = `${siteUrl}/android-chrome-192x192.png`;
 
     const companyInfo = (await getSetting("company_info")) || {};
@@ -127,12 +127,12 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
                     <table border="0" cellspacing="0" cellpadding="0" style="margin: 0 auto 10px auto;">
                       <tr>
                         <td align="center">
-                          <img src="${logoUrl}" alt="${companyInfo.name || "Digitalcorebd"}" width="56" height="56" style="border-radius: 14px; display: block; border: 2px solid rgba(255, 255, 255, 0.8); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);" />
+                          <img src="${logoUrl}" alt="${companyInfo.name || "Kalobazar.shop"}" width="56" height="56" style="border-radius: 14px; display: block; border: 2px solid rgba(255, 255, 255, 0.8); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);" />
                         </td>
                       </tr>
                     </table>
                     <div style="font-size: 22px; font-weight: 900; color: #0c0a09; letter-spacing: -0.025em; margin-bottom: 2px;">
-                      ${companyInfo.name || "Digitalcorebd.com"}
+                      ${companyInfo.name || "Kalobazar.shop"}
                     </div>
                     <span style="font-size: 11px; font-weight: 700; color: #78350f; text-transform: uppercase; letter-spacing: 0.1em;">
                       Order Delivery Receipt
@@ -209,7 +209,7 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
       body: JSON.stringify({
         from: fromEmail,
         to: [toEmail],
-        subject: `Order Confirmed: ${orderId} - ${companyInfo.name || "Digitalcorebd"}`,
+        subject: `Order Confirmed: ${orderId} - ${companyInfo.name || "Kalobazar.shop"}`,
         html: htmlContent,
       }),
     });

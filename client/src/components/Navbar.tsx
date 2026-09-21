@@ -44,12 +44,12 @@ export default function Navbar() {
             <Link href="/" className="flex items-center gap-2.5 group">
               <img
                 src="/apple-touch-icon.png"
-                alt="Digitalcorebd.com"
+                alt="Kalobazar.shop"
                 className="w-10 h-10 rounded-2xl object-cover shadow-xs group-hover:scale-105 transition-transform border border-amber-200/50"
               />
               <div>
                 <span className="text-lg md:text-xl font-black tracking-tight text-stone-900 group-hover:text-amber-700 transition-colors block leading-none">
-                  Digitalcorebd.com
+                  Kalobazar.shop
                 </span>
                 <div className="text-[10px] text-amber-700 font-bold mt-1 block leading-none">
                   ডিজিটাল একাউন্ট ও সাবস্ক্রিপশন

@@ -428,7 +428,7 @@ publicRouter.post("/checkout", async (c) => {
     // Create ZiniPay Invoice
     const ziniInvoice = await createZiniPayInvoice({
       cus_name: name || "Guest Customer",
-      cus_email: email || "customer@digitalcorebd.com",
+      cus_email: email || "customer@kalobazar.shop",
       amount: orderTotal,
       metadata: {
         order_id: orderId,

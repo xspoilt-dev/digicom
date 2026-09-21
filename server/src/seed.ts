@@ -256,9 +256,9 @@ async function seed() {
       {
         key: "company_info",
         value: {
-          name: "KaloBazar Digital",
+          name: "Kalobazar.shop",
           tagline: "অটোমেটেড ডিজিটাল সাবস্ক্রিপশন ও অ্যাকাউন্ট মার্কেটপ্লেস",
-          supportEmail: "support@kalobazar.com",
+          supportEmail: "support@kalobazar.shop",
           supportTelegram: "https://t.me/kalobazar_support",
           supportPhone: "+8801700000000",
         },

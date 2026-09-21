@@ -22,7 +22,7 @@ import fs from "fs";
 const adminRouter = new Hono();
 
 const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "kalobazar_super_secret_jwt_admin_token_2026";
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@kalobazar.com";
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@kalobazar.shop";
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "Admin@2026!Secured";
 const LEGACY_ADMIN_TOKEN = process.env.ADMIN_TOKEN || "admin-secret-token";
 
@@ -719,7 +719,7 @@ adminRouter.post("/capi/test", async (c) => {
     const body = await c.req.json().catch(() => ({}));
     const eventName = body.eventName || "TestEvent";
     const testCode = body.testEventCode;
-    const testEmail = body.email || "admin.test@digitalcorebd.com";
+    const testEmail = body.email || "admin.test@kalobazar.shop";
     const testPhone = body.phone || "01711000000";
 
     const testEventId = `test_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;

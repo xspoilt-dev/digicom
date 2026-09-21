@@ -192,11 +192,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <div className="text-center mb-8">
             <img
               src="/android-chrome-192x192.png"
-              alt="Digitalcorebd"
+              alt="Kalobazar.shop"
               className="w-16 h-16 rounded-2xl object-cover shadow-md mx-auto mb-4 border border-amber-300/60"
             />
             <h1 className="text-2xl font-black text-base-content tracking-tight">
-              Digitalcorebd Admin
+              Kalobazar.shop Admin
             </h1>
             <p className="text-xs text-base-content/60 mt-1 font-medium">
               মার্কেটপ্লেস কন্ট্রোল ও ম্যানেজমেন্ট পোর্টাল
@@ -219,7 +219,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   type="email"
                   required
                   autoComplete="username"
-                  placeholder="admin@digitalcorebd.com"
+                  placeholder="admin@kalobazar.shop"
                   className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full pl-10 text-sm"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
@@ -304,11 +304,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="flex items-center gap-2.5">
           <img
             src="/apple-touch-icon.png"
-            alt="Digitalcorebd"
+            alt="Kalobazar.shop"
             className="w-8 h-8 rounded-lg object-cover shadow-xs border border-stone-200"
           />
           <div>
-            <div className="font-extrabold text-sm tracking-tight text-base-content">Digitalcorebd</div>
+            <div className="font-extrabold text-sm tracking-tight text-base-content">Kalobazar.shop</div>
             <div className="text-[10px] text-base-content/50 font-semibold mt-[-2px]">Admin Portal</div>
           </div>
         </div>
@@ -341,12 +341,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <Link href="/" className="flex items-center gap-3 group">
             <img
               src="/apple-touch-icon.png"
-              alt="Digitalcorebd"
+              alt="Kalobazar.shop"
               className="w-10 h-10 rounded-xl object-cover shadow-xs group-hover:scale-105 transition-transform border border-stone-200"
             />
             <div>
               <div className="flex items-center gap-1.5">
-                <div className="font-extrabold text-lg tracking-tight text-base-content">Digitalcorebd</div>
+                <div className="font-extrabold text-lg tracking-tight text-base-content">Kalobazar.shop</div>
                 <span className="badge bg-amber-400 text-stone-950 badge-xs font-bold text-[8px] uppercase border-none">Admin</span>
               </div>
               <div className="text-[10px] text-base-content/60 font-semibold mt-[-3px]">Store Management</div>
@@ -388,7 +388,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
             <div className="overflow-hidden flex-1">
               <div className="font-bold text-xs truncate text-base-content">
-                {adminUser?.email || "admin@digitalcorebd.com"}
+                {adminUser?.email || "admin@kalobazar.shop"}
               </div>
               <div className="text-[10px] font-semibold text-emerald-600">Super Admin</div>
             </div>

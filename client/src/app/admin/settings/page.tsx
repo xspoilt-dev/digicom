@@ -24,6 +24,8 @@ import {
   DollarSign,
   Server,
   Zap,
+  Sparkles,
+  Bot,
 } from "lucide-react";
 
 interface CapiLogEntry {
@@ -57,9 +59,24 @@ export default function SettingsPage() {
     email_settings: { resendApiKey: "", fromEmail: "" },
     zinipay_settings: { apiKey: "" },
     canboso_settings: { apiKey: "", dollarRate: 127, autoFulfill: true },
+    openrouter_settings: {
+      apiKey: "",
+      model: "google/gemma-4-26b-a4b-it:free",
+      customInstructions: "",
+      autoGenerateOnImport: true,
+    },
   });
   const [loading, setLoading] = useState(true);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
+
+  // OpenRouter AI Test State
+  const [testingAi, setTestingAi] = useState(false);
+  const [testAiResult, setTestAiResult] = useState<{
+    success: boolean;
+    message: string;
+    model?: string;
+    response?: string;
+  } | null>(null);
 
   // Canboso Live Balance State
   const [canbosoBalance, setCanbosoBalance] = useState<{ balanceUsd: number; balanceVnd: number } | null>(null);
@@ -96,6 +113,12 @@ export default function SettingsPage() {
           email_settings: data.settings.email_settings || { resendApiKey: "", fromEmail: "" },
           zinipay_settings: data.settings.zinipay_settings || { apiKey: "" },
           canboso_settings: data.settings.canboso_settings || { apiKey: "", dollarRate: 127, autoFulfill: true },
+          openrouter_settings: data.settings.openrouter_settings || {
+            apiKey: "",
+            model: "google/gemma-4-26b-a4b-it:free",
+            customInstructions: "",
+            autoGenerateOnImport: true,
+          },
         });
       }
     } catch (err) {
@@ -120,6 +143,39 @@ export default function SettingsPage() {
       setCanbosoBalanceError(err.message || "Network error querying Canboso API.");
     } finally {
       setCheckingCanbosoBalance(false);
+    }
+  };
+
+  const handleTestAi = async () => {
+    if (!settings.openrouter_settings?.apiKey) {
+      await showAlert({
+        title: "API Key Required",
+        message: "Please enter your OpenRouter API Key before testing.",
+        type: "warning",
+      });
+      return;
+    }
+
+    setTestingAi(true);
+    setTestAiResult(null);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/ai/test`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          apiKey: settings.openrouter_settings?.apiKey,
+          model: settings.openrouter_settings?.model || "google/gemma-4-26b-a4b-it:free",
+        }),
+      });
+      const data = await res.json();
+      setTestAiResult(data);
+    } catch (err: any) {
+      setTestAiResult({
+        success: false,
+        message: err.message || "Network error querying OpenRouter API.",
+      });
+    } finally {
+      setTestingAi(false);
     }
   };
 
@@ -954,6 +1010,238 @@ export default function SettingsPage() {
           >
             Save Canboso API Settings
           </button>
+        </div>
+
+        {/* OpenRouter AI Marketing Copywriter Settings Form */}
+        <div className="bg-white border-2 border-stone-200 p-6 sm:p-8 rounded-3xl shadow-sm space-y-6 lg:col-span-2">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-amber-500" /> OpenRouter AI Marketing Copywriter
+                </h2>
+                <span className="badge bg-amber-100 text-amber-900 border-none font-bold text-xs py-1 px-2.5">
+                  Bangla Marketing AI
+                </span>
+              </div>
+              <p className="text-xs text-stone-500 mt-1">
+                Generate high-converting Bengali product titles and comprehensive marketing descriptions for Bangladeshi customers directly from Canboso product details.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <a
+                href="https://openrouter.ai/models"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-outline btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5"
+              >
+                <Bot className="w-3.5 h-3.5 text-amber-500" />
+                <span>Browse Models</span>
+              </a>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* OpenRouter API Key */}
+            <div className="form-control w-full md:col-span-2">
+              <label className="label py-1">
+                <span className="label-text font-bold text-xs text-stone-700">
+                  OpenRouter API Key (sk-or-v1-...)
+                </span>
+              </label>
+              <div className="relative flex items-center">
+                <input
+                  type={showTokens["openrouter"] ? "text" : "password"}
+                  placeholder="sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full font-mono text-xs pr-10"
+                  value={settings.openrouter_settings?.apiKey || ""}
+                  onChange={(e) =>
+                    setSettings({
+                      ...settings,
+                      openrouter_settings: {
+                        ...settings.openrouter_settings,
+                        apiKey: e.target.value.trim(),
+                      },
+                    })
+                  }
+                />
+                <button
+                  type="button"
+                  onClick={() => toggleTokenVisibility("openrouter")}
+                  className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
+                >
+                  {showTokens["openrouter"] ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+              <label className="label py-1">
+                <span className="label-text-alt text-stone-500">
+                  Get your free or paid API key from{" "}
+                  <a
+                    href="https://openrouter.ai/keys"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-amber-600 underline font-semibold"
+                  >
+                    openrouter.ai/keys
+                  </a>
+                  . Free models like <span className="font-mono font-bold text-stone-700">google/gemma-4-26b-a4b-it:free</span> require zero cost!
+                </span>
+              </label>
+            </div>
+
+            {/* Quick Model Selector Dropdown */}
+            <div className="form-control w-full">
+              <label className="label py-1">
+                <span className="label-text font-bold text-xs text-stone-700">Choose Model Preset</span>
+              </label>
+              <select
+                className="select select-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl bg-stone-50 text-stone-900 text-xs font-semibold"
+                value={
+                  [
+                    "google/gemma-4-26b-a4b-it:free",
+                    "meta-llama/llama-3.3-70b-instruct:free",
+                    "deepseek/deepseek-chat",
+                    "deepseek/deepseek-r1:free",
+                    "meta-llama/llama-3.1-8b-instruct:free",
+                    "mistralai/mistral-small-24b-instruct-2501:free",
+                    "openai/gpt-4o-mini",
+                    "anthropic/claude-3.5-sonnet",
+                  ].includes(settings.openrouter_settings?.model)
+                    ? settings.openrouter_settings?.model
+                    : "custom"
+                }
+                onChange={(e) => {
+                  if (e.target.value !== "custom") {
+                    setSettings({
+                      ...settings,
+                      openrouter_settings: {
+                        ...settings.openrouter_settings,
+                        model: e.target.value,
+                      },
+                    });
+                  }
+                }}
+              >
+                <option value="google/gemma-4-26b-a4b-it:free">google/gemma-4-26b-a4b-it:free (Free & Fast - Recommended)</option>
+                <option value="meta-llama/llama-3.3-70b-instruct:free">meta-llama/llama-3.3-70b-instruct:free (Free - High Quality 70B)</option>
+                <option value="deepseek/deepseek-chat">deepseek/deepseek-chat (DeepSeek V3 - High Quality & Ultra Low Cost)</option>
+                <option value="deepseek/deepseek-r1:free">deepseek/deepseek-r1:free (Free - DeepSeek Reasoning)</option>
+                <option value="meta-llama/llama-3.1-8b-instruct:free">meta-llama/llama-3.1-8b-instruct:free (Free - Ultra Fast)</option>
+                <option value="mistralai/mistral-small-24b-instruct-2501:free">mistralai/mistral-small-24b-instruct-2501:free (Free - Mistral 24B)</option>
+                <option value="openai/gpt-4o-mini">openai/gpt-4o-mini (OpenAI Fast)</option>
+                <option value="anthropic/claude-3.5-sonnet">anthropic/claude-3.5-sonnet (Claude 3.5 Sonnet)</option>
+                <option value="custom">Custom Model (Paste or Type Any OpenRouter Model ID)</option>
+              </select>
+              <label className="label py-1">
+                <span className="label-text-alt text-stone-500">Pick from popular free & paid models or paste below</span>
+              </label>
+            </div>
+
+            {/* Custom Model Text Input */}
+            <div className="form-control w-full">
+              <label className="label py-1">
+                <span className="label-text font-bold text-xs text-stone-700">
+                  Model ID (or Paste Any Custom Model)
+                </span>
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. google/gemma-4-26b-a4b-it:free"
+                className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-xs font-mono font-bold"
+                value={settings.openrouter_settings?.model || ""}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    openrouter_settings: {
+                      ...settings.openrouter_settings,
+                      model: e.target.value.trim(),
+                    },
+                  })
+                }
+              />
+              <label className="label py-1">
+                <span className="label-text-alt text-stone-500">
+                  Exact model identifier (e.g. <span className="font-mono font-bold">google/gemma-4-26b-a4b-it:free</span>)
+                </span>
+              </label>
+            </div>
+
+            {/* Custom Instructions */}
+            <div className="form-control w-full md:col-span-2">
+              <label className="label py-1">
+                <span className="label-text font-bold text-xs text-stone-700">
+                  Custom Tone & Rules (Optional)
+                </span>
+              </label>
+              <textarea
+                rows={2}
+                placeholder="e.g. সর্বদাই ইনস্ট্যান্ট অটো ডেলিভারি এবং ফুল মেয়াদ রিপ্লেসমেন্ট ওয়ারেন্টির কথা বিশেষভাবে উল্লেখ করবে।"
+                className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs"
+                value={settings.openrouter_settings?.customInstructions || ""}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    openrouter_settings: {
+                      ...settings.openrouter_settings,
+                      customInstructions: e.target.value,
+                    },
+                  })
+                }
+              />
+              <label className="label py-1">
+                <span className="label-text-alt text-stone-500">
+                  Extra marketing instructions appended to the AI prompt for store-specific tone or warranty details.
+                </span>
+              </label>
+            </div>
+          </div>
+
+          {/* Test Result Banner */}
+          {testAiResult && (
+            <div
+              className={`p-4 rounded-2xl border text-xs font-semibold space-y-1.5 ${
+                testAiResult.success
+                  ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                  : "bg-rose-50 border-rose-200 text-rose-900"
+              }`}
+            >
+              <div className="flex items-center gap-2 font-bold text-sm">
+                {testAiResult.success ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                )}
+                <span>{testAiResult.message}</span>
+              </div>
+              {testAiResult.response && (
+                <div className="font-mono text-[11px] text-stone-700 bg-white/80 p-2 rounded-lg border border-emerald-100 mt-1">
+                  Model Output: &quot;{testAiResult.response}&quot; (Model: {testAiResult.model})
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <button
+              onClick={() => handleSettingsSubmit("openrouter_settings", settings.openrouter_settings)}
+              className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm flex-1"
+            >
+              Save OpenRouter AI Settings
+            </button>
+            <button
+              type="button"
+              onClick={handleTestAi}
+              disabled={testingAi || !settings.openrouter_settings?.apiKey}
+              className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold flex items-center gap-2 px-6"
+            >
+              {testingAi ? (
+                <span className="loading loading-spinner loading-xs text-amber-400"></span>
+              ) : (
+                <Sparkles className="w-4 h-4 text-amber-400" />
+              )}
+              <span>{testingAi ? "Testing OpenRouter..." : "Test AI Connection"}</span>
+            </button>
+          </div>
         </div>
 
       </div>

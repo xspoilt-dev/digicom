@@ -65,7 +65,66 @@ export default function ProductsPage() {
 
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [generatingAiCopy, setGeneratingAiCopy] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  const handleGenerateAiCopy = async () => {
+    if (!selectedProduct?.title) {
+      await showAlert({
+        title: "Product Title Required",
+        message: "Please enter a product title first so AI knows what to write about.",
+        type: "warning",
+      });
+      return;
+    }
+
+    setGeneratingAiCopy(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/ai/generate-copy`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: selectedProduct.title,
+          description: selectedProduct.description,
+          type: selectedProduct.type,
+          category: selectedProduct.category,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setSelectedProduct((prev) =>
+          prev
+            ? {
+                ...prev,
+                title: data.title || prev.title,
+                slug: data.slug || prev.slug,
+                description: data.description || prev.description,
+              }
+            : null
+        );
+        await showAlert({
+          title: "AI Copy Generated",
+          message: "Bangla marketing title and description generated successfully!",
+          type: "success",
+        });
+      } else {
+        await showAlert({
+          title: "AI Generation Error",
+          message: data.message || "Failed to generate AI copy.",
+          type: "error",
+        });
+      }
+    } catch (err: any) {
+      await showAlert({
+        title: "Network Error",
+        message: err.message || "Failed to reach AI service.",
+        type: "error",
+      });
+    } finally {
+      setGeneratingAiCopy(false);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -571,13 +630,25 @@ export default function ProductsPage() {
 
               {/* Description */}
               <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-700">Description *</span>
-                </label>
+                <div className="flex items-center justify-between py-1">
+                  <label className="label py-0 px-0">
+                    <span className="label-text font-bold text-xs text-stone-700">Description (বাংলা বিবরণ) *</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGenerateAiCopy}
+                    disabled={generatingAiCopy}
+                    className="btn btn-xs bg-amber-100 hover:bg-amber-200 text-stone-900 border-none rounded-lg font-bold flex items-center gap-1.5"
+                  >
+                    <Sparkles className="w-3 h-3 text-amber-600" />
+                    <span>{generatingAiCopy ? "AI লিখছে..." : "✨ AI দিয়ে বাংলায় লিখুন"}</span>
+                  </button>
+                </div>
                 <textarea
                   required
-                  rows={3}
-                  className="textarea textarea-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-sm leading-relaxed"
+                  rows={5}
+                  placeholder="পণ্য পরিচিতি, সুবিধা ও ডেলিভারি বিবরণ..."
+                  className="textarea textarea-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-xs font-mono leading-relaxed"
                   value={selectedProduct.description}
                   onChange={(e) => setSelectedProduct({ ...selectedProduct, description: e.target.value })}
                 />

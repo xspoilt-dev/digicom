@@ -36,6 +36,8 @@ interface UpstreamProduct {
   stock: number;
   type?: string;
   category?: string;
+  description?: string;
+  image?: string;
   price?: {
     amountUsd?: number;
     amount?: number;
@@ -95,6 +97,11 @@ export default function CanbosoStockPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submittingImport, setSubmittingImport] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // AI Copywriting State
+  const [generatingAiCopy, setGeneratingAiCopy] = useState(false);
+  const [aiSuccessMessage, setAiSuccessMessage] = useState("");
+  const [aiErrorMessage, setAiErrorMessage] = useState("");
 
   // Keyboard shortcut to close modal
   useEffect(() => {
@@ -162,6 +169,8 @@ export default function CanbosoStockPage() {
             costVnd,
             stock,
             type: p.type || p.productType || "account",
+            description: p.description || "",
+            image: p.image || "",
           };
         });
         setUpstreamProducts(normalized);
@@ -205,8 +214,58 @@ export default function CanbosoStockPage() {
       .trim();
   };
 
+  const handleGenerateAiCopy = async (customProduct?: UpstreamProduct) => {
+    const prod = customProduct || selectedProduct;
+    if (!prod) return;
+
+    setGeneratingAiCopy(true);
+    setAiSuccessMessage("");
+    setAiErrorMessage("");
+
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/ai/generate-copy`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          name: prod.name,
+          description: prod.description || importForm.description,
+          code: prod.code,
+          type: prod.type,
+          category: importForm.category,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        setImportForm((prev) => ({
+          ...prev,
+          title: data.title || prev.title,
+          slug: data.slug || prev.slug,
+          description: data.description || prev.description,
+        }));
+        setAiSuccessMessage(`✓ AI সফলভাবে বাংলায় মার্কেটিং টাইটেল ও ডেসক্রিপশন তৈরি করেছে (${data.modelUsed})`);
+      } else {
+        const errorMsg = data.message || "AI copy generation failed.";
+        setAiErrorMessage(errorMsg);
+        if (errorMsg.toLowerCase().includes("not configured") || errorMsg.toLowerCase().includes("missing")) {
+          await showAlert({
+            title: "AI Configuration Required",
+            message: "OpenRouter API Key is not configured yet. Please enter your OpenRouter token in Admin Settings > OpenRouter AI.",
+            type: "warning",
+          });
+        }
+      }
+    } catch (err: any) {
+      setAiErrorMessage(err.message || "Network error while contacting AI service.");
+    } finally {
+      setGeneratingAiCopy(false);
+    }
+  };
+
   const openImportModal = (product: UpstreamProduct) => {
     setSelectedProduct(product);
+    setAiSuccessMessage("");
+    setAiErrorMessage("");
 
     // Check if already connected to a storefront product
     const existing = storeProducts.find((p) => p.canbosoProductId === String(product.id || product.productId));
@@ -223,7 +282,7 @@ export default function CanbosoStockPage() {
       category: categories[0]?.name || "",
       priceBdt: existing ? existing.price : defaultPriceBdt,
       comparePriceBdt: existing?.compareAtPrice || defaultCompareBdt,
-      description: `Official digital subscription and license for ${product.name}. Instant automated activation and access delivered immediately upon payment.`,
+      description: product.description || `Official digital subscription and license for ${product.name}. Instant automated activation and access delivered immediately upon payment.`,
       image: "",
       isFeatured: false,
       isSlider: false,
@@ -742,12 +801,75 @@ export default function CanbosoStockPage() {
                 </div>
               </div>
 
+              {/* AI Marketing Copywriter Strip */}
+              <div className="bg-gradient-to-r from-amber-50 via-amber-100/50 to-amber-50 border-2 border-amber-200/90 rounded-2xl p-3.5 sm:p-4 space-y-2.5 shadow-2xs">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center font-black shrink-0 shadow-xs">
+                      <Sparkles className="w-4 h-4 text-stone-950" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs sm:text-sm font-black text-stone-900 leading-tight flex items-center gap-1.5">
+                        <span>AI মার্কেটিং কপিরাইটার (OpenRouter)</span>
+                        <span className="badge badge-xs bg-amber-400 text-stone-950 border-none font-bold">বাংলা</span>
+                      </h4>
+                      <p className="text-[11px] text-stone-600 mt-0.5">
+                        ক্যানবোসো প্রোডাক্টের বিবরণ থেকে আকর্ষণীয় বাংলা টাইটেল ও বিস্তারিত মার্কেটিং ডেসক্রিপশন লিখুন
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateAiCopy()}
+                    disabled={generatingAiCopy}
+                    className="btn btn-sm bg-stone-950 hover:bg-stone-800 text-white border-none rounded-xl font-bold text-xs flex items-center gap-2 px-4 shadow-sm shrink-0"
+                  >
+                    {generatingAiCopy ? (
+                      <>
+                        <span className="loading loading-spinner loading-xs text-amber-400"></span>
+                        <span>AI বাংলায় লিখছে...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                        <span>✨ AI দিয়ে বাংলায় লিখুন</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {aiSuccessMessage && (
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-xl p-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{aiSuccessMessage}</span>
+                  </div>
+                )}
+
+                {aiErrorMessage && (
+                  <div className="flex items-center gap-2 text-xs font-bold text-rose-800 bg-rose-50 border border-rose-200 rounded-xl p-2.5">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{aiErrorMessage}</span>
+                  </div>
+                )}
+              </div>
+
               {/* Title & Slug */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="form-control">
-                  <label className="label py-1">
-                    <span className="label-text font-bold text-stone-700">Storefront Product Title</span>
-                  </label>
+                  <div className="flex items-center justify-between py-1">
+                    <label className="label py-0 px-0">
+                      <span className="label-text font-bold text-stone-700">Storefront Title (বাংলা/ইংরেজি)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => handleGenerateAiCopy()}
+                      disabled={generatingAiCopy}
+                      className="text-[11px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 hover:underline cursor-pointer"
+                    >
+                      <Sparkles className="w-3 h-3" />
+                      <span>{generatingAiCopy ? "Writing..." : "AI Rewrite"}</span>
+                    </button>
+                  </div>
                   <input
                     type="text"
                     required
@@ -900,12 +1022,24 @@ export default function CanbosoStockPage() {
 
               {/* Description */}
               <div className="form-control">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-stone-700">Product Description</span>
-                </label>
+                <div className="flex items-center justify-between py-1">
+                  <label className="label py-0 px-0">
+                    <span className="label-text font-bold text-stone-700">Product Description (বাংলা মার্কেটিং বর্ণনা)</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => handleGenerateAiCopy()}
+                    disabled={generatingAiCopy}
+                    className="text-[11px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 hover:underline cursor-pointer"
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    <span>{generatingAiCopy ? "Writing..." : "AI Generate Bangla"}</span>
+                  </button>
+                </div>
                 <textarea
-                  rows={3}
-                  className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs"
+                  rows={6}
+                  placeholder="পণ্য পরিচিতি, সুবিধা ও ডেলিভারি বিবরণ..."
+                  className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-mono leading-relaxed"
                   value={importForm.description}
                   onChange={(e) =>
                     setImportForm((prev) => ({ ...prev, description: e.target.value }))

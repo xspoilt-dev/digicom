@@ -16,6 +16,11 @@ import {
   executeCanbosoPurchase,
   getCanbosoConfig,
 } from "../services/canbosoClient";
+import {
+  testOpenRouterConnection,
+  generateBanglaProductCopy,
+  getOpenRouterConfig,
+} from "../services/openrouterService";
 import path from "path";
 import fs from "fs";
 import sharp from "sharp";
@@ -926,6 +931,38 @@ adminRouter.delete("/categories/:id", async (c) => {
     return c.json({ success: true, message: "Category deleted." });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// ─── OPENROUTER AI MARKETING COPYWRITING ────────────────────────────────────
+
+// Test OpenRouter AI Connection
+adminRouter.post("/ai/test", async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const result = await testOpenRouterConnection(body.apiKey, body.model);
+    return c.json(result);
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// Generate Bangla marketing copy (title, slug, description)
+adminRouter.post("/ai/generate-copy", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { name, description, code, type, category, apiKey, model } = body;
+    if (!name || !name.trim()) {
+      return c.json({ success: false, message: "Product name is required for AI copy generation." }, 400);
+    }
+    const result = await generateBanglaProductCopy(
+      { name, description, code, type, category },
+      apiKey,
+      model
+    );
+    return c.json(result);
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 400);
   }
 });
 

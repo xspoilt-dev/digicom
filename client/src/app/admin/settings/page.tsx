@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useModal } from "@/context/ModalContext";
 import {
   Settings,
   Activity,
@@ -49,6 +50,7 @@ interface CapiLogEntry {
 }
 
 export default function SettingsPage() {
+  const { showAlert, showConfirm } = useModal();
   const [settings, setSettings] = useState<any>({
     company_info: { name: "", address: "", email: "", whatsapp: "", bkashNumber: "" },
     meta_pixel: { pixelId: "", accessToken: "", testEventCode: "" },
@@ -150,13 +152,25 @@ export default function SettingsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert("Settings configuration updated successfully.");
+        await showAlert({
+          title: "Settings Saved",
+          message: "Settings configuration updated successfully.",
+          type: "success",
+        });
         fetchSettings();
       } else {
-        alert(data.message || "Failed to update settings.");
+        await showAlert({
+          title: "Error",
+          message: data.message || "Failed to update settings.",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert("Error updating settings.");
+      await showAlert({
+        title: "Error",
+        message: "Error updating settings.",
+        type: "error",
+      });
     }
   };
 
@@ -183,7 +197,15 @@ export default function SettingsPage() {
   };
 
   const handleClearCapiLogs = async () => {
-    if (!confirm("Are you sure you want to clear all Meta CAPI logs?")) return;
+    const confirmed = await showConfirm({
+      title: "Clear Meta CAPI Logs",
+      message: "Are you sure you want to clear all Meta CAPI logs? This action cannot be undone.",
+      type: "warning",
+      confirmText: "Clear Logs",
+      isDestructive: true,
+    });
+    if (!confirmed) return;
+
     try {
       const res = await fetch(`${apiUrl}/api/admin/capi/logs`, {
         method: "DELETE",
@@ -193,9 +215,18 @@ export default function SettingsPage() {
       if (data.success) {
         setCapiLogs([]);
         setSelectedLog(null);
+        await showAlert({
+          title: "Logs Cleared",
+          message: "All Meta CAPI logs have been cleared.",
+          type: "success",
+        });
       }
     } catch (err) {
-      alert("Error clearing logs.");
+      await showAlert({
+        title: "Error",
+        message: "Error clearing logs.",
+        type: "error",
+      });
     }
   };
 

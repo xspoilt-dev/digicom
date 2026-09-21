@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
+import { useModal } from "@/context/ModalContext";
 import {
   Package,
   Plus,
@@ -16,6 +18,7 @@ import {
   Image as ImageIcon,
   Tag,
   Eye,
+  X,
 } from "lucide-react";
 
 interface Product {
@@ -51,6 +54,8 @@ interface CategoryOption {
 }
 
 export default function ProductsPage() {
+  const { showAlert, showConfirm } = useModal();
+  const [mounted, setMounted] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
@@ -61,6 +66,21 @@ export default function ProductsPage() {
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isProductModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsProductModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isProductModalOpen]);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
@@ -167,17 +187,38 @@ export default function ProductsPage() {
       const data = await res.json();
       if (data.success) {
         setIsProductModalOpen(false);
+        await showAlert({
+          title: "Product Saved",
+          message: "Product saved successfully.",
+          type: "success",
+        });
         fetchData();
       } else {
-        alert(data.message || "Failed to save product.");
+        await showAlert({
+          title: "Save Failed",
+          message: data.message || "Failed to save product.",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert("Error saving product.");
+      await showAlert({
+        title: "Error",
+        message: "Error saving product.",
+        type: "error",
+      });
     }
   };
 
   const deleteProduct = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this product?")) return;
+    const confirmed = await showConfirm({
+      title: "Delete Product",
+      message: "Are you sure you want to delete this product? This action cannot be undone.",
+      type: "warning",
+      confirmText: "Delete Product",
+      isDestructive: true,
+    });
+    if (!confirmed) return;
+
     try {
       const res = await fetch(`${apiUrl}/api/admin/products/${id}`, {
         method: "DELETE",
@@ -186,9 +227,24 @@ export default function ProductsPage() {
       const data = await res.json();
       if (data.success) {
         setProducts(products.filter((p) => p._id !== id));
+        await showAlert({
+          title: "Deleted",
+          message: "Product deleted successfully.",
+          type: "success",
+        });
+      } else {
+        await showAlert({
+          title: "Error",
+          message: data.message || "Failed to delete product.",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert("Error deleting product.");
+      await showAlert({
+        title: "Error",
+        message: "Error deleting product.",
+        type: "error",
+      });
     }
   };
 
@@ -218,10 +274,18 @@ export default function ProductsPage() {
           setSelectedProduct({ ...selectedProduct, filePath: data.filePath });
         }
       } else {
-        alert(data.message || "File upload failed.");
+        await showAlert({
+          title: "Upload Failed",
+          message: data.message || "File upload failed.",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert("Error during upload.");
+      await showAlert({
+        title: "Upload Error",
+        message: "Error during file upload.",
+        type: "error",
+      });
     } finally {
       if (isThumbnail) setUploadingThumbnail(false);
       else setUploadingFile(false);
@@ -438,17 +502,28 @@ export default function ProductsPage() {
       </div>
 
       {/* Product Edit / Create Modal */}
-      {isProductModalOpen && selectedProduct && (
-        <div className="modal modal-open">
-          <div className="modal-box rounded-3xl max-w-2xl bg-white border border-stone-200 shadow-2xl relative text-stone-900 max-h-[90vh] overflow-y-auto p-6 sm:p-8">
+      {mounted && isProductModalOpen && selectedProduct && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-stone-950/75 backdrop-blur-xs animate-fadeIn"
+          onClick={() => setIsProductModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div 
+            className="relative w-full max-w-2xl bg-white rounded-3xl border-2 border-stone-200 shadow-2xl p-5 sm:p-8 text-stone-900 my-auto max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
+              type="button"
               onClick={() => setIsProductModalOpen(false)}
-              className="btn btn-sm btn-circle btn-ghost absolute right-4 top-4 text-stone-500"
+              className="btn btn-sm btn-circle btn-ghost absolute right-4 top-4 text-stone-400 hover:text-stone-700"
+              aria-label="Close"
             >
-              ✕
+              <X className="w-4 h-4" />
             </button>
 
-            <h2 className="font-black text-xl text-stone-900 mb-6 border-b border-stone-100 pb-3">
+            <h2 className="font-black text-xl text-stone-900 mb-6 border-b border-stone-100 pb-3 flex items-center gap-2">
+              <Package className="w-5 h-5 text-amber-500" />
               {selectedProduct._id ? "Edit Product Details" : "Add New Digital Product"}
             </h2>
 
@@ -723,24 +798,25 @@ export default function ProductsPage() {
               </div>
 
               {/* Submit Buttons */}
-              <div className="modal-action border-t border-stone-100 pt-4 flex gap-3">
+              <div className="border-t border-stone-100 pt-4 flex items-center justify-end gap-3 mt-6">
                 <button
                   type="button"
                   onClick={() => setIsProductModalOpen(false)}
-                  className="btn btn-outline rounded-xl font-bold flex-1"
+                  className="btn btn-sm bg-stone-100 hover:bg-stone-200 text-stone-700 border-none rounded-xl font-bold px-4"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-md flex-1"
+                  className="btn btn-sm bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold px-6 shadow-xs"
                 >
                   Save Product
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

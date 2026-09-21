@@ -217,7 +217,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   type="email"
                   required
                   autoComplete="username"
-                  placeholder="admin@kalobazar.com"
+                  placeholder="admin@digitalcorebd.com"
                   className="input input-bordered focus:input-primary rounded-xl text-base-content bg-base-100 w-full pl-10 text-sm"
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
@@ -300,11 +300,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile Top App Bar */}
       <header className="md:hidden flex items-center justify-between px-4 py-3 bg-base-100 border-b border-base-300 sticky top-0 z-40 shadow-xs">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center font-black text-xs text-primary-content shadow-xs">
-            KB
+          <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center font-black text-xs text-stone-950 shadow-xs">
+            D
           </div>
           <div>
-            <div className="font-extrabold text-sm tracking-tight text-base-content">KaloBazar</div>
+            <div className="font-extrabold text-sm tracking-tight text-base-content">Digitalcorebd</div>
             <div className="text-[10px] text-base-content/50 font-semibold mt-[-2px]">Admin Portal</div>
           </div>
         </div>
@@ -335,13 +335,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Brand Header */}
         <div className="pb-6 border-b border-base-200 mb-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center font-black text-base text-primary-content shadow-xs group-hover:scale-105 transition-transform">
-              KB
+            <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center font-black text-base text-stone-950 shadow-xs group-hover:scale-105 transition-transform">
+              D
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <div className="font-extrabold text-lg tracking-tight text-base-content">KaloBazar</div>
-                <span className="badge badge-accent badge-xs font-bold text-[8px] uppercase">Admin</span>
+                <div className="font-extrabold text-lg tracking-tight text-base-content">Digitalcorebd</div>
+                <span className="badge bg-amber-400 text-stone-950 badge-xs font-bold text-[8px] uppercase border-none">Admin</span>
               </div>
               <div className="text-[10px] text-base-content/60 font-semibold mt-[-3px]">Store Management</div>
             </div>

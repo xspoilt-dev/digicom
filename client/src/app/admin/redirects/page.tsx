@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useModal } from "@/context/ModalContext";
 
 interface RedirectRoute {
   _id?: string;
@@ -10,6 +11,7 @@ interface RedirectRoute {
 }
 
 export default function RedirectsPage() {
+  const { showAlert, showConfirm } = useModal();
   const [redirects, setRedirects] = useState<RedirectRoute[]>([]);
   const [newRedirect, setNewRedirect] = useState<RedirectRoute>({ sourcePath: "", destinationPath: "", redirectType: "rewrite" });
   const [loading, setLoading] = useState(true);
@@ -52,17 +54,39 @@ export default function RedirectsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert("Redirect rule saved successfully.");
+        await showAlert({
+          title: "Redirect Saved",
+          message: "Redirect rule saved successfully.",
+          type: "success",
+        });
         setNewRedirect({ sourcePath: "", destinationPath: "", redirectType: "rewrite" });
         fetchRedirects();
+      } else {
+        await showAlert({
+          title: "Error",
+          message: data.message || "Failed to save redirect rule.",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert("Error saving redirect rule.");
+      await showAlert({
+        title: "Error",
+        message: "Error saving redirect rule.",
+        type: "error",
+      });
     }
   };
 
   const deleteRedirect = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this redirect route?")) return;
+    const confirmed = await showConfirm({
+      title: "Delete Redirect",
+      message: "Are you sure you want to delete this redirect route?",
+      type: "warning",
+      confirmText: "Delete",
+      isDestructive: true,
+    });
+    if (!confirmed) return;
+
     try {
       const res = await fetch(`${apiUrl}/api/admin/redirects/${id}`, {
         method: "DELETE",
@@ -70,11 +94,25 @@ export default function RedirectsPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert("Redirect route deleted.");
+        await showAlert({
+          title: "Deleted",
+          message: "Redirect route deleted successfully.",
+          type: "success",
+        });
         fetchRedirects();
+      } else {
+        await showAlert({
+          title: "Error",
+          message: data.message || "Failed to delete redirect route.",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert("Error deleting redirect rule.");
+      await showAlert({
+        title: "Error",
+        message: "Error deleting redirect rule.",
+        type: "error",
+      });
     }
   };
 

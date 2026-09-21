@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useModal } from "@/context/ModalContext";
 import {
   Server,
   RefreshCw,
@@ -70,6 +72,8 @@ interface StoreProduct {
 }
 
 export default function CanbosoStockPage() {
+  const { showAlert } = useModal();
+  const [mounted, setMounted] = useState(false);
   const [upstreamProducts, setUpstreamProducts] = useState<UpstreamProduct[]>([]);
   const [storeProducts, setStoreProducts] = useState<StoreProduct[]>([]);
   const [categories, setCategories] = useState<StoreCategory[]>([]);
@@ -82,11 +86,27 @@ export default function CanbosoStockPage() {
   const [stockFilter, setStockFilter] = useState<"all" | "in_stock" | "out_of_stock">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "connected" | "not_connected">("all");
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   // Import Modal State
   const [selectedProduct, setSelectedProduct] = useState<UpstreamProduct | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [submittingImport, setSubmittingImport] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  // Keyboard shortcut to close modal
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isModalOpen]);
 
   // Modal Form Fields
   const [importForm, setImportForm] = useState({
@@ -233,10 +253,18 @@ export default function CanbosoStockPage() {
       if (data.success && data.filePath) {
         setImportForm((prev) => ({ ...prev, image: data.filePath }));
       } else {
-        alert(data.message || "Image upload failed");
+        await showAlert({
+          title: "Upload Failed",
+          message: data.message || "Image upload failed. Please choose another file.",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert("Error uploading image");
+      await showAlert({
+        title: "Upload Error",
+        message: "Error uploading image. Please check network connection.",
+        type: "error",
+      });
     } finally {
       setUploadingImage(false);
     }
@@ -247,12 +275,20 @@ export default function CanbosoStockPage() {
     if (!selectedProduct) return;
 
     if (!importForm.title.trim()) {
-      alert("Please specify a product title");
+      await showAlert({
+        title: "Validation Error",
+        message: "Please specify a storefront product title.",
+        type: "warning",
+      });
       return;
     }
 
     if (importForm.priceBdt <= 0) {
-      alert("Please provide a valid selling price in BDT");
+      await showAlert({
+        title: "Validation Error",
+        message: "Please provide a valid selling price in BDT (greater than 0).",
+        type: "warning",
+      });
       return;
     }
 
@@ -279,13 +315,25 @@ export default function CanbosoStockPage() {
       const data = await res.json();
       if (data.success) {
         setIsModalOpen(false);
-        alert(data.message || "Product connected to store catalog successfully!");
+        await showAlert({
+          title: "Product Connected",
+          message: data.message || "Product connected to store catalog successfully!",
+          type: "success",
+        });
         loadData(true);
       } else {
-        alert(data.message || "Failed to import product.");
+        await showAlert({
+          title: "Import Failed",
+          message: data.message || "Failed to import product.",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert("Network error processing import.");
+      await showAlert({
+        title: "Network Error",
+        message: "Network error processing product import.",
+        type: "error",
+      });
     } finally {
       setSubmittingImport(false);
     }
@@ -587,13 +635,21 @@ export default function CanbosoStockPage() {
       </div>
 
       {/* Import & Connect Product Modal */}
-      {isModalOpen && selectedProduct && (
-        <div className="modal modal-open">
-          <div className="modal-box rounded-3xl max-w-2xl bg-white border border-stone-200 shadow-2xl p-6 sm:p-8 text-stone-900">
+      {mounted && isModalOpen && selectedProduct && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-6 overflow-y-auto bg-stone-950/75 backdrop-blur-xs animate-fadeIn"
+          onClick={() => setIsModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div 
+            className="relative w-full max-w-2xl bg-white rounded-3xl border-2 border-stone-200 shadow-2xl p-5 sm:p-8 text-stone-900 my-auto max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-stone-100 pb-4 mb-5">
               <div>
-                <h3 className="font-black text-xl text-stone-900 flex items-center gap-2">
+                <h3 className="font-black text-lg sm:text-xl text-stone-900 flex items-center gap-2">
                   <Package className="w-5 h-5 text-amber-500" />
                   Connect Product to Store Catalog
                 </h3>
@@ -602,8 +658,10 @@ export default function CanbosoStockPage() {
                 </span>
               </div>
               <button
+                type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="btn btn-sm btn-ghost btn-circle"
+                className="btn btn-sm btn-ghost btn-circle text-stone-400 hover:text-stone-700 -mr-2 -mt-2"
+                aria-label="Close"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -894,25 +952,26 @@ export default function CanbosoStockPage() {
               </div>
 
               {/* Submit Buttons */}
-              <div className="modal-action mt-6 flex justify-end gap-3">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100 mt-6">
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="btn btn-sm btn-ghost rounded-xl font-bold"
+                  className="btn btn-sm bg-stone-100 hover:bg-stone-200 text-stone-700 border-none rounded-xl font-bold px-4"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submittingImport}
-                  className="btn btn-sm bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold px-6 shadow-xs"
+                  className="btn btn-sm bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold px-6 shadow-xs disabled:bg-stone-200 disabled:text-stone-400"
                 >
                   {submittingImport ? "Connecting..." : "Save & Connect Product"}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

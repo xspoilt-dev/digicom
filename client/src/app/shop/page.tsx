@@ -8,6 +8,7 @@ import { getFbCookies } from "@/lib/meta/cookies";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
+import { useModal } from "@/context/ModalContext";
 import { ShoppingCart, ShoppingBag, Star, Package } from "lucide-react";
 
 interface Product {
@@ -69,6 +70,7 @@ function ShopContent() {
 
   // Cart & Router
   const { addToCart } = useCart();
+  const { showAlert } = useModal();
   const router = useRouter();
 
   // Checkout State
@@ -157,10 +159,18 @@ function ShopContent() {
           window.location.href = `/receipt/${data.order.orderId}`;
         }
       } else {
-        alert(data.message || "চেকআউট প্রসেস ব্যর্থ হয়েছে");
+        await showAlert({
+          title: "চেকআউট ব্যর্থ হয়েছে",
+          message: data.message || "চেকআউট প্রসেস সম্পন্ন করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert("নেটওয়ার্ক ত্রুটি। আবার চেষ্টা করুন।");
+      await showAlert({
+        title: "নেটওয়ার্ক ত্রুটি",
+        message: "নেটওয়ার্ক সমস্যা দেখা দিয়েছে। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।",
+        type: "error",
+      });
     } finally {
       setSubmittingCheckout(false);
     }

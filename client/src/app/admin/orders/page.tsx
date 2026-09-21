@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useModal } from "@/context/ModalContext";
 import {
   ShoppingBag,
   Search,
@@ -64,6 +65,7 @@ interface Order {
 }
 
 export default function OrdersPage() {
+  const { showAlert, showConfirm } = useModal();
   const [orders, setOrders] = useState<Order[]>([]);
   const [orderFilter, setOrderFilter] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
@@ -74,7 +76,7 @@ export default function OrdersPage() {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
   const getAuthHeaders = () => {
-    const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
+    const token = localStorage.getItem("admin_token");
     return {
       Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
@@ -83,15 +85,17 @@ export default function OrdersPage() {
 
   const fetchOrders = async () => {
     try {
-      setLoading(true);
+      let url = `${apiUrl}/api/admin/orders`;
       const params = new URLSearchParams();
       if (orderFilter) params.append("status", orderFilter);
       if (orderSearch) params.append("search", orderSearch);
-      const res = await fetch(`${apiUrl}/api/admin/orders?${params.toString()}`, { headers: getAuthHeaders() });
+      if (params.toString()) url += `?${params.toString()}`;
+
+      const res = await fetch(url, { headers: getAuthHeaders() });
       const data = await res.json();
-      if (data.success) setOrders(data.orders || []);
+      if (data.success) setOrders(data.orders);
     } catch (err) {
-      console.error("Error loading orders:", err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -102,7 +106,14 @@ export default function OrdersPage() {
   }, [apiUrl, orderFilter, orderSearch]);
 
   const verifyOrder = async (id: string) => {
-    if (!confirm("Are you sure you want to approve this order? This will mark it as Paid, record the transaction, send the digital delivery email, and dispatch the Meta CAPI Purchase event.")) return;
+    const confirmed = await showConfirm({
+      title: "Approve Order",
+      message: "Are you sure you want to approve this order? This will mark it as Paid, record the transaction, send the digital delivery email, and dispatch the Meta CAPI Purchase event.",
+      type: "warning",
+      confirmText: "Approve Order",
+    });
+    if (!confirmed) return;
+
     try {
       const res = await fetch(`${apiUrl}/api/admin/orders/${id}/verify`, {
         method: "POST",
@@ -110,18 +121,38 @@ export default function OrdersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message || "Order approved. Delivery email sent and Meta CAPI Purchase event recorded.");
+        await showAlert({
+          title: "Order Approved",
+          message: data.message || "Order approved. Delivery email sent and Meta CAPI Purchase event recorded.",
+          type: "success",
+        });
         fetchOrders();
       } else {
-        alert(data.message || "Verification failed");
+        await showAlert({
+          title: "Verification Failed",
+          message: data.message || "Verification failed.",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert("Error processing verification.");
+      await showAlert({
+        title: "Error",
+        message: "Error processing verification.",
+        type: "error",
+      });
     }
   };
 
   const cancelOrder = async (id: string) => {
-    if (!confirm("Are you sure you want to cancel this order?")) return;
+    const confirmed = await showConfirm({
+      title: "Cancel Order",
+      message: "Are you sure you want to cancel this order?",
+      type: "warning",
+      confirmText: "Cancel Order",
+      isDestructive: true,
+    });
+    if (!confirmed) return;
+
     try {
       const res = await fetch(`${apiUrl}/api/admin/orders/${id}/cancel`, {
         method: "POST",
@@ -129,11 +160,25 @@ export default function OrdersPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert("Order marked as cancelled.");
+        await showAlert({
+          title: "Order Cancelled",
+          message: "Order marked as cancelled.",
+          type: "success",
+        });
         fetchOrders();
+      } else {
+        await showAlert({
+          title: "Error",
+          message: data.message || "Failed to cancel order.",
+          type: "error",
+        });
       }
     } catch (err) {
-      alert("Error processing cancellation.");
+      await showAlert({
+        title: "Error",
+        message: "Error processing cancellation.",
+        type: "error",
+      });
     }
   };
 

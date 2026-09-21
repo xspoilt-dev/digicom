@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
+import { useModal } from "@/context/ModalContext";
 import {
   Folder,
   Plus,
@@ -30,10 +32,16 @@ interface Category {
 }
 
 export default function AdminCategoriesPage() {
+  const { showConfirm, showAlert } = useModal();
+  const [mounted, setMounted] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // Modal states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -182,7 +190,15 @@ export default function AdminCategoriesPage() {
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!confirm(`আপনি কি নিশ্চিত যে "${name}" ক্যাটাগরি ডিলিট করতে চান?`)) return;
+    const confirmed = await showConfirm({
+      title: "ক্যাটাগরি ডিলিট",
+      message: `আপনি কি নিশ্চিত যে "${name}" ক্যাটাগরি ডিলিট করতে চান?`,
+      type: "warning",
+      confirmText: "ডিলিট করুন",
+      cancelText: "বাতিল",
+      isDestructive: true,
+    });
+    if (!confirmed) return;
 
     try {
       const res = await fetch(`${apiUrl}/api/admin/categories/${id}`, {
@@ -394,9 +410,17 @@ export default function AdminCategoriesPage() {
       </div>
 
       {/* Modal for Create & Edit */}
-      {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in duration-150">
+      {mounted && isModalOpen && createPortal(
+        <div 
+          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-stone-950/75 backdrop-blur-xs animate-fadeIn"
+          onClick={() => setIsModalOpen(false)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div 
+            className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-lg w-full overflow-hidden my-auto max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-stone-100">
               <div className="flex items-center gap-2.5">
@@ -521,7 +545,8 @@ export default function AdminCategoriesPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

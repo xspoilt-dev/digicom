@@ -4,6 +4,7 @@ import Script from "next/script";
 import { PixelRouteTracker } from "@/components/PixelRouteTracker";
 
 import { CartProvider } from "@/context/CartContext";
+import { ModalProvider } from "@/context/ModalContext";
 import CartDrawer from "@/components/CartDrawer";
 
 export const metadata: Metadata = {
@@ -82,10 +83,12 @@ export default async function RootLayout({
           </>
         )}
         <PixelRouteTracker />
-        <CartProvider>
-          {children}
-          <CartDrawer />
-        </CartProvider>
+        <ModalProvider>
+          <CartProvider>
+            {children}
+            <CartDrawer />
+          </CartProvider>
+        </ModalProvider>
       </body>
     </html>
   );

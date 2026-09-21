@@ -428,7 +428,8 @@ adminRouter.get("/canboso/products", async (c) => {
   try {
     const forceRefresh = c.req.query("refresh") === "1";
     const result = await fetchCanbosoProducts(forceRefresh);
-    return c.json(result);
+    const canbosoConfig = await getCanbosoConfig();
+    return c.json({ ...result, dollarRate: canbosoConfig.dollarRate || 127 });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }

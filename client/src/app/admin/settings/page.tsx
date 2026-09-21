@@ -800,10 +800,10 @@ export default function SettingsPage() {
                   </span>
                   <div className="flex items-center gap-3">
                     <span className="text-xl font-black text-stone-950">
-                      ${canbosoBalance.balanceUsd.toFixed(2)} USD
+                      ${Number(canbosoBalance.balanceUsd || 0).toFixed(2)} USD
                     </span>
                     <span className="text-xs font-semibold text-stone-500">
-                      ({canbosoBalance.balanceVnd.toLocaleString()} VND)
+                      ({Number(canbosoBalance.balanceVnd || 0).toLocaleString()} VND)
                     </span>
                   </div>
                 </div>

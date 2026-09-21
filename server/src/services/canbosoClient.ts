@@ -17,12 +17,18 @@ export interface CanbosoProductPrice {
 }
 
 export interface CanbosoProduct {
+  id?: string;
   productId: string;
   name: string;
+  code?: string;
   description?: string;
   image?: string;
   emoji?: string;
-  productType: "account" | "slot" | "slot_chatgpt_business" | "other";
+  productType: "account" | "slot" | "slot_chatgpt_business" | "other" | string;
+  type?: string;
+  costUsd?: number;
+  costVnd?: number;
+  stock?: number;
   price: CanbosoProductPrice;
   availability: {
     available: number;
@@ -165,13 +171,24 @@ export async function fetchCanbosoProducts(forceRefresh = false): Promise<{
       // Converted BDT equivalent using admin's configured dollarRate
       const calculatedBdt = Math.round(amountUsd * dollarRate);
 
+      const id = String(p.productId || p._id || p.id);
+      const stock = Number(p.availability?.available ?? p.stock ?? 0);
+      const costVnd = currency === "VND" ? amount : Math.round(amountUsd * VND_TO_USD);
+      const type = p.productType || p.type || "account";
+
       return {
-        productId: String(p.productId || p._id || p.id),
+        id,
+        productId: id,
         name: String(p.name || "Canboso Product"),
+        code: p.code || "",
         description: p.description || "",
         image: p.image || "",
         emoji: p.emoji || "",
-        productType: p.productType || "account",
+        productType: type,
+        type,
+        costUsd: amountUsd,
+        costVnd,
+        stock,
         price: {
           amount,
           currency,
@@ -180,7 +197,7 @@ export async function fetchCanbosoProducts(forceRefresh = false): Promise<{
           calculatedBdt,
         },
         availability: {
-          available: Number(p.availability?.available ?? 0),
+          available: stock,
           sold: Number(p.availability?.sold ?? 0),
         },
         promotions: Array.isArray(p.promotions) ? p.promotions : [],

@@ -45,7 +45,7 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="bn" data-theme="kalobazar">
+    <html lang="bn" data-theme="kalobazar" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -54,7 +54,7 @@ export default async function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>
+      <body suppressHydrationWarning>
         {pixelId && (
           <>
             <Script id="meta-pixel-base" strategy="afterInteractive">

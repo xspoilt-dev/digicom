@@ -26,6 +26,7 @@ import {
 
 interface UpstreamProduct {
   id: string | number;
+  productId?: string;
   name: string;
   code?: string;
   costUsd: number;
@@ -33,6 +34,16 @@ interface UpstreamProduct {
   stock: number;
   type?: string;
   category?: string;
+  price?: {
+    amountUsd?: number;
+    amount?: number;
+    currency?: string;
+    calculatedBdt?: number;
+  };
+  availability?: {
+    available?: number;
+    sold?: number;
+  };
   requirements?: {
     hasUser?: boolean;
     hasPassword?: boolean;
@@ -115,7 +126,25 @@ export default function CanbosoStockPage() {
 
       const upstreamData = await upstreamRes.json();
       if (upstreamData.success) {
-        setUpstreamProducts(upstreamData.products || []);
+        const rawList = Array.isArray(upstreamData.products) ? upstreamData.products : [];
+        const normalized: UpstreamProduct[] = rawList.map((p: any) => {
+          const costUsd = Number(p.costUsd ?? p.price?.amountUsd ?? 0);
+          const costVnd = Number(p.costVnd ?? p.price?.amount ?? 0);
+          const stock = Number(p.stock ?? p.availability?.available ?? 0);
+          const id = String(p.id ?? p.productId ?? "");
+          return {
+            ...p,
+            id,
+            productId: id,
+            name: p.name || "Canboso Product",
+            code: p.code || "",
+            costUsd,
+            costVnd,
+            stock,
+            type: p.type || p.productType || "account",
+          };
+        });
+        setUpstreamProducts(normalized);
         if (upstreamData.dollarRate) {
           setDollarRate(upstreamData.dollarRate);
         }
@@ -133,7 +162,7 @@ export default function CanbosoStockPage() {
 
       const balanceData = await balanceRes.json();
       if (balanceData.success) {
-        setBalance({ balanceUsd: balanceData.balanceUsd, balanceVnd: balanceData.balanceVnd });
+        setBalance({ balanceUsd: Number(balanceData.balanceUsd || 0), balanceVnd: Number(balanceData.balanceVnd || 0) });
       }
     } catch (err) {
       console.error("Error loading Canboso data:", err);
@@ -160,10 +189,11 @@ export default function CanbosoStockPage() {
     setSelectedProduct(product);
 
     // Check if already connected to a storefront product
-    const existing = storeProducts.find((p) => p.canbosoProductId === String(product.id));
+    const existing = storeProducts.find((p) => p.canbosoProductId === String(product.id || product.productId));
 
     // Default price estimation: cost USD * dollar rate * 1.35 (35% default margin), rounded up to nearest 10
-    const estimatedCostBdt = product.costUsd * dollarRate;
+    const costUsd = Number(product.costUsd ?? (product as any).price?.amountUsd ?? 0);
+    const estimatedCostBdt = costUsd * dollarRate;
     const defaultPriceBdt = Math.ceil((estimatedCostBdt * 1.35) / 10) * 10;
     const defaultCompareBdt = Math.ceil((defaultPriceBdt * 1.25) / 10) * 10;
 
@@ -285,7 +315,7 @@ export default function CanbosoStockPage() {
 
   // Calculate live financial profit for modal
   const modalSellingPriceUsd = importForm.priceBdt > 0 ? importForm.priceBdt / dollarRate : 0;
-  const modalCostUsd = selectedProduct?.costUsd || 0;
+  const modalCostUsd = Number(selectedProduct?.costUsd ?? (selectedProduct as any)?.price?.amountUsd ?? 0);
   const modalProfitUsd = modalSellingPriceUsd - modalCostUsd;
   const modalProfitBdt = Math.round(modalProfitUsd * dollarRate);
   const modalMarginPercent =
@@ -344,11 +374,11 @@ export default function CanbosoStockPage() {
               Upstream Wallet
             </span>
             <div className="text-xl font-black text-stone-900 truncate">
-              {balance ? `$${balance.balanceUsd.toFixed(2)} USD` : "Not Available"}
+              {balance ? `$${Number(balance.balanceUsd || 0).toFixed(2)} USD` : "Not Available"}
             </div>
             {balance && (
               <span className="text-[10px] text-stone-400 font-mono block truncate">
-                {balance.balanceVnd.toLocaleString()} VND
+                {Number(balance.balanceVnd || 0).toLocaleString()} VND
               </span>
             )}
           </div>
@@ -462,16 +492,17 @@ export default function CanbosoStockPage() {
               {filteredProducts.length > 0 ? (
                 filteredProducts.map((p) => {
                   const connectedStoreProduct = storeProducts.find(
-                    (sp) => sp.canbosoProductId === String(p.id)
+                    (sp) => sp.canbosoProductId === String(p.id || p.productId)
                   );
-                  const approxCostBdt = Math.round(p.costUsd * dollarRate);
+                  const itemCostUsd = Number(p.costUsd ?? (p as any)?.price?.amountUsd ?? 0);
+                  const approxCostBdt = Math.round(itemCostUsd * dollarRate);
 
                   return (
-                    <tr key={p.id} className="border-b border-stone-100 hover:bg-stone-50/50">
+                    <tr key={p.id || p.productId} className="border-b border-stone-100 hover:bg-stone-50/50">
                       <td>
                         <div className="font-extrabold text-stone-900 text-sm">{p.name}</div>
                         <div className="text-[10px] text-stone-400 font-mono mt-0.5">
-                          ID: {p.id} {p.code ? `• Code: ${p.code}` : ""}
+                          ID: {p.id || p.productId} {p.code ? `• Code: ${p.code}` : ""}
                         </div>
                       </td>
                       <td>
@@ -492,7 +523,7 @@ export default function CanbosoStockPage() {
                       </td>
                       <td>
                         <span className="font-mono font-bold text-stone-900 text-xs">
-                          ${p.costUsd.toFixed(2)} USD
+                          ${itemCostUsd.toFixed(2)} USD
                         </span>
                       </td>
                       <td>
@@ -599,7 +630,7 @@ export default function CanbosoStockPage() {
                       ৳{importForm.priceBdt}
                     </span>
                     <span className="text-[10px] text-stone-400 block font-mono">
-                      (${modalSellingPriceUsd.toFixed(2)} USD)
+                      (${Number(modalSellingPriceUsd || 0).toFixed(2)} USD)
                     </span>
                   </div>
 
@@ -608,10 +639,10 @@ export default function CanbosoStockPage() {
                       Upstream Cost
                     </span>
                     <span className="font-black text-stone-900 text-sm">
-                      ${modalCostUsd.toFixed(2)} USD
+                      ${Number(modalCostUsd || 0).toFixed(2)} USD
                     </span>
                     <span className="text-[10px] text-stone-400 block font-mono">
-                      (~৳{Math.round(modalCostUsd * dollarRate)})
+                      (~৳{Math.round((Number(modalCostUsd) || 0) * dollarRate)})
                     </span>
                   </div>
 
@@ -624,7 +655,7 @@ export default function CanbosoStockPage() {
                         modalProfitUsd >= 0 ? "text-emerald-600" : "text-rose-600"
                       }`}
                     >
-                      ${modalProfitUsd.toFixed(2)} USD
+                      ${Number(modalProfitUsd || 0).toFixed(2)} USD
                     </span>
                     <span className="text-[10px] text-stone-400 block font-mono">
                       (~৳{modalProfitBdt})

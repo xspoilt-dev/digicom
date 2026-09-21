@@ -174,8 +174,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200">
-        <div className="flex flex-col items-center gap-3">
+      <div className="min-h-screen flex items-center justify-center bg-base-200" suppressHydrationWarning>
+        <div className="flex flex-col items-center gap-3" suppressHydrationWarning>
           <span className="loading loading-spinner loading-lg text-primary"></span>
           <span className="text-xs font-bold text-base-content/70">এডমিন সেশন যাচাই করা হচ্ছে...</span>
         </div>
@@ -186,15 +186,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Professional Email & Password Login Screen
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200 px-4 py-12">
-        <div className="card w-full max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6 sm:p-10 animate-fadeIn">
+      <div className="min-h-screen flex items-center justify-center bg-base-200 px-4 py-12" suppressHydrationWarning>
+        <div className="card w-full max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6 sm:p-10 animate-fadeIn" suppressHydrationWarning>
           
           <div className="text-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center font-black text-xl text-primary-content shadow-md mx-auto mb-4">
-              KB
+            <div className="w-14 h-14 rounded-2xl bg-amber-400 flex items-center justify-center font-black text-xl text-stone-950 shadow-md mx-auto mb-4">
+              D
             </div>
             <h1 className="text-2xl font-black text-base-content tracking-tight">
-              KaloBazar Admin
+              Digitalcorebd Admin
             </h1>
             <p className="text-xs text-base-content/60 mt-1 font-medium">
               মার্কেটপ্লেস কন্ট্রোল ও ম্যানেজমেন্ট পোর্টাল

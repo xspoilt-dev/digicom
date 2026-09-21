@@ -10,6 +10,7 @@ import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
 import { useModal } from "@/context/ModalContext";
 import { ShoppingCart, ShoppingBag, Star, Package } from "lucide-react";
+import { normalizeBanglaPhone } from "@/utils/bengali";
 
 interface Product {
   _id: string;
@@ -118,6 +119,7 @@ function ShopContent() {
 
     setSubmittingCheckout(true);
     const fbCookies = getFbCookies();
+    const cleanPhone = normalizeBanglaPhone(formData.phone.trim());
     const eventId = trackEvent(
       "InitiateCheckout",
       {
@@ -130,7 +132,7 @@ function ShopContent() {
       },
       {
         email: formData.email,
-        phone: formData.phone,
+        phone: cleanPhone,
         skipCapi: true,
       }
     );
@@ -141,9 +143,9 @@ function ShopContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: selectedProduct._id,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: cleanPhone,
           paymentGateway: "zinipay",
           metaEventId: eventId,
           fbp: fbCookies.fbp,
@@ -198,7 +200,7 @@ function ShopContent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200" data-theme="lightyellow">
+      <div className="min-h-screen flex items-center justify-center bg-base-200">
         <div className="flex flex-col items-center gap-4">
           <span className="loading loading-spinner loading-lg text-primary"></span>
           <span className="text-primary font-bold">লোডিং হচ্ছে...</span>
@@ -208,7 +210,7 @@ function ShopContent() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-base-200" data-theme="lightyellow">
+    <div className="min-h-screen flex flex-col bg-base-200">
       <Navbar />
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-10 flex-1 max-w-7xl">

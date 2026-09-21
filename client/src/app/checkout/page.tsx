@@ -9,6 +9,7 @@ import { useCart } from "@/context/CartContext";
 import { trackEvent } from "@/lib/meta/track-event";
 import { getFbCookies } from "@/lib/meta/cookies";
 import { ShoppingCart, ShieldCheck, Zap, ArrowLeft, CheckCircle, Package } from "lucide-react";
+import { normalizeBanglaPhone } from "@/utils/bengali";
 
 export default function CheckoutPage() {
   const { cartItems, cartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
@@ -31,8 +32,9 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (!formData.name.trim() || !formData.email.trim() || !formData.phone.trim()) {
-      setErrorMsg("দয়া করে নাম, ইমেইল এবং ফোন নম্বর সঠিকভাবে পূরণ করুন।");
+    const cleanPhone = normalizeBanglaPhone(formData.phone.trim());
+    if (!formData.name.trim() || !formData.email.trim() || !cleanPhone) {
+      setErrorMsg("দয়া করে নাম, ইমেইল এবং সঠিক মোবাইল নম্বর পূরণ করুন।");
       return;
     }
 
@@ -51,7 +53,7 @@ export default function CheckoutPage() {
       },
       {
         email: formData.email,
-        phone: formData.phone,
+        phone: cleanPhone,
         skipCapi: true,
       }
     );
@@ -67,7 +69,7 @@ export default function CheckoutPage() {
           })),
           name: formData.name.trim(),
           email: formData.email.trim(),
-          phone: formData.phone.trim(),
+          phone: cleanPhone,
           notes: formData.notes.trim(),
           paymentGateway: "zinipay",
           metaEventId: eventId,
@@ -97,7 +99,7 @@ export default function CheckoutPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-base-200 text-base-content" data-theme="lightyellow">
+    <div className="min-h-screen flex flex-col bg-base-200 text-base-content">
       <Navbar />
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 flex-1 max-w-7xl">
@@ -201,7 +203,7 @@ export default function CheckoutPage() {
                   <input
                     type="tel"
                     required
-                    placeholder="০১৭xxxxxxxx"
+                    placeholder="017xxxxxxxx বা ০১৭xxxxxxxx"
                     className="input input-bordered w-full rounded-xl bg-amber-50/30 border-amber-200 focus:border-amber-400 focus:outline-none text-sm text-stone-800"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}

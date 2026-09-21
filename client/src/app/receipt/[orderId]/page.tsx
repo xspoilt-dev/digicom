@@ -170,7 +170,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200" data-theme="lightyellow">
+      <div className="min-h-screen flex items-center justify-center bg-base-200">
         <div className="flex flex-col items-center gap-4">
           <span className="loading loading-spinner loading-lg text-primary"></span>
           <span className="text-primary font-bold text-sm">অর্ডার ভেরিফাই করা হচ্ছে...</span>
@@ -181,7 +181,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
 
   if (error || !order) {
     return (
-      <div className="min-h-screen flex flex-col justify-between bg-base-200" data-theme="lightyellow">
+      <div className="min-h-screen flex flex-col justify-between bg-base-200">
         <div className="container mx-auto px-4 py-16 flex-1 flex items-center justify-center">
           <div className="card w-full max-w-md bg-base-100 border border-base-300 shadow-xl rounded-3xl p-8 text-center">
             <h2 className="text-2xl font-black text-error mb-4">ভুল অর্ডার</h2>
@@ -213,7 +213,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-base-200 text-base-content" data-theme="lightyellow">
+    <div className="min-h-screen flex flex-col bg-base-200 text-base-content">
       {/* Top Navbar */}
       <div className="navbar bg-base-100 shadow-sm sticky top-0 z-50 px-4 md:px-8 border-b border-base-300">
         <div className="navbar-start gap-2">

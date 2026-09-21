@@ -11,7 +11,10 @@ function hashSha256(value?: string): string | undefined {
 
 function normalizeAndHashPhone(phone?: string): string | undefined {
   if (!phone) return undefined;
-  let digits = phone.replace(/\D/g, "");
+  // Convert any Bengali digits (০-৯) to standard English digits (0-9)
+  const bnDigits = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
+  const enDigits = phone.replace(/[০-৯]/g, (d) => String(bnDigits.indexOf(d)));
+  let digits = enDigits.replace(/\D/g, "");
   // Bangladesh phone number normalization
   if (digits.length === 11 && digits.startsWith("01")) {
     digits = "88" + digits;

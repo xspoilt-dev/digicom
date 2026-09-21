@@ -357,6 +357,10 @@ publicRouter.post("/checkout", async (c) => {
       return c.json({ success: false, message: `Missing required fields: ${missingFields.join(", ")}` }, 400);
     }
 
+    // Normalize any Bengali digits (০-৯) to English digits (0-9)
+    const bnDigits = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
+    const normalizedPhone = String(phone).replace(/[০-৯]/g, (d) => String(bnDigits.indexOf(d))).trim();
+
     let orderItems: any[] = [];
     let orderTotal = 0;
     let mainProduct: any = null;
@@ -424,7 +428,7 @@ publicRouter.post("/checkout", async (c) => {
       orderId,
       name,
       email: email || customerEmail,
-      phone,
+      phone: normalizedPhone,
       customerEmail: customerEmail || email,
       items: orderItems,
       total: orderTotal,

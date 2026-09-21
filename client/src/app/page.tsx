@@ -25,6 +25,7 @@ import {
   ChevronLeft,
   Folder,
 } from "lucide-react";
+import { normalizeBanglaPhone } from "@/utils/bengali";
 
 interface Product {
   _id: string;
@@ -140,6 +141,7 @@ export default function StoreHome() {
 
     setSubmittingCheckout(true);
     const fbCookies = getFbCookies();
+    const cleanPhone = normalizeBanglaPhone(formData.phone.trim());
     const eventId = trackEvent(
       "InitiateCheckout",
       {
@@ -152,7 +154,7 @@ export default function StoreHome() {
       },
       {
         email: formData.email,
-        phone: formData.phone,
+        phone: cleanPhone,
         skipCapi: true,
       }
     );
@@ -163,9 +165,9 @@ export default function StoreHome() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           productId: selectedProduct._id,
-          name: formData.name,
-          email: formData.email,
-          phone: formData.phone,
+          name: formData.name.trim(),
+          email: formData.email.trim(),
+          phone: cleanPhone,
           paymentGateway: "zinipay",
           metaEventId: eventId,
           fbp: fbCookies.fbp,
@@ -247,7 +249,7 @@ export default function StoreHome() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-base-200" data-theme="lightyellow">
+      <div className="min-h-screen flex items-center justify-center bg-base-200">
         <div className="flex flex-col items-center gap-4">
           <span className="loading loading-spinner loading-lg text-primary"></span>
           <span className="text-primary font-bold">লোডিং হচ্ছে...</span>
@@ -259,7 +261,7 @@ export default function StoreHome() {
   const currentSlideProduct = displaySliderProducts[activeSlide] || displaySliderProducts[0];
 
   return (
-    <div className="min-h-screen flex flex-col bg-base-200" data-theme="lightyellow">
+    <div className="min-h-screen flex flex-col bg-base-200">
       
       {/* Navbar with brand, search and live cart */}
       <Navbar />

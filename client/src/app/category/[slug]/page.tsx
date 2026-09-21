@@ -130,7 +130,7 @@ export default function CategoryCampaignPage({
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fafaf9] text-stone-900" data-theme="lightyellow">
+    <div className="min-h-screen flex flex-col bg-[#fafaf9] text-stone-900">
       <Navbar />
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-10 flex-1 max-w-7xl">

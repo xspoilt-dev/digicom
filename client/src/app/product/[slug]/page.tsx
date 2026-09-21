@@ -147,7 +147,7 @@ export default function ProductDetailPage({
 
   if (loading) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#fafaf9]" data-theme="lightyellow">
+      <div className="min-h-screen flex flex-col bg-[#fafaf9]">
         <Navbar />
         <div className="flex-1 flex flex-col items-center justify-center py-20 gap-4">
           <span className="loading loading-spinner loading-lg text-amber-500"></span>
@@ -160,7 +160,7 @@ export default function ProductDetailPage({
 
   if (error || !product) {
     return (
-      <div className="min-h-screen flex flex-col bg-[#fafaf9]" data-theme="lightyellow">
+      <div className="min-h-screen flex flex-col bg-[#fafaf9]">
         <Navbar />
         <main className="container mx-auto px-4 py-16 flex-1 flex items-center justify-center">
           <div className="card w-full max-w-md bg-white border border-stone-200 shadow-sm rounded-2xl p-8 text-center space-y-4">
@@ -194,7 +194,7 @@ export default function ProductDetailPage({
   const categorySlug = product.category || product.type;
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#fafaf9] text-stone-900 pb-20 lg:pb-0" data-theme="lightyellow">
+    <div className="min-h-screen flex flex-col bg-[#fafaf9] text-stone-900 pb-20 lg:pb-0">
       <Navbar />
 
       <main className="container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex-1 max-w-7xl">

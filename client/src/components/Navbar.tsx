@@ -42,9 +42,11 @@ export default function Navbar() {
           {/* Logo Brand */}
           <div className="navbar-start gap-2 w-auto shrink-0">
             <Link href="/" className="flex items-center gap-2.5 group">
-              <div className="w-10 h-10 rounded-2xl bg-amber-400 text-stone-950 flex items-center justify-center font-black text-xl shadow-xs group-hover:scale-105 transition-transform">
-                D
-              </div>
+              <img
+                src="/apple-touch-icon.png"
+                alt="Digitalcorebd.com"
+                className="w-10 h-10 rounded-2xl object-cover shadow-xs group-hover:scale-105 transition-transform border border-amber-200/50"
+              />
               <div>
                 <span className="text-lg md:text-xl font-black tracking-tight text-stone-900 group-hover:text-amber-700 transition-colors block leading-none">
                   Digitalcorebd.com

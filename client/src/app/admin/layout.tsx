@@ -190,9 +190,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <div className="card w-full max-w-md bg-base-100 border border-base-300 shadow-2xl rounded-3xl p-6 sm:p-10 animate-fadeIn" suppressHydrationWarning>
           
           <div className="text-center mb-8">
-            <div className="w-14 h-14 rounded-2xl bg-amber-400 flex items-center justify-center font-black text-xl text-stone-950 shadow-md mx-auto mb-4">
-              D
-            </div>
+            <img
+              src="/android-chrome-192x192.png"
+              alt="Digitalcorebd"
+              className="w-16 h-16 rounded-2xl object-cover shadow-md mx-auto mb-4 border border-amber-300/60"
+            />
             <h1 className="text-2xl font-black text-base-content tracking-tight">
               Digitalcorebd Admin
             </h1>
@@ -300,9 +302,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile Top App Bar */}
       <header className="md:hidden flex items-center justify-between px-4 py-3 bg-base-100 border-b border-base-300 sticky top-0 z-40 shadow-xs">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-amber-400 flex items-center justify-center font-black text-xs text-stone-950 shadow-xs">
-            D
-          </div>
+          <img
+            src="/apple-touch-icon.png"
+            alt="Digitalcorebd"
+            className="w-8 h-8 rounded-lg object-cover shadow-xs border border-stone-200"
+          />
           <div>
             <div className="font-extrabold text-sm tracking-tight text-base-content">Digitalcorebd</div>
             <div className="text-[10px] text-base-content/50 font-semibold mt-[-2px]">Admin Portal</div>
@@ -335,9 +339,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {/* Brand Header */}
         <div className="pb-6 border-b border-base-200 mb-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-xl bg-amber-400 flex items-center justify-center font-black text-base text-stone-950 shadow-xs group-hover:scale-105 transition-transform">
-              D
-            </div>
+            <img
+              src="/apple-touch-icon.png"
+              alt="Digitalcorebd"
+              className="w-10 h-10 rounded-xl object-cover shadow-xs group-hover:scale-105 transition-transform border border-stone-200"
+            />
             <div>
               <div className="flex items-center gap-1.5">
                 <div className="font-extrabold text-lg tracking-tight text-base-content">Digitalcorebd</div>
@@ -382,7 +388,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
             <div className="overflow-hidden flex-1">
               <div className="font-bold text-xs truncate text-base-content">
-                {adminUser?.email || "admin@kalobazar.com"}
+                {adminUser?.email || "admin@digitalcorebd.com"}
               </div>
               <div className="text-[10px] font-semibold text-emerald-600">Super Admin</div>
             </div>

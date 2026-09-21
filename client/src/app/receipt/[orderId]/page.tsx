@@ -217,10 +217,12 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
       {/* Top Navbar */}
       <div className="navbar bg-base-100 shadow-sm sticky top-0 z-50 px-4 md:px-8 border-b border-base-300">
         <div className="navbar-start gap-2">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center font-black text-lg text-primary-content shadow-xs">
-              D
-            </div>
+          <Link href="/" className="flex items-center gap-2.5">
+            <img
+              src="/apple-touch-icon.png"
+              alt="Digitalcorebd"
+              className="w-9 h-9 rounded-xl object-cover shadow-xs border border-stone-200"
+            />
             <span className="font-extrabold text-base md:text-lg tracking-tight text-base-content">
               Digitalcorebd.com
             </span>

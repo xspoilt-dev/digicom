@@ -23,6 +23,8 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
     const emailConfig = (await getSetting("email_settings")) || {};
     const apiKey = emailConfig.resendApiKey || process.env.RESEND_API_KEY;
     const fromEmail = emailConfig.fromEmail || "Digitalcorebd <noreply@digitalcorebd.com>";
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || "https://digitalcorebd.com";
+    const logoUrl = `${siteUrl}/android-chrome-192x192.png`;
 
     const companyInfo = (await getSetting("company_info")) || {};
     const rawWhatsapp = companyInfo.whatsapp || companyInfo.whatsappNumber || "01700000000";
@@ -121,9 +123,16 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
               <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);">
                 <!-- Header -->
                 <tr>
-                  <td style="background-color: #fbbf24; padding: 28px; text-align: center;">
-                    <div style="font-size: 24px; font-weight: 900; color: #0c0a09; letter-spacing: -0.025em; margin-bottom: 2px;">
-                      ${companyInfo.name || "Digitalcorebd"}
+                  <td style="background-color: #fbbf24; padding: 26px 20px; text-align: center;">
+                    <table border="0" cellspacing="0" cellpadding="0" style="margin: 0 auto 10px auto;">
+                      <tr>
+                        <td align="center">
+                          <img src="${logoUrl}" alt="${companyInfo.name || "Digitalcorebd"}" width="56" height="56" style="border-radius: 14px; display: block; border: 2px solid rgba(255, 255, 255, 0.8); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);" />
+                        </td>
+                      </tr>
+                    </table>
+                    <div style="font-size: 22px; font-weight: 900; color: #0c0a09; letter-spacing: -0.025em; margin-bottom: 2px;">
+                      ${companyInfo.name || "Digitalcorebd.com"}
                     </div>
                     <span style="font-size: 11px; font-weight: 700; color: #78350f; text-transform: uppercase; letter-spacing: 0.1em;">
                       Order Delivery Receipt

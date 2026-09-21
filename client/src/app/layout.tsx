@@ -8,15 +8,37 @@ import { ModalProvider } from "@/context/ModalContext";
 import CartDrawer from "@/components/CartDrawer";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://digitalcorebd.com"),
   title: "Digitalcorebd.com - Premium Digital Hub",
   description: "Premium Digital Accounts, Workspace Slots & Software Subscriptions",
   keywords: ["Digitalcorebd", "digital accounts", "canva pro", "netflix", "cursor pro", "chatgpt plus", "Bangladesh digital store"],
+  icons: {
+    icon: [
+      { url: "/favicon.ico" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/android-chrome-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/android-chrome-512x512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+  manifest: "/site.webmanifest",
   openGraph: {
     title: "Digitalcorebd.com - Premium Digital Hub",
     description: "Premium Digital Accounts, Workspace Slots & Software Subscriptions with instant automated delivery.",
     siteName: "Digitalcorebd",
     locale: "bn_BD",
     type: "website",
+    images: [
+      {
+        url: "/android-chrome-512x512.png",
+        width: 512,
+        height: 512,
+        alt: "Digitalcorebd.com",
+      },
+    ],
   },
 };
 
@@ -48,6 +70,11 @@ export default async function RootLayout({
   return (
     <html lang="bn" data-theme="kalobazar" suppressHydrationWarning>
       <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+        <link rel="manifest" href="/site.webmanifest" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link

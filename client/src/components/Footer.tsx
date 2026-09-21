@@ -43,9 +43,11 @@ export default function Footer() {
         
         {/* Brand Logo and Copyright */}
         <aside className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-400 text-stone-950 flex items-center justify-center font-black text-xl shadow-xs shrink-0">
-            D
-          </div>
+          <img
+            src="/apple-touch-icon.png"
+            alt={companyInfo.name || "Digitalcorebd.com"}
+            className="w-10 h-10 rounded-2xl object-cover shadow-xs shrink-0 border border-stone-200"
+          />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-base tracking-tight text-stone-900">
@@ -78,7 +80,7 @@ export default function Footer() {
             হোয়াটসঅ্যাপ হেল্পডেস্ক
           </a>
           <a
-            href={`mailto:${companyInfo.email || "support@kalobazar.com"}`}
+            href={`mailto:${companyInfo.email || "support@digitalcorebd.com"}`}
             className="hover:text-primary transition-colors"
           >
             ইমেইল সাপোর্ট

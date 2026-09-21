@@ -21,6 +21,7 @@ import {
   generateBanglaProductCopy,
   getOpenRouterConfig,
 } from "../services/openrouterService";
+import { getZiniPayApiKey } from "../utils/zinipay";
 import path from "path";
 import fs from "fs";
 import sharp from "sharp";
@@ -910,11 +911,38 @@ adminRouter.post("/categories", async (c) => {
   }
 });
 
+// Reorder categories batch
+adminRouter.put("/categories/reorder", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { categoryIds } = body;
+    if (!Array.isArray(categoryIds) || categoryIds.length === 0) {
+      return c.json({ success: false, message: "categoryIds array is required" }, 400);
+    }
+
+    const bulkOps = categoryIds.map((id: string, index: number) => ({
+      updateOne: {
+        filter: { _id: id },
+        update: { $set: { order: index + 1 } },
+      },
+    }));
+
+    await Category.bulkWrite(bulkOps);
+    const updated = await Category.find().sort({ order: 1, createdAt: 1 }).lean();
+    return c.json({ success: true, categories: updated });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // Update category (name, slug, description, order, active)
 adminRouter.put("/categories/:id", async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
+    if (body.order !== undefined) {
+      body.order = Math.max(1, Number(body.order) || 1);
+    }
     const cat = await Category.findByIdAndUpdate(id, body, { new: true });
     if (!cat) return c.json({ success: false, message: "Category not found" }, 404);
     return c.json({ success: true, category: cat });
@@ -963,6 +991,55 @@ adminRouter.post("/ai/generate-copy", async (c) => {
     return c.json(result);
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 400);
+  }
+});
+
+// ─── ZINIPAY GATEWAY TEST ───────────────────────────────────────────────────
+
+// Test ZiniPay Connection & API Key
+adminRouter.post("/zinipay/test", async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const apiKey = (body.apiKey || (await getZiniPayApiKey())).trim();
+
+    if (!apiKey) {
+      return c.json({ success: false, message: "No ZiniPay API key provided" }, 400);
+    }
+
+    const res = await fetch("https://api.zinipay.com/v1/payment/verify", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "zini-api-key": apiKey,
+      },
+      body: JSON.stringify({ invoice_id: "PROBE_AUTH_TEST" }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (
+      res.status === 401 ||
+      res.status === 403 ||
+      data.message?.toLowerCase().includes("unauthorized") ||
+      data.message?.toLowerCase().includes("invalid api key")
+    ) {
+      return c.json({
+        success: false,
+        message: data.message || "Invalid or unauthorized ZiniPay API Key.",
+      });
+    }
+
+    return c.json({
+      success: true,
+      message: "ZiniPay API credentials verified successfully!",
+      isSandbox: apiKey.startsWith("sandbox_"),
+      raw: data,
+    });
+  } catch (error: any) {
+    return c.json({
+      success: false,
+      message: `Failed to connect to ZiniPay API: ${error.message}`,
+    });
   }
 });
 

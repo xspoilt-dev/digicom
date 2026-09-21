@@ -92,6 +92,14 @@ export default function SettingsPage() {
   const [checkingCanbosoBalance, setCheckingCanbosoBalance] = useState(false);
   const [canbosoBalanceError, setCanbosoBalanceError] = useState("");
 
+  // ZiniPay Test State
+  const [testingZinipay, setTestingZinipay] = useState(false);
+  const [testZinipayResult, setTestZinipayResult] = useState<{
+    success: boolean;
+    message: string;
+    isSandbox?: boolean;
+  } | null>(null);
+
   // CAPI Test State
   const [testingCapi, setTestingCapi] = useState(false);
   const [testCapiResult, setTestCapiResult] = useState<any>(null);
@@ -198,6 +206,29 @@ export default function SettingsPage() {
       });
     } finally {
       setTestingAi(false);
+    }
+  };
+
+  const handleTestZinipay = async () => {
+    setTestingZinipay(true);
+    setTestZinipayResult(null);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/zinipay/test`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          apiKey: settings.zinipay_settings.apiKey,
+        }),
+      });
+      const data = await res.json();
+      setTestZinipayResult(data);
+    } catch (err: any) {
+      setTestZinipayResult({
+        success: false,
+        message: err.message || "Failed to communicate with ZiniPay server.",
+      });
+    } finally {
+      setTestingZinipay(false);
     }
   };
 
@@ -1029,7 +1060,21 @@ export default function SettingsPage() {
               </div>
 
               <div className="space-y-1.5 w-full">
-                <label className="block text-xs font-bold text-stone-800">Gateway API Key</label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-stone-800">Gateway API Key</label>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setSettings({
+                        ...settings,
+                        zinipay_settings: { ...settings.zinipay_settings, apiKey: "sandbox_test_8f4c9a2e7b31" },
+                      })
+                    }
+                    className="text-[11px] font-bold text-amber-700 hover:underline flex items-center gap-1 cursor-pointer"
+                  >
+                    <span>Use Sandbox Test Key</span>
+                  </button>
+                </div>
                 <div className="relative flex items-center w-full">
                   <input
                     type={showTokens["gateway"] ? "text" : "password"}
@@ -1051,15 +1096,55 @@ export default function SettingsPage() {
                     {showTokens["gateway"] ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                <span className="text-[11px] text-stone-500 block">
+                  Default sandbox key: <code className="bg-stone-100 px-1 py-0.5 rounded text-amber-700 font-mono">sandbox_test_8f4c9a2e7b31</code>
+                </span>
               </div>
 
-              <button
-                onClick={() => handleSettingsSubmit("zinipay_settings", settings.zinipay_settings)}
-                disabled={savingKey === "zinipay_settings"}
-                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold btn-sm shadow-sm cursor-pointer"
-              >
-                {savingKey === "zinipay_settings" ? "Saving..." : "Save Gateway Key"}
-              </button>
+              {/* Test Result Banner */}
+              {testZinipayResult && (
+                <div
+                  className={`p-4 rounded-2xl border text-xs font-medium ${
+                    testZinipayResult.success
+                      ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                      : "bg-rose-50 border-rose-200 text-rose-900"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 font-bold mb-1">
+                    {testZinipayResult.success ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    )}
+                    <span>{testZinipayResult.success ? "Connection Verified" : "Verification Failed"}</span>
+                  </div>
+                  <p>{testZinipayResult.message}</p>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={handleTestZinipay}
+                  disabled={testingZinipay}
+                  className="btn bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200 rounded-xl font-bold btn-sm flex items-center gap-2 cursor-pointer"
+                >
+                  {testingZinipay ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Zap className="w-3.5 h-3.5 text-amber-600" />
+                  )}
+                  <span>{testingZinipay ? "Verifying..." : "Test Connection"}</span>
+                </button>
+
+                <button
+                  onClick={() => handleSettingsSubmit("zinipay_settings", settings.zinipay_settings)}
+                  disabled={savingKey === "zinipay_settings"}
+                  className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold btn-sm shadow-sm cursor-pointer"
+                >
+                  {savingKey === "zinipay_settings" ? "Saving..." : "Save Gateway Key"}
+                </button>
+              </div>
             </div>
           </div>
         </div>

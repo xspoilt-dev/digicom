@@ -173,19 +173,39 @@ export default function AdminCategoriesPage() {
     }
   };
 
-  const handleOrderChange = async (cat: Category, newOrder: number) => {
+  const [reordering, setReordering] = useState(false);
+
+  const handleMove = async (currentIndex: number, direction: -1 | 1) => {
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= categories.length || reordering) return;
+
+    // Swap items in copy of list
+    const updatedList = [...categories];
+    const [movedItem] = updatedList.splice(currentIndex, 1);
+    updatedList.splice(targetIndex, 0, movedItem);
+
+    // Normalize sequentially to 1, 2, 3...
+    const normalized = updatedList.map((c, i) => ({ ...c, order: i + 1 }));
+    setCategories(normalized); // Optimistic UI update
+
+    setReordering(true);
     try {
-      const res = await fetch(`${apiUrl}/api/admin/categories/${cat._id}`, {
+      const res = await fetch(`${apiUrl}/api/admin/categories/reorder`, {
         method: "PUT",
         headers: getAuthHeaders(),
-        body: JSON.stringify({ order: newOrder }),
+        body: JSON.stringify({ categoryIds: normalized.map((c) => c._id) }),
       });
       const data = await res.json();
-      if (data.success) {
+      if (data.success && Array.isArray(data.categories)) {
+        setCategories(data.categories);
+      } else {
         fetchCategories();
       }
     } catch (err) {
-      console.error(err);
+      console.error("Failed to reorder categories:", err);
+      fetchCategories();
+    } finally {
+      setReordering(false);
     }
   };
 
@@ -307,8 +327,9 @@ export default function AdminCategoriesPage() {
                       <div className="flex items-center justify-center gap-1">
                         <button
                           type="button"
-                          onClick={() => handleOrderChange(cat, cat.order - 1)}
-                          className="btn btn-ghost btn-xs btn-square hover:bg-amber-100 text-stone-600"
+                          disabled={idx === 0 || reordering}
+                          onClick={() => handleMove(idx, -1)}
+                          className="btn btn-ghost btn-xs btn-square hover:bg-amber-100 text-stone-600 disabled:opacity-25 disabled:pointer-events-none"
                           title="Move Up"
                         >
                           <ArrowUp className="w-3.5 h-3.5" />
@@ -318,8 +339,9 @@ export default function AdminCategoriesPage() {
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleOrderChange(cat, cat.order + 1)}
-                          className="btn btn-ghost btn-xs btn-square hover:bg-amber-100 text-stone-600"
+                          disabled={idx === categories.length - 1 || reordering}
+                          onClick={() => handleMove(idx, 1)}
+                          className="btn btn-ghost btn-xs btn-square hover:bg-amber-100 text-stone-600 disabled:opacity-25 disabled:pointer-events-none"
                           title="Move Down"
                         >
                           <ArrowDown className="w-3.5 h-3.5" />
@@ -501,12 +523,12 @@ export default function AdminCategoriesPage() {
                   <input
                     type="number"
                     required
-                    min={0}
+                    min={1}
                     className="input input-bordered w-full rounded-xl bg-stone-50 border-stone-300 focus:border-amber-400 text-sm font-bold"
                     value={formData.order}
-                    onChange={(e) => setFormData({ ...formData, order: parseInt(e.target.value) || 0 })}
+                    onChange={(e) => setFormData({ ...formData, order: Math.max(1, parseInt(e.target.value) || 1) })}
                   />
-                  <span className="text-[10px] text-stone-400 mt-1">কম সংখ্যা = আগে দেখাবে</span>
+                  <span className="text-[10px] text-stone-400 mt-1">কম সংখ্যা = আগে দেখাবে (১, ২, ৩...)</span>
                 </div>
 
                 <div className="form-control">

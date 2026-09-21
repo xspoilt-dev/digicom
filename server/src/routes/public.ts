@@ -274,13 +274,23 @@ publicRouter.get("/categories", async (c) => {
     // For each category, fetch its products efficiently
     const result = await Promise.all(
       categories.map(async (cat: any) => {
+        const orConditions: any[] = [
+          { category: cat.slug },
+          { category: cat.name },
+          { type: cat.slug },
+        ];
+        if (cat._id) {
+          orConditions.push({ category: String(cat._id) });
+        }
+
         const products = await Product.find({
           active: true,
-          $or: [{ category: cat.slug }, { type: cat.slug }],
+          $or: orConditions,
         })
           .select("-filePath")
           .limit(20)
           .lean();
+
         return {
           _id: cat._id,
           name: cat.name,
@@ -301,11 +311,21 @@ publicRouter.get("/categories", async (c) => {
 publicRouter.get("/categories/:slug", async (c) => {
   try {
     const slug = c.req.param("slug").toLowerCase();
-    const catDoc = await Category.findOne({ slug }).lean() as any;
+    const catDoc = (await Category.findOne({ slug }).lean()) as any;
+    const orConditions: any[] = [{ category: slug }, { type: slug }];
+    if (catDoc?.name) {
+      orConditions.push({ category: catDoc.name });
+    }
+    if (catDoc?._id) {
+      orConditions.push({ category: String(catDoc._id) });
+    }
+
     const products = await Product.find({
       active: true,
-      $or: [{ category: slug }, { type: slug }],
-    }).select("-filePath").lean();
+      $or: orConditions,
+    })
+      .select("-filePath")
+      .lean();
 
     return c.json({
       success: true,

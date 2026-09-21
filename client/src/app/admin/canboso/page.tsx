@@ -837,7 +837,7 @@ export default function CanbosoStockPage() {
                   >
                     <option value="">Select Category</option>
                     {categories.map((c) => (
-                      <option key={c._id} value={c.name}>
+                      <option key={c._id} value={c.slug || c.name}>
                         {c.name}
                       </option>
                     ))}

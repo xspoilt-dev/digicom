@@ -229,18 +229,12 @@ export default function StoreHome() {
       ? products.filter((p) => p.isFeatured && p.active !== false)
       : products.filter((p) => p.active !== false).slice(0, 3);
 
-  // Featured products section (prioritizes products flagged as isFeatured by admin)
-  const explicitlyFeatured = filteredProducts.filter((p) => p.isFeatured && p.active !== false);
-  const displayFeaturedProducts =
-    explicitlyFeatured.length > 0
-      ? explicitlyFeatured
-      : filteredProducts.slice(0, 3);
+  // Check which categories actually have active products
+  const categoriesWithProducts = categories.filter((cat) => cat.products && cat.products.length > 0);
 
-  // Catalog products (remaining items not in featured section, or all if none featured)
-  const displayCatalogProducts =
-    explicitlyFeatured.length > 0
-      ? filteredProducts.filter((p) => !explicitlyFeatured.some((feat) => feat._id === p._id))
-      : filteredProducts.slice(3);
+  // Check if there are any products not shown in any category section
+  const categorizedIds = new Set(categoriesWithProducts.flatMap((c) => (c.products || []).map((p) => String(p._id))));
+  const uncategorizedProducts = filteredProducts.filter((p) => !categorizedIds.has(String(p._id)));
 
   // Auto-advance slider if more than 1 item
   useEffect(() => {
@@ -481,12 +475,45 @@ export default function StoreHome() {
             <span className="loading loading-spinner loading-lg text-amber-500"></span>
             <span className="text-stone-400 text-sm">লোড হচ্ছে...</span>
           </div>
-        ) : categories.length === 0 ? (
-          /* No categories configured yet — fall back to flat product grid */
+        ) : searchQuery.trim() ? (
+          /* Search results view */
+          <section className="mb-12">
+            <div className="flex items-center justify-between pb-3 mb-5 border-b border-stone-200/80">
+              <div className="flex items-center gap-2.5">
+                <div className="w-1.5 h-6 bg-amber-400 rounded-full"></div>
+                <h2 className="text-lg sm:text-xl font-bold text-stone-800">
+                  অনুসন্ধান ফলাফল ({filteredProducts.length}টি পণ্য)
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setFilteredProducts(products);
+                }}
+                className="text-xs font-bold text-amber-700 hover:underline"
+              >
+                রিসেট করুন
+              </button>
+            </div>
+            {filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
+                {filteredProducts.map((product) => (
+                  <ProductCard key={product._id} product={product} apiUrl={apiUrl} addToCart={addToCart} router={router} />
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-white rounded-2xl border border-stone-200">
+                <p className="text-stone-500 text-sm">"{searchQuery}" এর সাথে মিলে এমন কোনো পণ্য পাওয়া যায়নি।</p>
+              </div>
+            )}
+          </section>
+        ) : categoriesWithProducts.length === 0 ? (
+          /* Fallback: Flat product grid if no category mapping matched */
           <section className="mb-12">
             <div className="flex items-center gap-3 mb-5">
               <div className="w-1.5 h-6 bg-amber-400 rounded-full"></div>
-              <h2 className="text-lg sm:text-xl font-bold text-stone-800">সকল পণ্য</h2>
+              <h2 className="text-lg sm:text-xl font-bold text-stone-800">সকল পণ্য ({filteredProducts.length}টি)</h2>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
               {filteredProducts.map((product) => (
@@ -495,45 +522,45 @@ export default function StoreHome() {
             </div>
           </section>
         ) : (
-          /* Category-by-category display — admin-controlled order */
+          /* Category-by-category display with uncategorized product support */
           <div className="space-y-14">
-            {categories.map((cat) => (
-              cat.products.length > 0 && (
-                <section key={cat._id} className="scroll-mt-6">
-                  {/* Category Section Header */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-stone-200/80 gap-3">
-                    <div className="flex items-start sm:items-center gap-3">
-                      <div className="w-1.5 h-8 bg-amber-400 rounded-full mt-0.5 sm:mt-0"></div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h2 className="text-lg sm:text-xl font-black text-stone-900 leading-tight">
-                            {cat.name}
-                          </h2>
-                          <span className="text-[11px] font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-200">
-                            {cat.products.length}টি পণ্য
-                          </span>
-                        </div>
+            {categoriesWithProducts.map((cat) => (
+              <section key={cat._id} className="scroll-mt-6">
+                {/* Category Section Header */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 mb-4 border-b border-stone-200/80 gap-3">
+                  <div className="flex items-start sm:items-center gap-3">
+                    <div className="w-1.5 h-8 bg-amber-400 rounded-full mt-0.5 sm:mt-0"></div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg sm:text-xl font-black text-stone-900 leading-tight">
+                          {cat.name}
+                        </h2>
+                        <span className="text-[11px] font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-200">
+                          {cat.products.length}টি পণ্য
+                        </span>
                       </div>
                     </div>
-
-                    {/* "সব পণ্য দেখুন" Button for that category route */}
-                    <Link
-                      href={`/category/${cat.slug}`}
-                      className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-stone-900 hover:text-amber-800 bg-white hover:bg-amber-50 border border-stone-300 hover:border-amber-400 px-4 py-2 rounded-xl transition-all shadow-xs shrink-0 self-start sm:self-auto"
-                    >
-                      <span>সব পণ্য দেখুন</span>
-                      <ArrowRight className="w-3.5 h-3.5 text-amber-600" />
-                    </Link>
                   </div>
 
-                  {/* 2-col mobile, 3-5 col desktop grid */}
-                  <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
-                    {cat.products.map((product) => (
-                      <ProductCard key={product._id} product={product} apiUrl={apiUrl} addToCart={addToCart} router={router} />
-                    ))}
-                  </div>
+                  {/* "সব পণ্য দেখুন" Button for that category route */}
+                  <Link
+                    href={`/category/${cat.slug}`}
+                    className="inline-flex items-center justify-center gap-1.5 text-xs font-bold text-stone-900 hover:text-amber-800 bg-white hover:bg-amber-50 border border-stone-300 hover:border-amber-400 px-4 py-2 rounded-xl transition-all shadow-xs shrink-0 self-start sm:self-auto"
+                  >
+                    <span>সব পণ্য দেখুন</span>
+                    <ArrowRight className="w-3.5 h-3.5 text-amber-600" />
+                  </Link>
+                </div>
 
-                  {/* Mobile "সব পণ্য দেখুন" bottom bar if 2+ products */}
+                {/* 2-col mobile, 3-5 col desktop grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
+                  {cat.products.map((product) => (
+                    <ProductCard key={product._id} product={product} apiUrl={apiUrl} addToCart={addToCart} router={router} />
+                  ))}
+                </div>
+
+                {/* Mobile "সব পণ্য দেখুন" bottom bar if 2+ products */}
+                {cat.products.length > 2 && (
                   <div className="sm:hidden mt-3">
                     <Link
                       href={`/category/${cat.slug}`}
@@ -543,9 +570,31 @@ export default function StoreHome() {
                       <ArrowRight className="w-3 h-3 text-amber-600" />
                     </Link>
                   </div>
-                </section>
-              )
+                )}
+              </section>
             ))}
+
+            {/* Uncategorized products if any exist */}
+            {uncategorizedProducts.length > 0 && (
+              <section className="scroll-mt-6">
+                <div className="flex items-center gap-3 pb-3 mb-4 border-b border-stone-200/80">
+                  <div className="w-1.5 h-8 bg-amber-400 rounded-full"></div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg sm:text-xl font-black text-stone-900 leading-tight">
+                      অন্যান্য সকল পণ্য
+                    </h2>
+                    <span className="text-[11px] font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-200">
+                      {uncategorizedProducts.length}টি পণ্য
+                    </span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
+                  {uncategorizedProducts.map((product) => (
+                    <ProductCard key={product._id} product={product} apiUrl={apiUrl} addToCart={addToCart} router={router} />
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
 

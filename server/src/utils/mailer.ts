@@ -24,7 +24,7 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
     const apiKey = emailConfig.resendApiKey || process.env.RESEND_API_KEY;
     const fromEmail = emailConfig.fromEmail || "Kalobazar.shop <noreply@kalobazar.shop>";
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || "https://kalobazar.shop";
-    const logoUrl = `${siteUrl}/android-chrome-192x192.png`;
+    const logoUrl = `${siteUrl}/horizontal.png`;
 
     const companyInfo = (await getSetting("company_info")) || {};
     const rawWhatsapp = companyInfo.whatsapp || companyInfo.whatsappNumber || "01700000000";
@@ -123,19 +123,16 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
               <table width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 24px; overflow: hidden; box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.03);">
                 <!-- Header -->
                 <tr>
-                  <td style="background-color: #fbbf24; padding: 26px 20px; text-align: center;">
+                  <td style="background-color: #fbbf24; padding: 24px 20px; text-align: center;">
                     <table border="0" cellspacing="0" cellpadding="0" style="margin: 0 auto 10px auto;">
                       <tr>
                         <td align="center">
-                          <img src="${logoUrl}" alt="${companyInfo.name || "Kalobazar.shop"}" width="56" height="56" style="border-radius: 14px; display: block; border: 2px solid rgba(255, 255, 255, 0.8); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);" />
+                          <img src="${siteUrl}/horizontal.png" alt="${companyInfo.name || "Kalobazar.shop"}" height="48" style="height: 48px; width: auto; max-width: 220px; display: block; margin: 0 auto;" />
                         </td>
                       </tr>
                     </table>
-                    <div style="font-size: 22px; font-weight: 900; color: #0c0a09; letter-spacing: -0.025em; margin-bottom: 2px;">
-                      ${companyInfo.name || "Kalobazar.shop"}
-                    </div>
-                    <span style="font-size: 11px; font-weight: 700; color: #78350f; text-transform: uppercase; letter-spacing: 0.1em;">
-                      Order Delivery Receipt
+                    <span style="font-size: 11px; font-weight: 800; color: #78350f; text-transform: uppercase; letter-spacing: 0.1em; display: inline-block; background-color: rgba(255, 255, 255, 0.4); padding: 3px 12px; border-radius: 20px;">
+                      অর্ডার ডেলিভারি ইনভয়েস ও এক্সেস রিসিপ্ট
                     </span>
                   </td>
                 </tr>

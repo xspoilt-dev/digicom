@@ -42,24 +42,21 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
         
         {/* Brand Logo and Copyright */}
-        <aside className="flex items-center gap-3">
-          <img
-            src="/apple-touch-icon.png"
-            alt={companyInfo.name || "Kalobazar.shop"}
-            className="w-10 h-10 rounded-2xl object-cover shadow-xs shrink-0 border border-stone-200"
-          />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base tracking-tight text-stone-900">
-                {companyInfo.name || "Kalobazar.shop"}
-              </span>
-              <span className="bg-amber-100 text-amber-800 border border-amber-200 font-bold text-[9px] uppercase px-2 py-0.5 rounded-full">
-                অফিশিয়াল
-              </span>
-            </div>
-            <p className="text-xs text-stone-500 mt-0.5">
+        <aside className="flex flex-col sm:flex-row items-center gap-3">
+          <Link href="/" className="inline-block group" aria-label="Kalobazar.shop">
+            <img
+              src="/horizontal.png"
+              alt={companyInfo.name || "Kalobazar.shop"}
+              className="h-9 w-auto object-contain group-hover:opacity-90 transition-opacity"
+            />
+          </Link>
+          <div className="flex items-center gap-2 sm:border-l sm:border-stone-200 sm:pl-3">
+            <p className="text-xs text-stone-500">
               © ২০২৬ {companyInfo.name || "Kalobazar.shop"}. সর্বস্বত্ব সংরক্ষিত।
             </p>
+            <span className="bg-amber-100 text-amber-800 border border-amber-200 font-bold text-[9px] uppercase px-2 py-0.5 rounded-full">
+              অফিশিয়াল
+            </span>
           </div>
         </aside>
 

@@ -41,20 +41,12 @@ export default function Navbar() {
         <div className="navbar min-h-16 p-0 flex items-center justify-between gap-4">
           {/* Logo Brand */}
           <div className="navbar-start gap-2 w-auto shrink-0">
-            <Link href="/" className="flex items-center gap-2.5 group">
+            <Link href="/" className="flex items-center group py-1" aria-label="Kalobazar.shop Home">
               <img
-                src="/apple-touch-icon.png"
+                src="/horizontal.png"
                 alt="Kalobazar.shop"
-                className="w-10 h-10 rounded-2xl object-cover shadow-xs group-hover:scale-105 transition-transform border border-amber-200/50"
+                className="h-10 sm:h-11 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-xs"
               />
-              <div>
-                <span className="text-lg md:text-xl font-black tracking-tight text-stone-900 group-hover:text-amber-700 transition-colors block leading-none">
-                  Kalobazar.shop
-                </span>
-                <div className="text-[10px] text-amber-700 font-bold mt-1 block leading-none">
-                  ডিজিটাল একাউন্ট ও সাবস্ক্রিপশন
-                </div>
-              </div>
             </Link>
           </div>
 

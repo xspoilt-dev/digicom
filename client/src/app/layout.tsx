@@ -33,12 +33,24 @@ export const metadata: Metadata = {
     type: "website",
     images: [
       {
+        url: "/horizontal.png",
+        width: 1175,
+        height: 369,
+        alt: "Kalobazar.shop",
+      },
+      {
         url: "/android-chrome-512x512.png",
         width: 512,
         height: 512,
-        alt: "Kalobazar.shop",
+        alt: "Kalobazar.shop Icon",
       },
     ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Kalobazar.shop - Premium Digital Hub",
+    description: "Premium Digital Accounts, Workspace Slots & Software Subscriptions with instant automated delivery.",
+    images: ["/horizontal.png"],
   },
 };
 

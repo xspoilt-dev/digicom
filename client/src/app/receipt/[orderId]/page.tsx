@@ -217,15 +217,12 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
       {/* Top Navbar */}
       <div className="navbar bg-base-100 shadow-sm sticky top-0 z-50 px-4 md:px-8 border-b border-base-300">
         <div className="navbar-start gap-2">
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/" className="flex items-center group py-1" aria-label="Kalobazar.shop Home">
             <img
-              src="/apple-touch-icon.png"
+              src="/horizontal.png"
               alt="Kalobazar.shop"
-              className="w-9 h-9 rounded-xl object-cover shadow-xs border border-stone-200"
+              className="h-8 md:h-9 w-auto object-contain group-hover:scale-105 transition-transform drop-shadow-xs"
             />
-            <span className="font-extrabold text-base md:text-lg tracking-tight text-base-content">
-              Kalobazar.shop
-            </span>
           </Link>
         </div>
         <div className="navbar-end gap-2">

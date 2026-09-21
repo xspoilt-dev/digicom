@@ -191,12 +191,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           
           <div className="text-center mb-8">
             <img
-              src="/android-chrome-192x192.png"
+              src="/horizontal.png"
               alt="Kalobazar.shop"
-              className="w-16 h-16 rounded-2xl object-cover shadow-md mx-auto mb-4 border border-amber-300/60"
+              className="h-14 sm:h-16 w-auto object-contain mx-auto mb-4 drop-shadow-sm"
             />
-            <h1 className="text-2xl font-black text-base-content tracking-tight">
-              Kalobazar.shop Admin
+            <h1 className="text-xl font-black text-base-content tracking-tight">
+              এডমিন কন্ট্রোল প্যানেল
             </h1>
             <p className="text-xs text-base-content/60 mt-1 font-medium">
               মার্কেটপ্লেস কন্ট্রোল ও ম্যানেজমেন্ট পোর্টাল
@@ -301,16 +301,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       
       {/* Mobile Top App Bar */}
       <header className="md:hidden flex items-center justify-between px-4 py-3 bg-base-100 border-b border-base-300 sticky top-0 z-40 shadow-xs">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           <img
-            src="/apple-touch-icon.png"
+            src="/horizontal.png"
             alt="Kalobazar.shop"
-            className="w-8 h-8 rounded-lg object-cover shadow-xs border border-stone-200"
+            className="h-8 w-auto object-contain"
           />
-          <div>
-            <div className="font-extrabold text-sm tracking-tight text-base-content">Kalobazar.shop</div>
-            <div className="text-[10px] text-base-content/50 font-semibold mt-[-2px]">Admin Portal</div>
-          </div>
+          <span className="badge bg-amber-400 text-stone-950 badge-xs font-black text-[9px] uppercase px-1.5 py-0.5 border-none">
+            Admin
+          </span>
         </div>
 
         <button
@@ -337,19 +336,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         }`}
       >
         {/* Brand Header */}
-        <div className="pb-6 border-b border-base-200 mb-6 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <img
-              src="/apple-touch-icon.png"
-              alt="Kalobazar.shop"
-              className="w-10 h-10 rounded-xl object-cover shadow-xs group-hover:scale-105 transition-transform border border-stone-200"
-            />
-            <div>
-              <div className="flex items-center gap-1.5">
-                <div className="font-extrabold text-lg tracking-tight text-base-content">Kalobazar.shop</div>
-                <span className="badge bg-amber-400 text-stone-950 badge-xs font-bold text-[8px] uppercase border-none">Admin</span>
-              </div>
-              <div className="text-[10px] text-base-content/60 font-semibold mt-[-3px]">Store Management</div>
+        <div className="pb-5 border-b border-base-200 mb-5 flex items-center justify-between">
+          <Link href="/" className="flex flex-col gap-1.5 group">
+            <div className="flex items-center justify-between gap-2">
+              <img
+                src="/horizontal.png"
+                alt="Kalobazar.shop"
+                className="h-9 w-auto object-contain group-hover:scale-105 transition-transform"
+              />
+              <span className="badge bg-amber-400 text-stone-950 badge-xs font-black text-[9px] uppercase px-1.5 py-0.5 border-none">
+                Admin
+              </span>
+            </div>
+            <div className="text-[10px] text-base-content/60 font-semibold tracking-wide">
+              Store Management Portal
             </div>
           </Link>
           <button

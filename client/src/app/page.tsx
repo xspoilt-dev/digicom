@@ -416,50 +416,6 @@ export default function StoreHome() {
         </section>
       )}
 
-      {/* Trust & Value Proposition Strip (Desktop & Mobile) */}
-      <section className="container mx-auto px-4 md:px-8 mt-4 sm:mt-6">
-        <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
-          <div className="bg-white border border-stone-200/90 rounded-2xl p-3 sm:p-4 flex items-center gap-3 shadow-2xs hover:border-amber-400 transition-all">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100/90 flex items-center justify-center shrink-0">
-              <Zap className="w-4 h-4 sm:w-5 sm:h-5 text-amber-700" />
-            </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-stone-900 leading-tight">তাৎক্ষণিক ডেলিভারি</h4>
-              <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">পেমেন্টের সাথে সাথেই অটোমেশন</p>
-            </div>
-          </div>
-
-          <div className="bg-white border border-stone-200/90 rounded-2xl p-3 sm:p-4 flex items-center gap-3 shadow-2xs hover:border-amber-400 transition-all">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-emerald-100/90 flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-600" />
-            </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-stone-900 leading-tight">১০০% ভেরিফাইড</h4>
-              <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">অফিশিয়াল প্রিমিয়াম সার্ভিস</p>
-            </div>
-          </div>
-
-          <div className="bg-white border border-stone-200/90 rounded-2xl p-3 sm:p-4 flex items-center gap-3 shadow-2xs hover:border-amber-400 transition-all">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-blue-100/90 flex items-center justify-center shrink-0">
-              <Clock className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
-            </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-stone-900 leading-tight">ফুল মেয়াদ ওয়ারেন্টি</h4>
-              <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">যেকোনো সমস্যায় রিপ্লেসমেন্ট</p>
-            </div>
-          </div>
-
-          <div className="bg-white border border-stone-200/90 rounded-2xl p-3 sm:p-4 flex items-center gap-3 shadow-2xs hover:border-amber-400 transition-all">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-amber-100/90 flex items-center justify-center shrink-0">
-              <Star className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500 fill-amber-400" />
-            </div>
-            <div>
-              <h4 className="text-xs sm:text-sm font-bold text-stone-900 leading-tight">২৪/৭ সাপোর্ট</h4>
-              <p className="text-[10px] sm:text-xs text-stone-500 mt-0.5">হোয়াটসঅ্যাপ হেল্পডেস্ক সুবিধা</p>
-            </div>
-          </div>
-        </div>
-      </section>
 
       {/* Main product showcase — Category by Category */}
       <main className="container mx-auto px-4 md:px-8 py-8 flex-1 max-w-7xl">

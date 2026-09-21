@@ -315,12 +315,6 @@ export default function SettingsPage() {
     setShowTokens((prev) => ({ ...prev, [field]: !prev[field] }));
   };
 
-  const copyToClipboard = (text: string, id: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedKey(id);
-    setTimeout(() => setCopiedKey(null), 2000);
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center p-24">
@@ -334,14 +328,14 @@ export default function SettingsPage() {
 
   // Preset model options
   const PRESET_MODELS = [
-    { id: "google/gemma-4-26b-a4b-it:free", name: "Google Gemma 4 (26B) - Free & Fast", tag: "Free" },
-    { id: "meta-llama/llama-3.3-70b-instruct:free", name: "Llama 3.3 (70B) - High Quality Free", tag: "Free" },
-    { id: "deepseek/deepseek-chat", name: "DeepSeek V3 (Chat) - High Performance", tag: "Ultra Low Cost" },
-    { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1 (Reasoning) - Free", tag: "Free" },
-    { id: "meta-llama/llama-3.1-8b-instruct:free", name: "Llama 3.1 (8B) - Lightweight", tag: "Free" },
-    { id: "mistralai/mistral-small-24b-instruct-2501:free", name: "Mistral Small (24B) - Free", tag: "Free" },
-    { id: "openai/gpt-4o-mini", name: "OpenAI GPT-4o Mini - Reliable", tag: "Paid" },
-    { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet - Best Quality", tag: "Paid" },
+    { id: "google/gemma-4-26b-a4b-it:free", name: "Google Gemma 4 (26B) - Free Tier", tag: "Free" },
+    { id: "google/gemma-4-31b-it:free", name: "Google Gemma 4 (31B) - Free Tier", tag: "Free" },
+    { id: "nex-agi/nex-n2.5-pro:free", name: "Nex N2.5 Pro - Free & Active", tag: "Free" },
+    { id: "z-ai/glm-5.2:free", name: "GLM 5.2 - Free & Fast", tag: "Free" },
+    { id: "deepseek/deepseek-chat", name: "DeepSeek V3 (Chat) - Best Quality & Ultra Low Cost (~$0.001)", tag: "Paid / Top" },
+    { id: "meta-llama/llama-3.3-70b-instruct", name: "Meta Llama 3.3 (70B) - High Quality", tag: "Paid" },
+    { id: "openai/gpt-4o-mini", name: "OpenAI GPT-4o Mini - Ultra Fast & Cheap", tag: "Paid" },
+    { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet - Flagship Copywriting", tag: "Paid" },
   ];
 
   const tabsConfig = [
@@ -412,7 +406,7 @@ export default function SettingsPage() {
             }`}
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-            <span>AI: {settings.openrouter_settings?.apiKey ? "Ready" : "No Token"}</span>
+            <span>AI: {settings.openrouter_settings?.apiKey ? "Configured" : "No Token"}</span>
           </span>
 
           <span
@@ -435,7 +429,7 @@ export default function SettingsPage() {
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all border shrink-0 ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs sm:text-sm whitespace-nowrap transition-all border shrink-0 cursor-pointer ${
                 isActive
                   ? "bg-amber-400 text-stone-950 border-amber-400 shadow-xs"
                   : "bg-white text-stone-600 border-stone-200/80 hover:bg-stone-100 hover:text-stone-900"
@@ -484,24 +478,22 @@ export default function SettingsPage() {
               className="btn btn-outline btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5 self-start sm:self-auto"
             >
               <Bot className="w-3.5 h-3.5 text-amber-500" />
-              <span>Explore 200+ Models</span>
+              <span>Browse OpenRouter Models</span>
               <ExternalLink className="w-3 h-3 text-stone-400" />
             </a>
           </div>
 
-          <div className="space-y-5">
-            {/* API Key */}
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-800">
-                  OpenRouter API Key (sk-or-v1-...) *
-                </span>
+          <div className="space-y-6">
+            {/* API Key Field */}
+            <div className="space-y-1.5 w-full">
+              <label className="block text-xs font-bold text-stone-800">
+                OpenRouter API Key (sk-or-v1-...) *
               </label>
-              <div className="relative flex items-center">
+              <div className="relative flex items-center w-full">
                 <input
                   type={showTokens["openrouter"] ? "text" : "password"}
                   placeholder="sk-or-v1-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full font-mono text-xs pr-10"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full font-mono text-xs pr-10 block"
                   value={settings.openrouter_settings?.apiKey || ""}
                   onChange={(e) =>
                     setSettings({
@@ -521,30 +513,28 @@ export default function SettingsPage() {
                   {showTokens["openrouter"] ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500">
-                  Get your free API key at{" "}
-                  <a
-                    href="https://openrouter.ai/keys"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-amber-600 underline font-bold"
-                  >
-                    openrouter.ai/keys
-                  </a>
-                  . Free models like <span className="font-mono font-bold text-stone-700">google/gemma-4-26b-a4b-it:free</span> require zero balance!
-                </span>
-              </label>
+              <p className="text-[11px] text-stone-500 mt-1">
+                Get your API key at{" "}
+                <a
+                  href="https://openrouter.ai/keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-amber-600 underline font-bold"
+                >
+                  openrouter.ai/keys
+                </a>
+                . Free models like <span className="font-mono font-bold text-stone-700">google/gemma-4-26b-a4b-it:free</span> require zero cost!
+              </p>
             </div>
 
-            {/* Model Preset and Custom Input */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-800">Quick Model Preset</span>
+            {/* Model Selection Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">
+                  Quick Model Preset
                 </label>
                 <select
-                  className="select select-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl bg-stone-50/80 text-stone-900 text-xs font-semibold"
+                  className="select select-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl bg-stone-50/80 text-stone-900 text-xs font-semibold w-full block"
                   value={
                     PRESET_MODELS.some((m) => m.id === settings.openrouter_settings?.model)
                       ? settings.openrouter_settings?.model
@@ -569,21 +559,19 @@ export default function SettingsPage() {
                   ))}
                   <option value="custom">Custom Model (Paste Any OpenRouter Model ID)</option>
                 </select>
-                <label className="label py-1">
-                  <span className="label-text-alt text-stone-500">Choose a recommended preset to auto-fill</span>
-                </label>
+                <p className="text-[11px] text-stone-500 mt-1">
+                  Choose a recommended preset to auto-fill the identifier
+                </p>
               </div>
 
-              <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-800">
-                    Model Identifier (Editable / Paste Any Model)
-                  </span>
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">
+                  Model Identifier (Editable / Paste Any Model)
                 </label>
                 <input
                   type="text"
                   placeholder="e.g. google/gemma-4-26b-a4b-it:free"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs font-mono font-bold"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs font-mono font-bold block"
                   value={settings.openrouter_settings?.model || ""}
                   onChange={(e) =>
                     setSettings({
@@ -595,25 +583,21 @@ export default function SettingsPage() {
                     })
                   }
                 />
-                <label className="label py-1">
-                  <span className="label-text-alt text-stone-500">
-                    You can paste any model like <span className="font-mono font-bold">google/gemma-4-26b-a4b-it:free</span>
-                  </span>
-                </label>
+                <p className="text-[11px] text-stone-500 mt-1">
+                  You can paste any model like <span className="font-mono font-bold text-stone-700">google/gemma-4-26b-a4b-it:free</span>
+                </p>
               </div>
             </div>
 
-            {/* Custom Instructions */}
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-800">
-                  Custom Copywriting Rules / Instructions (Optional)
-                </span>
+            {/* Custom Instructions Textarea */}
+            <div className="space-y-1.5 w-full">
+              <label className="block text-xs font-bold text-stone-800">
+                Custom Copywriting Rules / Instructions (Optional)
               </label>
               <textarea
-                rows={3}
+                rows={4}
                 placeholder="e.g. সর্বদাই ইনস্ট্যান্ট অটো ডেলিভারি, বিকাশ পেমেন্ট এবং ফুল মেয়াদ রিপ্লেসমেন্ট ওয়ারেন্টির কথা বিশেষভাবে উল্লেখ করবে।"
-                className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50/80 text-stone-900 text-xs leading-relaxed"
+                className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50/80 text-stone-900 text-xs leading-relaxed w-full block"
                 value={settings.openrouter_settings?.customInstructions || ""}
                 onChange={(e) =>
                   setSettings({
@@ -625,39 +609,35 @@ export default function SettingsPage() {
                   })
                 }
               />
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500">
-                  Appended to the AI system prompt to enforce your store&apos;s specific marketing tone or warranty promises
-                </span>
-              </label>
+              <p className="text-[11px] text-stone-500 mt-1">
+                Appended to the AI system prompt to enforce your store&apos;s specific marketing tone or warranty promises
+              </p>
             </div>
 
             {/* Auto-generate Toggle */}
-            <div className="bg-stone-50/90 border border-stone-200/90 rounded-2xl p-4">
-              <label className="label cursor-pointer justify-start gap-3 p-0">
-                <input
-                  type="checkbox"
-                  className="toggle toggle-warning toggle-sm"
-                  checked={settings.openrouter_settings?.autoGenerateOnImport !== false}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      openrouter_settings: {
-                        ...settings.openrouter_settings,
-                        autoGenerateOnImport: e.target.checked,
-                      },
-                    })
-                  }
-                />
-                <div>
-                  <span className="label-text font-bold text-xs text-stone-900 block">
-                    AI Copywriting Assistant in Canboso Import Modal
-                  </span>
-                  <span className="text-[11px] text-stone-500 block">
-                    Enables 1-click &apos;✨ AI দিয়ে বাংলায় লিখুন&apos; button when importing products from Canboso stock
-                  </span>
-                </div>
-              </label>
+            <div className="bg-stone-50/90 border border-stone-200/90 rounded-2xl p-4 flex items-center justify-between gap-4">
+              <div>
+                <span className="text-xs font-bold text-stone-900 block">
+                  AI Copywriting Assistant in Canboso Import Modal
+                </span>
+                <span className="text-[11px] text-stone-500 block mt-0.5">
+                  Enables 1-click &apos;✨ AI দিয়ে বাংলায় লিখুন&apos; button when importing products from Canboso stock
+                </span>
+              </div>
+              <input
+                type="checkbox"
+                className="toggle toggle-warning toggle-sm shrink-0"
+                checked={settings.openrouter_settings?.autoGenerateOnImport !== false}
+                onChange={(e) =>
+                  setSettings({
+                    ...settings,
+                    openrouter_settings: {
+                      ...settings.openrouter_settings,
+                      autoGenerateOnImport: e.target.checked,
+                    },
+                  })
+                }
+              />
             </div>
 
             {/* Test Result Banner */}
@@ -678,19 +658,19 @@ export default function SettingsPage() {
                   <span>{testAiResult.message}</span>
                 </div>
                 {testAiResult.response && (
-                  <div className="font-mono text-[11px] text-stone-700 bg-white/80 p-2 rounded-lg border border-emerald-100">
+                  <div className="font-mono text-[11px] text-stone-700 bg-white/80 p-2.5 rounded-lg border border-emerald-100">
                     Model Response: &quot;{testAiResult.response}&quot; (Model: {testAiResult.model})
                   </div>
                 )}
               </div>
             )}
 
-            {/* Buttons */}
+            {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row gap-3 pt-3 border-t border-stone-100">
               <button
                 onClick={() => handleSettingsSubmit("openrouter_settings", settings.openrouter_settings)}
                 disabled={savingKey === "openrouter_settings"}
-                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm flex-1"
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm flex-1 cursor-pointer"
               >
                 {savingKey === "openrouter_settings" ? "Saving..." : "Save OpenRouter AI Settings"}
               </button>
@@ -698,7 +678,7 @@ export default function SettingsPage() {
                 type="button"
                 onClick={handleTestAi}
                 disabled={testingAi || !settings.openrouter_settings?.apiKey}
-                className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold flex items-center gap-2 px-6"
+                className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold flex items-center gap-2 px-6 cursor-pointer"
               >
                 {testingAi ? (
                   <span className="loading loading-spinner loading-xs text-amber-400"></span>
@@ -761,7 +741,7 @@ export default function SettingsPage() {
                   </div>
                 ) : (
                   <span className="text-xs font-medium text-stone-500">
-                    Click &apos;Check Balance&apos; to query your live spendable balance
+                    Click &apos;Check Live Balance&apos; to query your spendable balance
                   </span>
                 )}
               </div>
@@ -771,7 +751,7 @@ export default function SettingsPage() {
               type="button"
               onClick={handleCheckCanbosoBalance}
               disabled={checkingCanbosoBalance || !settings.canboso_settings.apiKey}
-              className="btn bg-stone-950 hover:bg-stone-800 text-white btn-sm rounded-xl font-bold text-xs flex items-center gap-2 px-4 shrink-0 shadow-xs"
+              className="btn bg-stone-950 hover:bg-stone-800 text-white btn-sm rounded-xl font-bold text-xs flex items-center gap-2 px-4 shrink-0 shadow-xs cursor-pointer"
             >
               <Wallet className={`w-3.5 h-3.5 ${checkingCanbosoBalance ? "animate-spin" : "text-amber-400"}`} />
               <span>{checkingCanbosoBalance ? "Checking..." : "Check Live Balance"}</span>
@@ -787,17 +767,15 @@ export default function SettingsPage() {
 
           <div className="space-y-5">
             {/* Bearer Token */}
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-800">
-                  Canboso Buyer API Bearer Token *
-                </span>
+            <div className="space-y-1.5 w-full">
+              <label className="block text-xs font-bold text-stone-800">
+                Canboso Buyer API Bearer Token *
               </label>
-              <div className="relative flex items-center">
+              <div className="relative flex items-center w-full">
                 <input
                   type={showTokens["canboso"] ? "text" : "password"}
                   placeholder="e.g. 19|GzN5x7g84K3xV69NmsGf9oI17i8oO..."
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full font-mono text-xs pr-10"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full font-mono text-xs pr-10 block"
                   value={settings.canboso_settings.apiKey}
                   onChange={(e) =>
                     setSettings({
@@ -814,28 +792,24 @@ export default function SettingsPage() {
                   {showTokens["canboso"] ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              <label className="label py-1">
-                <span className="label-text-alt text-stone-500">
-                  From Canboso Developer Dashboard. Endpoint: https://canboso.com/api/v2/telegram-buyer
-                </span>
-              </label>
+              <p className="text-[11px] text-stone-500 mt-1">
+                From Canboso Developer Dashboard. Endpoint: https://canboso.com/api/v2/telegram-buyer
+              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* Dollar Exchange Rate */}
-              <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-800">
-                    Dollar Exchange Rate (BDT per 1 USD) *
-                  </span>
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">
+                  Dollar Exchange Rate (BDT per 1 USD) *
                 </label>
-                <div className="relative flex items-center">
+                <div className="relative flex items-center w-full">
                   <input
                     type="number"
                     min="1"
                     step="0.5"
                     placeholder="127"
-                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-bold pl-10"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-bold pl-10 block"
                     value={settings.canboso_settings.dollarRate || 127}
                     onChange={(e) =>
                       setSettings({
@@ -849,40 +823,36 @@ export default function SettingsPage() {
                   />
                   <DollarSign className="w-4 h-4 text-stone-400 absolute left-3.5" />
                 </div>
-                <label className="label py-1">
-                  <span className="label-text-alt text-stone-500">
-                    Default: 127 BDT per 1 USD. Used for margin calculations and product import pricing.
-                  </span>
-                </label>
+                <p className="text-[11px] text-stone-500 mt-1">
+                  Default: 127 BDT per 1 USD. Used for margin calculations and product import pricing.
+                </p>
               </div>
 
               {/* Instant Automation Fulfillment Toggle */}
-              <div className="form-control w-full flex flex-col justify-center">
-                <div className="bg-stone-50/90 border border-stone-200/90 rounded-2xl p-3.5">
-                  <label className="label cursor-pointer justify-start gap-3 p-0">
-                    <input
-                      type="checkbox"
-                      className="toggle toggle-warning toggle-sm"
-                      checked={settings.canboso_settings.autoFulfill !== false}
-                      onChange={(e) =>
-                        setSettings({
-                          ...settings,
-                          canboso_settings: {
-                            ...settings.canboso_settings,
-                            autoFulfill: e.target.checked,
-                          },
-                        })
-                      }
-                    />
-                    <div>
-                      <span className="label-text font-bold text-xs text-stone-900 block">
-                        Instant Automated Fulfillment
-                      </span>
-                      <span className="text-[11px] text-stone-500 block">
-                        Instantly triggers upstream Canboso purchase &amp; delivers credentials upon order payment
-                      </span>
-                    </div>
-                  </label>
+              <div className="space-y-1.5 w-full flex flex-col justify-end">
+                <div className="bg-stone-50/90 border border-stone-200/90 rounded-2xl p-3.5 flex items-center justify-between gap-3">
+                  <div>
+                    <span className="text-xs font-bold text-stone-900 block">
+                      Instant Automated Fulfillment
+                    </span>
+                    <span className="text-[11px] text-stone-500 block">
+                      Auto-purchases from Canboso &amp; sends credentials upon order payment
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-warning toggle-sm shrink-0"
+                    checked={settings.canboso_settings.autoFulfill !== false}
+                    onChange={(e) =>
+                      setSettings({
+                        ...settings,
+                        canboso_settings: {
+                          ...settings.canboso_settings,
+                          autoFulfill: e.target.checked,
+                        },
+                      })
+                    }
+                  />
                 </div>
               </div>
             </div>
@@ -891,7 +861,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => handleSettingsSubmit("canboso_settings", settings.canboso_settings)}
                 disabled={savingKey === "canboso_settings"}
-                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full"
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full cursor-pointer"
               >
                 {savingKey === "canboso_settings" ? "Saving..." : "Save Canboso API Settings"}
               </button>
@@ -913,15 +883,13 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-800">Store / Brand Name *</span>
-              </label>
+          <div className="space-y-5">
+            <div className="space-y-1.5 w-full">
+              <label className="block text-xs font-bold text-stone-800">Store / Brand Name *</label>
               <input
                 type="text"
                 placeholder="Kalobazar.shop"
-                className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-semibold"
+                className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-semibold block"
                 value={settings.company_info.name}
                 onChange={(e) =>
                   setSettings({
@@ -932,16 +900,14 @@ export default function SettingsPage() {
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-800">Support Contact Email</span>
-                </label>
-                <div className="relative flex items-center">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">Support Contact Email</label>
+                <div className="relative flex items-center w-full">
                   <input
                     type="email"
                     placeholder="support@kalobazar.shop"
-                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm pl-10"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm pl-10 block"
                     value={settings.company_info.email}
                     onChange={(e) =>
                       setSettings({
@@ -954,15 +920,13 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-800">WhatsApp Helpline Number</span>
-                </label>
-                <div className="relative flex items-center">
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">WhatsApp Helpline Number</label>
+                <div className="relative flex items-center w-full">
                   <input
                     type="text"
                     placeholder="+88017xxxxxxxx"
-                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm pl-10 font-mono"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm pl-10 font-mono block"
                     value={settings.company_info.whatsapp || settings.company_info.whatsappNumber || ""}
                     onChange={(e) =>
                       setSettings({
@@ -977,11 +941,9 @@ export default function SettingsPage() {
                   />
                   <Smartphone className="w-4 h-4 text-stone-400 absolute left-3.5" />
                 </div>
-                <label className="label py-1">
-                  <span className="label-text-alt text-stone-500">
-                    Linked in store footer, checkout helpdesk, and receipt pages
-                  </span>
-                </label>
+                <p className="text-[11px] text-stone-500 mt-1">
+                  Linked in store footer, checkout helpdesk, and receipt pages
+                </p>
               </div>
             </div>
 
@@ -989,7 +951,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => handleSettingsSubmit("company_info", settings.company_info)}
                 disabled={savingKey === "company_info"}
-                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full"
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full cursor-pointer"
               >
                 {savingKey === "company_info" ? "Saving..." : "Save Store Profile"}
               </button>
@@ -1026,15 +988,13 @@ export default function SettingsPage() {
                 </span>
               </div>
 
-              <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-800">bKash / Nagad Wallet Number</span>
-                </label>
-                <div className="relative flex items-center">
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">bKash / Nagad Wallet Number</label>
+                <div className="relative flex items-center w-full">
                   <input
                     type="text"
                     placeholder="e.g. 017xxxxxxxx"
-                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-white w-full text-sm pl-10 font-mono font-bold"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-white w-full text-sm pl-10 font-mono font-bold block"
                     value={settings.company_info.bkashNumber}
                     onChange={(e) =>
                       setSettings({
@@ -1050,7 +1010,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => handleSettingsSubmit("company_info", settings.company_info)}
                 disabled={savingKey === "company_info"}
-                className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold btn-sm"
+                className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold btn-sm cursor-pointer"
               >
                 {savingKey === "company_info" ? "Saving..." : "Save bKash Number"}
               </button>
@@ -1068,15 +1028,13 @@ export default function SettingsPage() {
                 </span>
               </div>
 
-              <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-800">Gateway API Key</span>
-                </label>
-                <div className="relative flex items-center">
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">Gateway API Key</label>
+                <div className="relative flex items-center w-full">
                   <input
                     type={showTokens["gateway"] ? "text" : "password"}
                     placeholder="sandbox_test_... or live_prod_..."
-                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-white w-full font-mono text-xs pr-10"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-white w-full font-mono text-xs pr-10 block"
                     value={settings.zinipay_settings.apiKey}
                     onChange={(e) =>
                       setSettings({
@@ -1098,7 +1056,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => handleSettingsSubmit("zinipay_settings", settings.zinipay_settings)}
                 disabled={savingKey === "zinipay_settings"}
-                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold btn-sm shadow-sm"
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold btn-sm shadow-sm cursor-pointer"
               >
                 {savingKey === "zinipay_settings" ? "Saving..." : "Save Gateway Key"}
               </button>
@@ -1120,17 +1078,15 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-800">Resend API Key *</span>
-                </label>
-                <div className="relative flex items-center">
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">Resend API Key *</label>
+                <div className="relative flex items-center w-full">
                   <input
                     type={showTokens["resend"] ? "text" : "password"}
                     placeholder="re_xxxxxxxxxxxxxxxxxxxxxx"
-                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs font-mono pr-10"
+                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs font-mono pr-10 block"
                     value={settings.email_settings.resendApiKey}
                     onChange={(e) =>
                       setSettings({
@@ -1147,21 +1103,19 @@ export default function SettingsPage() {
                     {showTokens["resend"] ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
-                <label className="label py-1">
-                  <span className="label-text-alt text-stone-500">
-                    From your <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-amber-600 underline font-bold">Resend Dashboard</a>
-                  </span>
-                </label>
+                <p className="text-[11px] text-stone-500 mt-1">
+                  From your <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-amber-600 underline font-bold">Resend Dashboard</a>
+                </p>
               </div>
 
-              <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-800">From Domain Email (Authorized in Resend) *</span>
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">
+                  From Domain Email (Authorized in Resend) *
                 </label>
                 <input
                   type="text"
                   placeholder="Kalobazar.shop <noreply@kalobazar.shop>"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm block"
                   value={settings.email_settings.fromEmail}
                   onChange={(e) =>
                     setSettings({
@@ -1170,11 +1124,9 @@ export default function SettingsPage() {
                     })
                   }
                 />
-                <label className="label py-1">
-                  <span className="label-text-alt text-stone-500">
-                    Must use your verified domain on Resend (e.g. kalobazar.shop)
-                  </span>
-                </label>
+                <p className="text-[11px] text-stone-500 mt-1">
+                  Must use your verified domain on Resend (e.g. kalobazar.shop)
+                </p>
               </div>
             </div>
 
@@ -1182,7 +1134,7 @@ export default function SettingsPage() {
               <button
                 onClick={() => handleSettingsSubmit("email_settings", settings.email_settings)}
                 disabled={savingKey === "email_settings"}
-                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full"
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full cursor-pointer"
               >
                 {savingKey === "email_settings" ? "Saving..." : "Save Email Gateway Settings"}
               </button>
@@ -1206,16 +1158,14 @@ export default function SettingsPage() {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-800">Meta Pixel ID</span>
-                </label>
+          <div className="space-y-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">Meta Pixel ID</label>
                 <input
                   type="text"
                   placeholder="e.g. 123456789012345"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-mono font-bold"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-mono font-bold block"
                   value={settings.meta_pixel.pixelId}
                   onChange={(e) =>
                     setSettings({
@@ -1226,14 +1176,12 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <div className="form-control w-full">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-xs text-stone-800">Meta Test Event Code (Optional)</span>
-                </label>
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">Meta Test Event Code (Optional)</label>
                 <input
                   type="text"
                   placeholder="e.g. TEST12345 (Leave blank in production)"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-mono"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-mono block"
                   value={settings.meta_pixel.testEventCode}
                   onChange={(e) =>
                     setSettings({
@@ -1245,17 +1193,15 @@ export default function SettingsPage() {
               </div>
             </div>
 
-            <div className="form-control w-full">
-              <label className="label py-1">
-                <span className="label-text font-bold text-xs text-stone-800">
-                  Meta Conversions API Access Token (EAAG...)
-                </span>
+            <div className="space-y-1.5 w-full">
+              <label className="block text-xs font-bold text-stone-800">
+                Meta Conversions API Access Token (EAAG...)
               </label>
-              <div className="relative flex items-center">
+              <div className="relative flex items-center w-full">
                 <input
                   type={showTokens["capi"] ? "text" : "password"}
                   placeholder="EAAGxxxxxxxxxxxxxxxxxxxxxxxx..."
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs pr-10 font-mono"
+                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs pr-10 font-mono block"
                   value={settings.meta_pixel.accessToken}
                   onChange={(e) =>
                     setSettings({
@@ -1303,14 +1249,14 @@ export default function SettingsPage() {
               <button
                 onClick={() => handleSettingsSubmit("meta_pixel", settings.meta_pixel)}
                 disabled={savingKey === "meta_pixel"}
-                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm flex-1"
+                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm flex-1 cursor-pointer"
               >
                 {savingKey === "meta_pixel" ? "Saving..." : "Save Pixel Settings"}
               </button>
               <button
                 onClick={handleTestCapi}
                 disabled={testingCapi || !settings.meta_pixel.pixelId || !settings.meta_pixel.accessToken}
-                className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold flex items-center gap-2 px-6"
+                className="btn bg-stone-900 hover:bg-stone-800 text-white border-none rounded-xl font-bold flex items-center gap-2 px-6 cursor-pointer"
               >
                 {testingCapi ? (
                   <span className="loading loading-spinner loading-xs text-amber-400"></span>
@@ -1344,14 +1290,14 @@ export default function SettingsPage() {
               <button
                 onClick={fetchCapiLogs}
                 disabled={loadingLogs}
-                className="btn btn-outline btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5"
+                className="btn btn-outline btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loadingLogs ? "animate-spin" : ""}`} />
                 <span>Refresh</span>
               </button>
               <button
                 onClick={handleClearCapiLogs}
-                className="btn btn-ghost btn-sm text-rose-600 hover:bg-rose-50 rounded-xl font-bold text-xs flex items-center gap-1.5"
+                className="btn btn-ghost btn-sm text-rose-600 hover:bg-rose-50 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Clear Logs</span>
@@ -1419,7 +1365,7 @@ export default function SettingsPage() {
                       <td className="text-right">
                         <button
                           onClick={() => setSelectedLog(log)}
-                          className="btn btn-xs bg-amber-100 hover:bg-amber-200 text-stone-950 font-bold rounded-lg border-none"
+                          className="btn btn-xs bg-amber-100 hover:bg-amber-200 text-stone-950 font-bold rounded-lg border-none cursor-pointer"
                         >
                           Inspect
                         </button>
@@ -1482,7 +1428,7 @@ export default function SettingsPage() {
             </div>
 
             <div className="modal-action mt-6">
-              <button onClick={() => setSelectedLog(null)} className="btn btn-sm bg-stone-900 text-white rounded-xl px-5">
+              <button onClick={() => setSelectedLog(null)} className="btn btn-sm bg-stone-900 text-white rounded-xl px-5 cursor-pointer">
                 Close
               </button>
             </div>

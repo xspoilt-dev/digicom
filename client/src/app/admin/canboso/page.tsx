@@ -855,11 +855,9 @@ export default function CanbosoStockPage() {
 
               {/* Title & Slug */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="form-control">
-                  <div className="flex items-center justify-between py-1">
-                    <label className="label py-0 px-0">
-                      <span className="label-text font-bold text-stone-700">Storefront Title (বাংলা/ইংরেজি)</span>
-                    </label>
+                <div className="space-y-1.5 w-full">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-stone-800">Storefront Title (বাংলা/ইংরেজি)</label>
                     <button
                       type="button"
                       onClick={() => handleGenerateAiCopy()}
@@ -873,7 +871,7 @@ export default function CanbosoStockPage() {
                   <input
                     type="text"
                     required
-                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-semibold"
+                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-semibold w-full block"
                     value={importForm.title}
                     onChange={(e) => {
                       const newTitle = e.target.value;
@@ -886,14 +884,12 @@ export default function CanbosoStockPage() {
                   />
                 </div>
 
-                <div className="form-control">
-                  <label className="label py-1">
-                    <span className="label-text font-bold text-stone-700">URL Slug</span>
-                  </label>
+                <div className="space-y-1.5 w-full">
+                  <label className="block text-xs font-bold text-stone-800">URL Slug</label>
                   <input
                     type="text"
                     required
-                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-mono"
+                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-mono w-full block"
                     value={importForm.slug}
                     onChange={(e) =>
                       setImportForm((prev) => ({ ...prev, slug: generateSlug(e.target.value) }))
@@ -904,17 +900,15 @@ export default function CanbosoStockPage() {
 
               {/* Pricing & Category */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="form-control">
-                  <label className="label py-1">
-                    <span className="label-text font-bold text-stone-700">
-                      Selling Price (৳ Taka) *
-                    </span>
+                <div className="space-y-1.5 w-full">
+                  <label className="block text-xs font-bold text-stone-800">
+                    Selling Price (৳ Taka) *
                   </label>
                   <input
                     type="number"
                     min="1"
                     required
-                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-bold"
+                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-bold w-full block"
                     value={importForm.priceBdt || ""}
                     onChange={(e) =>
                       setImportForm((prev) => ({
@@ -925,17 +919,15 @@ export default function CanbosoStockPage() {
                   />
                 </div>
 
-                <div className="form-control">
-                  <label className="label py-1">
-                    <span className="label-text font-bold text-stone-700">
-                      Compare Price (৳ Strike)
-                    </span>
+                <div className="space-y-1.5 w-full">
+                  <label className="block text-xs font-bold text-stone-800">
+                    Compare Price (৳ Strike)
                   </label>
                   <input
                     type="number"
                     min="0"
                     placeholder="e.g. 1500"
-                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-bold"
+                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-bold w-full block"
                     value={importForm.comparePriceBdt || ""}
                     onChange={(e) =>
                       setImportForm((prev) => ({
@@ -946,12 +938,10 @@ export default function CanbosoStockPage() {
                   />
                 </div>
 
-                <div className="form-control">
-                  <label className="label py-1">
-                    <span className="label-text font-bold text-stone-700">Category</span>
-                  </label>
+                <div className="space-y-1.5 w-full">
+                  <label className="block text-xs font-bold text-stone-800">Category</label>
                   <select
-                    className="select select-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-semibold"
+                    className="select select-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-semibold w-full block"
                     value={importForm.category}
                     onChange={(e) =>
                       setImportForm((prev) => ({ ...prev, category: e.target.value }))
@@ -968,21 +958,19 @@ export default function CanbosoStockPage() {
               </div>
 
               {/* Image Upload or URL */}
-              <div className="form-control">
-                <label className="label py-1">
-                  <span className="label-text font-bold text-stone-700">Product Thumbnail</span>
-                </label>
-                <div className="flex items-center gap-3">
+              <div className="space-y-1.5 w-full">
+                <label className="block text-xs font-bold text-stone-800">Product Thumbnail</label>
+                <div className="flex items-center gap-3 w-full">
                   <input
                     type="text"
                     placeholder="Image URL or upload file..."
-                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs flex-1"
+                    className="input input-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs flex-1 block"
                     value={importForm.image}
                     onChange={(e) =>
                       setImportForm((prev) => ({ ...prev, image: e.target.value }))
                     }
                   />
-                  <label className="btn btn-outline btn-sm rounded-xl font-bold cursor-pointer text-xs flex items-center gap-1.5">
+                  <label className="btn btn-outline btn-sm rounded-xl font-bold cursor-pointer text-xs flex items-center gap-1.5 shrink-0">
                     <Upload className="w-3.5 h-3.5" />
                     <span>{uploadingImage ? "Uploading..." : "Upload"}</span>
                     <input
@@ -1012,7 +1000,7 @@ export default function CanbosoStockPage() {
                     <button
                       type="button"
                       onClick={() => setImportForm((prev) => ({ ...prev, image: "" }))}
-                      className="btn btn-ghost btn-xs text-rose-500 font-bold"
+                      className="btn btn-ghost btn-xs text-rose-500 font-bold cursor-pointer"
                     >
                       Remove
                     </button>
@@ -1021,10 +1009,10 @@ export default function CanbosoStockPage() {
               </div>
 
               {/* Description */}
-              <div className="form-control">
-                <div className="flex items-center justify-between py-1">
-                  <label className="label py-0 px-0">
-                    <span className="label-text font-bold text-stone-700">Product Description (বাংলা মার্কেটিং বর্ণনা)</span>
+              <div className="space-y-1.5 w-full">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-stone-800">
+                    Product Description (বাংলা মার্কেটিং বর্ণনা)
                   </label>
                   <button
                     type="button"
@@ -1039,7 +1027,7 @@ export default function CanbosoStockPage() {
                 <textarea
                   rows={6}
                   placeholder="পণ্য পরিচিতি, সুবিধা ও ডেলিভারি বিবরণ..."
-                  className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-mono leading-relaxed"
+                  className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-mono leading-relaxed w-full block"
                   value={importForm.description}
                   onChange={(e) =>
                     setImportForm((prev) => ({ ...prev, description: e.target.value }))

@@ -28,6 +28,15 @@ export interface BanglaProductCopyResult {
 const DEFAULT_MODEL = "google/gemma-4-26b-a4b-it:free";
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+// Known fallback models when an upstream free provider is rate-limited
+const FREE_FALLBACK_MODELS = [
+  "google/gemma-4-26b-a4b-it:free",
+  "google/gemma-4-31b-it:free",
+  "nex-agi/nex-n2.5-pro:free",
+  "z-ai/glm-5.2:free",
+  "qwen/qwen3.8-27b:free",
+];
+
 /**
  * Retrieve OpenRouter configuration from Settings or fallback
  */
@@ -85,7 +94,8 @@ export async function testOpenRouterConnection(
     const data = await response.json();
 
     if (!response.ok || data.error) {
-      const errDetail = data.error?.message || `HTTP ${response.status} ${response.statusText}`;
+      const rawDetail = data.error?.metadata?.raw;
+      const errDetail = rawDetail || data.error?.message || `HTTP ${response.status} ${response.statusText}`;
       return {
         success: false,
         message: `OpenRouter error: ${errDetail}`,
@@ -119,11 +129,11 @@ export async function generateBanglaProductCopy(
 ): Promise<BanglaProductCopyResult> {
   const config = await getOpenRouterConfig();
   const apiKey = (customApiKey || config.apiKey).trim();
-  const model = (customModel || config.model || DEFAULT_MODEL).trim();
+  const primaryModel = (customModel || config.model || DEFAULT_MODEL).trim();
 
   if (!apiKey) {
     throw new Error(
-      "OpenRouter API Key is not configured. Please add your OpenRouter token in Admin Settings > AI Configuration."
+      "OpenRouter API Key is not configured. Please add your OpenRouter token in Admin Settings > OpenRouter AI."
     );
   }
 
@@ -164,48 +174,72 @@ ${input.description || "Official digital subscription with instant activation."}
 
 Generate the JSON output now:`;
 
-  const response = await fetch(OPENROUTER_API_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "HTTP-Referer": "https://kalobazar.shop",
-      "X-Title": "Kalobazar Product Importer",
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.65,
-      max_tokens: 1800,
-    }),
-  });
-
-  const rawData = await response.json();
-
-  if (!response.ok || rawData.error) {
-    const errorMsg = rawData.error?.message || `OpenRouter HTTP ${response.status}`;
-    throw new Error(`OpenRouter generation failed: ${errorMsg}`);
+  // Build candidate model list (primary model first, followed by fallbacks if free tier)
+  const candidateModels = [primaryModel];
+  if (primaryModel.endsWith(":free")) {
+    for (const fb of FREE_FALLBACK_MODELS) {
+      if (!candidateModels.includes(fb)) {
+        candidateModels.push(fb);
+      }
+    }
   }
 
-  const rawContent = rawData.choices?.[0]?.message?.content?.trim();
-  if (!rawContent) {
-    throw new Error("OpenRouter returned an empty response.");
+  // Use unified prompt for maximum compatibility across all providers
+  const unifiedPrompt = `${systemPrompt}\n\n====================\n\n${userPrompt}`;
+  const messages = [
+    { role: "user", content: unifiedPrompt },
+  ];
+
+  let lastErrorMsg = "";
+
+  for (const model of candidateModels) {
+    try {
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://kalobazar.shop",
+          "X-Title": "Kalobazar Product Importer",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages,
+          temperature: 0.65,
+          max_tokens: 1800,
+        }),
+      });
+
+      const rawData = await response.json();
+
+      if (response.ok && !rawData.error && rawData.choices?.[0]?.message?.content) {
+        const rawContent = rawData.choices[0].message.content.trim();
+        const parsed = parseLLMJsonResponse(rawContent, input.name);
+
+        return {
+          success: true,
+          title: parsed.title,
+          slug: parsed.slug,
+          description: parsed.description,
+          highlights: parsed.highlights || [],
+          modelUsed: model,
+        };
+      }
+
+      if (rawData.error) {
+        const rawDetail = rawData.error?.metadata?.raw;
+        lastErrorMsg = rawDetail
+          ? `${rawData.error.message || "Provider error"}: ${rawDetail}`
+          : rawData.error?.message || `OpenRouter HTTP ${response.status}`;
+        console.warn(`[OpenRouter] Model "${model}" failed: ${lastErrorMsg}`);
+      }
+    } catch (err: any) {
+      lastErrorMsg = err.message;
+      console.warn(`[OpenRouter] Network error on model "${model}":`, err.message);
+    }
   }
 
-  // Robust JSON parser for LLM response
-  const parsed = parseLLMJsonResponse(rawContent, input.name);
-
-  return {
-    success: true,
-    title: parsed.title,
-    slug: parsed.slug,
-    description: parsed.description,
-    highlights: parsed.highlights || [],
-    modelUsed: model,
-  };
+  throw new Error(`OpenRouter generation failed: ${lastErrorMsg}`);
 }
 
 /**

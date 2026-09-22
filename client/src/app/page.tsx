@@ -8,6 +8,7 @@ import { getFbCookies } from "@/lib/meta/cookies";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { getApiUrl } from "@/lib/api";
+import { getCleanSnippet } from "@/components/FormattedDescription";
 import { useCart } from "@/context/CartContext";
 import { useModal } from "@/context/ModalContext";
 import {
@@ -337,10 +338,10 @@ export default function StoreHome() {
                   </h2>
                 </Link>
 
-                {/* Description snippet on Desktop */}
+                {/* Clean Snippet on Desktop */}
                 {currentSlideProduct.description && (
-                  <p className="hidden md:block text-xs lg:text-sm text-stone-600 mt-1 line-clamp-2 max-w-2xl">
-                    {currentSlideProduct.description}
+                  <p className="hidden md:block text-xs lg:text-sm text-stone-600 mt-1 line-clamp-2 max-w-2xl leading-relaxed">
+                    {getCleanSnippet(currentSlideProduct.description, 140)}
                   </p>
                 )}
 

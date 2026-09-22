@@ -23,6 +23,7 @@ import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
 import { trackEvent } from "@/lib/meta/track-event";
 import { getApiUrl } from "@/lib/api";
+import FormattedDescription from "@/components/FormattedDescription";
 
 interface Product {
   _id: string;
@@ -388,10 +389,8 @@ export default function ProductDetailPage({
                 পণ্য সম্পর্কিত বিবরণ ও সুযোগ-সুবিধা
               </h2>
 
-              <div className="text-sm text-stone-600 leading-relaxed space-y-3">
-                <p className="font-medium text-stone-800 bg-stone-50 p-4 rounded-xl border border-stone-200/80">
-                  {product.description}
-                </p>
+              <div className="text-sm text-stone-600 leading-relaxed space-y-4">
+                <FormattedDescription content={product.description} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
                   {[
                     `মেয়াদ: ${product.duration || "১ মাস / ১ বছর নির্ধারিত"}`,

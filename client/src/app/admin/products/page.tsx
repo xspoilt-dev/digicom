@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useModal } from "@/context/ModalContext";
 import { getApiUrl } from "@/lib/api";
+import { getCleanSnippet } from "@/components/FormattedDescription";
 import {
   Package,
   Plus,
@@ -463,7 +464,7 @@ export default function ProductsPage() {
                     Category: /{p.category || p.type || "account"}
                   </div>
                   <p className="text-xs text-stone-600 line-clamp-2 mb-4">
-                    {p.description}
+                    {getCleanSnippet(p.description, 100)}
                   </p>
                 </div>
 

@@ -63,6 +63,7 @@ services:
       - uploads_data:/app/uploads
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
       # Priority 100: Route /api/* and /uploads/* to the backend API & static asset server
       - "traefik.http.routers.digicom-server.rule=(Host(`${DOMAIN:-kalobazar.shop}`)${DOMAIN_WWW:+ || Host(`www.${DOMAIN:-kalobazar.shop}`)}) && (PathPrefix(`/api`) || PathPrefix(`/uploads`))"
       - "traefik.http.routers.digicom-server.entrypoints=web,websecure"
@@ -70,12 +71,11 @@ services:
       - "traefik.http.routers.digicom-server.priority=100"
       - "traefik.http.routers.digicom-server.service=digicom-server"
       - "traefik.http.services.digicom-server.loadbalancer.server.port=5000"
-      - "traefik.http.services.digicom-server.loadbalancer.healthcheck.path=/health"
-      - "traefik.http.services.digicom-server.loadbalancer.healthcheck.interval=15s"
-      - "traefik.http.services.digicom-server.loadbalancer.healthcheck.timeout=10s"
     networks:
-      - traefik-public
-      - internal-net
+      traefik-public:
+        aliases:
+          - server
+          - kalobazar_server
 
   # Frontend App (Next.js)
   client:
@@ -101,6 +101,7 @@ services:
       - "3000"
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=traefik-public"
       # Priority 10: Route all other web traffic to Next.js
       - "traefik.http.routers.digicom-client.rule=Host(`${DOMAIN:-kalobazar.shop}`)${DOMAIN_WWW:+ || Host(`www.${DOMAIN:-kalobazar.shop}`)}"
       - "traefik.http.routers.digicom-client.entrypoints=web,websecure"
@@ -108,14 +109,13 @@ services:
       - "traefik.http.routers.digicom-client.priority=10"
       - "traefik.http.routers.digicom-client.service=digicom-client"
       - "traefik.http.services.digicom-client.loadbalancer.server.port=3000"
-      - "traefik.http.services.digicom-client.loadbalancer.healthcheck.path=/"
-      - "traefik.http.services.digicom-client.loadbalancer.healthcheck.interval=15s"
-      - "traefik.http.services.digicom-client.loadbalancer.healthcheck.timeout=10s"
     depends_on:
       - server
     networks:
-      - traefik-public
-      - internal-net
+      traefik-public:
+        aliases:
+          - client
+          - kalobazar_client
 
 volumes:
   uploads_data:
@@ -124,5 +124,3 @@ volumes:
 networks:
   traefik-public:
     external: true
-  internal-net:
-    driver: bridge

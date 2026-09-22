@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useModal } from "@/context/ModalContext";
 import { getApiUrl } from "@/lib/api";
 import FormattedDescription from "@/components/FormattedDescription";
+import ProviderComparisonModal, { ComparisonProductParam } from "@/components/ProviderComparisonModal";
 import {
   Server,
   RefreshCw,
@@ -119,6 +120,23 @@ export default function CanbosoStockPage() {
   const [descTab, setDescTab] = useState<"edit" | "preview">("edit");
   const [aiSuccessMessage, setAiSuccessMessage] = useState("");
   const [aiErrorMessage, setAiErrorMessage] = useState("");
+
+  // AI Multi-Provider Comparison Modal State
+  const [comparisonProduct, setComparisonProduct] = useState<ComparisonProductParam | null>(null);
+  const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+
+  const openCompareModal = (p: UpstreamProduct, connected?: StoreProduct) => {
+    const rawCostUsd = Number(p.costUsd ?? (p as any)?.price?.amountUsd ?? 0);
+    setComparisonProduct({
+      title: p.name,
+      code: p.code,
+      priceBdt: connected?.price || Math.round(rawCostUsd * dollarRate * 1.3),
+      productId: connected?._id,
+      currentProviderId: selectedProviderId,
+      upstreamProductId: String(p.id || p.productId),
+    });
+    setIsComparisonModalOpen(true);
+  };
 
   // Keyboard shortcut to close modal
   useEffect(() => {
@@ -720,6 +738,15 @@ export default function CanbosoStockPage() {
                       </td>
                       <td className="text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openCompareModal(p, connectedStoreProduct)}
+                            className="btn btn-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-xl font-bold flex items-center gap-1 shadow-2xs"
+                            title="Compare quotes & stock across all providers with AI"
+                          >
+                            <Sparkles className="w-3 h-3 text-amber-600" />
+                            <span className="hidden sm:inline">Compare</span>
+                          </button>
                           {connectedStoreProduct && (
                             <Link
                               href={`/product/${connectedStoreProduct.slug}`}
@@ -804,9 +831,27 @@ export default function CanbosoStockPage() {
                     <TrendingUp className="w-4 h-4 text-amber-600" />
                     Live Accounting & Profit Calculation (Admin USD View)
                   </span>
-                  <span className="badge bg-amber-400 text-stone-950 font-black text-[10px] border-none">
-                    1 USD = ৳{dollarRate} BDT
-                  </span>
+                  <div className="flex items-center gap-2">
+                    {selectedProduct && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const connected = storeProducts.find(
+                            (sp) => sp.canbosoProductId === String(selectedProduct.id || selectedProduct.productId)
+                          );
+                          openCompareModal(selectedProduct, connected);
+                        }}
+                        className="btn btn-xs bg-amber-400 hover:bg-amber-500 text-stone-950 font-bold border-none rounded-lg flex items-center gap-1 shadow-2xs"
+                        title="Compare suppliers across all providers with AI"
+                      >
+                        <Sparkles className="w-3 h-3 text-stone-950" />
+                        <span>Compare AI</span>
+                      </button>
+                    )}
+                    <span className="badge bg-amber-400 text-stone-950 font-black text-[10px] border-none">
+                      1 USD = ৳{dollarRate} BDT
+                    </span>
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
                   <div className="bg-white p-2.5 rounded-xl border border-stone-200">
@@ -1213,6 +1258,18 @@ export default function CanbosoStockPage() {
         </div>,
         document.body
       )}
+
+      {/* AI Provider Comparison Modal */}
+      <ProviderComparisonModal
+        isOpen={isComparisonModalOpen}
+        onClose={() => setIsComparisonModalOpen(false)}
+        product={comparisonProduct}
+        onAssignSuccess={() => loadData()}
+        onSelectProvider={(provId, provName, upId, costUsd) => {
+          setSelectedProviderId(provId);
+          loadData();
+        }}
+      />
     </div>
   );
 }

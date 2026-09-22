@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { useModal } from "@/context/ModalContext";
 import { getApiUrl } from "@/lib/api";
 import FormattedDescription, { getCleanSnippet } from "@/components/FormattedDescription";
+import ProviderComparisonModal, { ComparisonProductParam } from "@/components/ProviderComparisonModal";
 import {
   Package,
   Plus,
@@ -89,6 +90,22 @@ export default function ProductsPage() {
   const [generatingAiCopy, setGeneratingAiCopy] = useState(false);
   const [descTab, setDescTab] = useState<"edit" | "preview">("edit");
   const [loading, setLoading] = useState(true);
+
+  // Provider Comparison AI Modal State
+  const [comparisonProduct, setComparisonProduct] = useState<ComparisonProductParam | null>(null);
+  const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+
+  const openCompareModal = (p: Product) => {
+    setComparisonProduct({
+      title: p.title,
+      productId: p._id,
+      priceBdt: p.price,
+      currentProviderId: p.providerId,
+      currentProviderName: p.providerName,
+      upstreamProductId: p.canbosoProductId,
+    });
+    setIsComparisonModalOpen(true);
+  };
 
   // Read URL query parameter for provider filter
   useEffect(() => {
@@ -656,7 +673,16 @@ export default function ProductsPage() {
                     <span>View</span>
                     <ExternalLink className="w-3 h-3" />
                   </a>
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => openCompareModal(p)}
+                      className="btn btn-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-bold flex items-center gap-1 shadow-2xs"
+                      title="Compare price & stock across all providers with AI"
+                    >
+                      <Sparkles className="w-3 h-3 text-amber-600" />
+                      <span>Compare AI</span>
+                    </button>
                     <button
                       onClick={() => openProductEdit(p)}
                       className="btn btn-xs bg-stone-100 hover:bg-stone-200 text-stone-800 border-none rounded-lg font-bold flex items-center gap-1"
@@ -953,6 +979,26 @@ export default function ProductsPage() {
                       </option>
                     ))}
                   </select>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setComparisonProduct({
+                        title: selectedProduct.title,
+                        productId: selectedProduct._id,
+                        priceBdt: selectedProduct.price,
+                        currentProviderId: selectedProduct.providerId,
+                        currentProviderName: selectedProduct.providerName,
+                        upstreamProductId: selectedProduct.canbosoProductId,
+                      });
+                      setIsComparisonModalOpen(true);
+                    }}
+                    disabled={!selectedProduct.title?.trim()}
+                    className="btn btn-sm bg-amber-100 hover:bg-amber-200 text-stone-900 border border-amber-300 rounded-xl font-bold flex items-center gap-1.5 shadow-2xs shrink-0"
+                    title="Compare this product across all supplier catalogs with AI"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Compare AI</span>
+                  </button>
                 </div>
                 <p className="text-[11px] text-stone-500">
                   When an order is paid, API orders route automatically to this specific provider.
@@ -1111,6 +1157,26 @@ export default function ProductsPage() {
         </div>,
         document.body
       )}
+
+      {/* AI Provider Comparison Modal */}
+      <ProviderComparisonModal
+        isOpen={isComparisonModalOpen}
+        onClose={() => setIsComparisonModalOpen(false)}
+        product={comparisonProduct}
+        onAssignSuccess={() => fetchData()}
+        onSelectProvider={(provId, provName, upId, costUsd) => {
+          if (selectedProduct) {
+            setSelectedProduct({
+              ...selectedProduct,
+              providerId: provId,
+              providerName: provName,
+              canbosoProductId: upId,
+              canbosoCostUsd: costUsd,
+            });
+          }
+          fetchData();
+        }}
+      />
     </div>
   );
 }

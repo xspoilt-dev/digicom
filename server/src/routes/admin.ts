@@ -24,6 +24,7 @@ import {
   generateBanglaProductCopy,
   getOpenRouterConfig,
   ensureFormattedHtml,
+  compareProvidersWithAi,
 } from "../services/openrouterService";
 import { getZiniPayApiKey } from "../utils/zinipay";
 import path from "path";
@@ -1126,6 +1127,195 @@ adminRouter.post("/ai/generate-copy", async (c) => {
     return c.json(result);
   } catch (error: any) {
     return c.json({ success: false, message: error.message }, 400);
+  }
+});
+
+// Compare product pricing, margins & stock across all providers using AI
+adminRouter.post("/products/compare-providers", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { productName, code, priceBdt, currentProviderId, productId } = body;
+
+    if (!productName || !productName.trim()) {
+      return c.json({ success: false, message: "Product name is required for comparison." }, 400);
+    }
+
+    const trimmedName = productName.trim();
+    const cleanTokens = trimmedName
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, " ")
+      .split(/\s+/)
+      .filter((w: string) => w.length >= 2 && !["the", "and", "for", "with", "pro", "account"].includes(w));
+
+    // 1. Fetch all active providers
+    const providers = await Provider.find({ isActive: true }).lean();
+    if (providers.length === 0) {
+      return c.json({
+        success: false,
+        message: "No active upstream providers found. Please add providers in Settings first.",
+      }, 400);
+    }
+
+    // 2. Query catalogs for each provider
+    const comparisons: any[] = [];
+
+    for (const prov of providers) {
+      try {
+        const provId = String(prov._id);
+        const catalogData = await fetchCanbosoProducts(false, provId);
+        const prods = catalogData.products || [];
+
+        // Matching strategy:
+        // Priority 1: Exact code match
+        let bestMatch = code
+          ? prods.find((p) => p.code && p.code.toLowerCase() === code.trim().toLowerCase())
+          : null;
+
+        // Priority 2: Exact name match
+        if (!bestMatch) {
+          bestMatch = prods.find(
+            (p) => p.name.trim().toLowerCase() === trimmedName.toLowerCase()
+          );
+        }
+
+        // Priority 3: Substring match
+        if (!bestMatch) {
+          bestMatch = prods.find(
+            (p) =>
+              p.name.toLowerCase().includes(trimmedName.toLowerCase()) ||
+              trimmedName.toLowerCase().includes(p.name.toLowerCase())
+          );
+        }
+
+        // Priority 4: Keyword token overlap scoring
+        if (!bestMatch && cleanTokens.length > 0) {
+          let highestScore = 0;
+          let candidate = null;
+
+          for (const item of prods) {
+            const itemTokens = item.name
+              .toLowerCase()
+              .replace(/[^a-z0-9\s]/g, " ")
+              .split(/\s+/);
+
+            const matchCount = cleanTokens.filter((t: string) => itemTokens.includes(t)).length;
+            const score = matchCount / cleanTokens.length;
+
+            if (score > highestScore && score >= 0.4) {
+              highestScore = score;
+              candidate = item;
+            }
+          }
+
+          if (candidate) {
+            bestMatch = candidate;
+          }
+        }
+
+        if (bestMatch) {
+          const costUsd = Number(bestMatch.costUsd || 0);
+          const dollarRate = prov.dollarRate || 127;
+          const costBdt = Math.round(costUsd * dollarRate);
+
+          comparisons.push({
+            providerId: provId,
+            providerName: prov.name,
+            dollarRate,
+            upstreamProductId: String(bestMatch.id || (bestMatch as any).productId || ""),
+            upstreamProductName: bestMatch.name,
+            upstreamCode: bestMatch.code || "",
+            costUsd,
+            costBdt,
+            stock: Number(bestMatch.stock || 0),
+            autoFulfill: prov.autoFulfill !== false,
+            isCurrent: currentProviderId ? provId === currentProviderId : false,
+            isCheapest: false,
+          });
+        }
+      } catch (err) {
+        console.error(`Error querying catalog for provider ${prov.name}:`, err);
+      }
+    }
+
+    if (comparisons.length === 0) {
+      return c.json({
+        success: false,
+        message: `No matching items for "${productName}" were found in any provider's active catalog.`,
+        comparisons: [],
+      }, 404);
+    }
+
+    // Sort comparisons by BDT cost ascending
+    comparisons.sort((a, b) => a.costBdt - b.costBdt);
+    comparisons[0].isCheapest = true;
+
+    // AI Multi-Provider Analysis
+    const aiResult = await compareProvidersWithAi({
+      productName: trimmedName,
+      priceBdt: priceBdt ? Number(priceBdt) : undefined,
+      comparisons,
+    });
+
+    const cheapest = comparisons[0];
+    const highest = comparisons[comparisons.length - 1];
+    const savingsBdt = Math.max(0, highest.costBdt - cheapest.costBdt);
+    const savingsUsd = Number(Math.max(0, highest.costUsd - cheapest.costUsd).toFixed(2));
+
+    return c.json({
+      success: true,
+      productName: trimmedName,
+      cheapestProviderId: cheapest.providerId,
+      cheapestProviderName: cheapest.providerName,
+      cheapestCostUsd: cheapest.costUsd,
+      cheapestCostBdt: cheapest.costBdt,
+      savingsUsd,
+      savingsBdt,
+      comparisons,
+      verdict: aiResult.verdict,
+      analysisHtml: aiResult.analysisHtml,
+      recommendation: aiResult.recommendation,
+      modelUsed: aiResult.modelUsed,
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// Assign / switch provider for a specific product
+adminRouter.post("/products/:id/assign-provider", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const { providerId, upstreamProductId, costUsd } = await c.req.json();
+
+    const product = await Product.findById(id);
+    if (!product) return c.json({ success: false, message: "Product not found" }, 404);
+
+    if (providerId) {
+      const provider = await Provider.findById(providerId);
+      if (!provider) return c.json({ success: false, message: "Provider not found" }, 404);
+
+      product.providerId = provider._id as any;
+      product.providerName = provider.name;
+    } else {
+      product.providerId = undefined;
+      product.providerName = undefined;
+    }
+
+    if (upstreamProductId) {
+      product.canbosoProductId = String(upstreamProductId);
+    }
+    if (costUsd !== undefined) {
+      product.canbosoCostUsd = Number(costUsd);
+    }
+
+    await product.save();
+    return c.json({
+      success: true,
+      message: `Product successfully assigned to provider "${product.providerName || "Manual / None"}".`,
+      product,
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
   }
 });
 

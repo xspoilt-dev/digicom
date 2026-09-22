@@ -393,3 +393,183 @@ function generateCleanSlug(text: string): string {
     .replace(/^-+|-+$/g, "") // trim hyphens
     .slice(0, 80) || "digital-product";
 }
+
+export interface ProviderComparisonInput {
+  productName: string;
+  priceBdt?: number;
+  comparisons: Array<{
+    providerId: string;
+    providerName: string;
+    dollarRate: number;
+    upstreamProductId?: string | number;
+    upstreamProductName?: string;
+    costUsd: number;
+    costBdt: number;
+    stock: number;
+    autoFulfill: boolean;
+    isCheapest: boolean;
+    isCurrent?: boolean;
+  }>;
+}
+
+export interface ProviderComparisonAiResult {
+  success: boolean;
+  cheapestProviderName: string;
+  verdict: string;
+  analysisHtml: string;
+  recommendation: string;
+  modelUsed: string;
+}
+
+/**
+ * Compare pricing, margins, and stock across multiple upstream providers using AI analysis
+ */
+export async function compareProvidersWithAi(
+  input: ProviderComparisonInput
+): Promise<ProviderComparisonAiResult> {
+  const { productName, priceBdt, comparisons } = input;
+  if (!comparisons || comparisons.length === 0) {
+    return {
+      success: false,
+      cheapestProviderName: "",
+      verdict: "No provider data available for comparison.",
+      analysisHtml: "<p>No matching suppliers were found to compare.</p>",
+      recommendation: "Please ensure suppliers are active in Settings.",
+      modelUsed: "none",
+    };
+  }
+
+  // Sort by BDT cost
+  const sorted = [...comparisons].sort((a, b) => a.costBdt - b.costBdt);
+  const cheapest = sorted[0];
+  const mostExpensive = sorted[sorted.length - 1];
+  const diffBdt = Math.max(0, mostExpensive.costBdt - cheapest.costBdt);
+  const diffUsd = Number((Math.max(0, mostExpensive.costUsd - cheapest.costUsd)).toFixed(2));
+
+  // Default algorithmic fallback
+  const fallbackVerdict = comparisons.length === 1
+    ? `Only 1 supplier offers "${productName}" at $${cheapest.costUsd.toFixed(2)} (৳${cheapest.costBdt}).`
+    : `🏆 ${cheapest.providerName} is the cheapest at $${cheapest.costUsd.toFixed(2)} (৳${cheapest.costBdt}), saving ৳${diffBdt} ($${diffUsd}) per unit compared to ${mostExpensive.providerName}.`;
+
+  const fallbackRecommendation = comparisons.length === 1
+    ? `Keep this product routed to ${cheapest.providerName} (${cheapest.stock} units in stock).`
+    : cheapest.stock > 0
+    ? `Route this product to ${cheapest.providerName} for optimal savings and active stock (${cheapest.stock} available).`
+    : `Warning: ${cheapest.providerName} has lowest cost but is currently OUT OF STOCK. Check the next cheapest provider with active stock.`;
+
+  let fallbackHtml = `<h3>🏆 Price Winner &amp; Comparison</h3>\n<p><strong>${cheapest.providerName}</strong> provides the lowest purchase rate at <strong>$${cheapest.costUsd.toFixed(2)} USD (৳${cheapest.costBdt} BDT)</strong>.</p>\n`;
+  if (comparisons.length > 1) {
+    fallbackHtml += `<h3>📊 Margin &amp; Cost Savings</h3>\n<ul>\n`;
+    for (const c of sorted) {
+      const marginBdt = priceBdt && priceBdt > c.costBdt ? priceBdt - c.costBdt : 0;
+      const marginPct = priceBdt && priceBdt > 0 ? ((marginBdt / priceBdt) * 100).toFixed(1) : "0";
+      fallbackHtml += `  <li><strong>${c.providerName}:</strong> Cost $${c.costUsd.toFixed(2)} (৳${c.costBdt}) | Stock: ${c.stock}${priceBdt ? ` | Profit: ৳${marginBdt} (${marginPct}%)` : ""}${c.isCheapest ? " <strong>[CHEAPEST]</strong>" : ""}</li>\n`;
+    }
+    fallbackHtml += `</ul>\n`;
+    fallbackHtml += `<h3>💡 Strategic Procurement Recommendation</h3>\n<p>${fallbackRecommendation}</p>`;
+  }
+
+  // Attempt AI call via OpenRouter
+  const config = await getOpenRouterConfig();
+  const apiKey = config.apiKey.trim();
+  const primaryModel = config.model || DEFAULT_MODEL;
+
+  if (!apiKey) {
+    return {
+      success: true,
+      cheapestProviderName: cheapest.providerName,
+      verdict: fallbackVerdict,
+      analysisHtml: fallbackHtml,
+      recommendation: fallbackRecommendation,
+      modelUsed: "algorithmic-fallback",
+    };
+  }
+
+  const promptText = `You are a senior procurement analyst for an e-commerce digital subscription platform in Bangladesh.
+Analyze these upstream supplier quotes for the product "${productName}" and determine which provider is the most profitable, cost-effective, and safe to use.
+
+Storefront Selling Price: ${priceBdt ? `৳${priceBdt} BDT (~$${(priceBdt / (cheapest.dollarRate || 127)).toFixed(2)} USD)` : "Not set"}
+
+Supplier Quotes:
+${comparisons
+  .map(
+    (c, i) =>
+      `${i + 1}. Supplier: "${c.providerName}"
+   - Upstream Item: ${c.upstreamProductName || productName}
+   - Cost USD: $${c.costUsd.toFixed(2)}
+   - Dollar Rate: ৳${c.dollarRate} per USD
+   - Total Cost BDT: ৳${c.costBdt}
+   - Stock: ${c.stock} units
+   - Auto Fulfillment: ${c.autoFulfill ? "Enabled" : "Manual"}`
+  )
+  .join("\n\n")}
+
+CRITICAL INSTRUCTIONS:
+1. Identify which supplier is cheapest mathematically in BDT and USD.
+2. Calculate the exact savings per order if choosing the cheapest provider over the alternatives.
+3. Assess stock risk: If the cheapest supplier has 0 stock, explicitly warn the admin and recommend the best in-stock alternative.
+4. If selling price is provided, calculate the profit margin in BDT and %.
+5. Respond with ONLY a valid JSON object matching this schema:
+{
+  "cheapestProviderName": "Name of the winning provider",
+  "verdict": "A 1-2 sentence punchy executive summary with emojis (e.g. 🏆 Canboso VIP is cheapest at $2.20 (৳279), saving you $0.60 per order...)",
+  "recommendation": "A concise actionable instruction for the store owner",
+  "analysisHtml": "Semantic HTML with <h3>, <p>, <ul>, <li>, and <strong> tags covering Cost Winner, Profit Margins, Stock Reliability, and Action Advice."
+}`;
+
+  const candidateModels = [primaryModel];
+  if (primaryModel.endsWith(":free")) {
+    for (const fb of FREE_FALLBACK_MODELS) {
+      if (!candidateModels.includes(fb)) candidateModels.push(fb);
+    }
+  }
+
+  for (const model of candidateModels) {
+    try {
+      const response = await fetch(OPENROUTER_API_URL, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://kalobazar.shop",
+          "X-Title": "Kalobazar Provider Comparison",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: "user", content: promptText }],
+          temperature: 0.3,
+          max_tokens: 1200,
+        }),
+      });
+
+      const rawData = await response.json();
+      if (response.ok && !rawData.error && rawData.choices?.[0]?.message?.content) {
+        const rawContent = rawData.choices[0].message.content.trim();
+        const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          return {
+            success: true,
+            cheapestProviderName: parsed.cheapestProviderName || cheapest.providerName,
+            verdict: parsed.verdict || fallbackVerdict,
+            analysisHtml: ensureFormattedHtml(parsed.analysisHtml || fallbackHtml),
+            recommendation: parsed.recommendation || fallbackRecommendation,
+            modelUsed: model,
+          };
+        }
+      }
+    } catch (err: any) {
+      console.warn(`[OpenRouter Provider Compare] Model "${model}" failed:`, err.message);
+    }
+  }
+
+  // If all models failed, return solid algorithmic calculation
+  return {
+    success: true,
+    cheapestProviderName: cheapest.providerName,
+    verdict: fallbackVerdict,
+    analysisHtml: fallbackHtml,
+    recommendation: fallbackRecommendation,
+    modelUsed: "algorithmic-fallback",
+  };
+}

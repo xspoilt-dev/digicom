@@ -11,11 +11,12 @@ import {
   DollarSign,
   Package,
 } from "lucide-react";
+import { getApiUrl } from "@/lib/api";
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   useEffect(() => {
     async function fetchStats() {

@@ -1,5 +1,6 @@
 // lib/meta/track-event.ts
 import { getFbCookies } from "./cookies";
+import { getApiUrl } from "@/lib/api";
 
 function generateEventId(): string {
   if (typeof window !== "undefined" && window.crypto?.randomUUID) {
@@ -42,7 +43,7 @@ export function trackEvent(
 
     // 2. Server-Side Conversions API (CAPI) Dual-Dispatch Relay
     if (!options?.skipCapi) {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+      const apiUrl = getApiUrl();
       fetch(`${apiUrl}/api/meta-capi`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

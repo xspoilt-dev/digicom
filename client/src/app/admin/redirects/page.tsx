@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useModal } from "@/context/ModalContext";
+import { getApiUrl } from "@/lib/api";
 
 interface RedirectRoute {
   _id?: string;
@@ -16,7 +17,7 @@ export default function RedirectsPage() {
   const [newRedirect, setNewRedirect] = useState<RedirectRoute>({ sourcePath: "", destinationPath: "", redirectType: "rewrite" });
   const [loading, setLoading] = useState(true);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   useEffect(() => {
     fetchRedirects();

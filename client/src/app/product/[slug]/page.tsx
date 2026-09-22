@@ -22,6 +22,7 @@ import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
 import { trackEvent } from "@/lib/meta/track-event";
+import { getApiUrl } from "@/lib/api";
 
 interface Product {
   _id: string;
@@ -57,7 +58,7 @@ export default function ProductDetailPage({
 
   const { addToCart } = useCart();
   const router = useRouter();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   useEffect(() => {
     async function loadProductData() {

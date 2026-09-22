@@ -10,6 +10,7 @@ import { trackEvent } from "@/lib/meta/track-event";
 import { getFbCookies } from "@/lib/meta/cookies";
 import { ShoppingCart, ShieldCheck, Zap, ArrowLeft, CheckCircle, Package } from "lucide-react";
 import { normalizeBanglaPhone } from "@/utils/bengali";
+import { getApiUrl } from "@/lib/api";
 
 export default function CheckoutPage() {
   const { cartItems, cartTotal, updateQuantity, removeFromCart, clearCart } = useCart();
@@ -22,7 +23,7 @@ export default function CheckoutPage() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const router = useRouter();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Eye, EyeOff, ExternalLink } from "lucide-react";
+import { getApiUrl } from "@/lib/api";
 
 // Custom Premium SVG Icons for Admin Dashboard
 const DashboardIcon = () => (
@@ -92,7 +93,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const pathname = usePathname();
   const router = useRouter();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   // Check saved session on mount
   useEffect(() => {

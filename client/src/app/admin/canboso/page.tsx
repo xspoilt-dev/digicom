@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useModal } from "@/context/ModalContext";
+import { getApiUrl } from "@/lib/api";
 import {
   Server,
   RefreshCw,
@@ -129,7 +130,7 @@ export default function CanbosoStockPage() {
     autoFulfill: true,
   });
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   const getAuthHeaders = () => {
     const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;

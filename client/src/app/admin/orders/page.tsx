@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useModal } from "@/context/ModalContext";
+import { getApiUrl } from "@/lib/api";
 import {
   ShoppingBag,
   Search,
@@ -73,7 +74,7 @@ export default function OrdersPage() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem("admin_token");

@@ -4,6 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
+import { getApiUrl } from "@/lib/api";
 
 export default function CartDrawer() {
   const {
@@ -16,7 +17,7 @@ export default function CartDrawer() {
     cartCount,
   } = useCart();
   const router = useRouter();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   if (!isCartOpen) return null;
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { getApiUrl } from "@/lib/api";
 
 interface Transaction {
   _id: string;
@@ -18,7 +19,7 @@ interface Transaction {
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   useEffect(() => {
     fetchTransactions();

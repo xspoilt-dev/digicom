@@ -7,6 +7,7 @@ import { trackEvent } from "@/lib/meta/track-event";
 import { getFbCookies } from "@/lib/meta/cookies";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { getApiUrl } from "@/lib/api";
 import { useCart } from "@/context/CartContext";
 import { useModal } from "@/context/ModalContext";
 import {
@@ -77,7 +78,7 @@ export default function StoreHome() {
   // Active banner slide
   const [activeSlide, setActiveSlide] = useState(0);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   useEffect(() => {
     async function fetchData() {

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useModal } from "@/context/ModalContext";
+import { getApiUrl } from "@/lib/api";
 import {
   Settings,
   Activity,
@@ -109,7 +110,7 @@ export default function SettingsPage() {
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [selectedLog, setSelectedLog] = useState<CapiLogEntry | null>(null);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   const getAuthHeaders = () => {
     const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;

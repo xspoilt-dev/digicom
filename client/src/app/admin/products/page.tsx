@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useModal } from "@/context/ModalContext";
+import { getApiUrl } from "@/lib/api";
 import {
   Package,
   Plus,
@@ -141,7 +142,7 @@ export default function ProductsPage() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isProductModalOpen]);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   const getAuthHeaders = () => {
     const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;

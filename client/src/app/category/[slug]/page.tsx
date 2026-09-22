@@ -19,6 +19,7 @@ import {
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
+import { getApiUrl } from "@/lib/api";
 import { trackEvent } from "@/lib/meta/track-event";
 
 interface Product {
@@ -62,7 +63,7 @@ export default function CategoryCampaignPage({
 
   const { addToCart } = useCart();
   const router = useRouter();
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   useEffect(() => {
     async function loadCategoryData() {

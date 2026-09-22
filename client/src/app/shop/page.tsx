@@ -11,6 +11,7 @@ import { useCart } from "@/context/CartContext";
 import { useModal } from "@/context/ModalContext";
 import { ShoppingCart, ShoppingBag, Star, Package } from "lucide-react";
 import { normalizeBanglaPhone } from "@/utils/bengali";
+import { getApiUrl } from "@/lib/api";
 
 interface Product {
   _id: string;
@@ -79,7 +80,7 @@ function ShopContent() {
   const [formData, setFormData] = useState({ name: "", email: "", phone: "" });
   const [submittingCheckout, setSubmittingCheckout] = useState(false);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   useEffect(() => {
     async function fetchProducts() {

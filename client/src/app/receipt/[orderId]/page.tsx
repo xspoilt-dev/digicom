@@ -5,6 +5,7 @@ import Link from "next/link";
 import { trackEvent } from "@/lib/meta/track-event";
 import Footer from "@/components/Footer";
 import { Copy, Check, Eye, EyeOff, Key, CheckCircle2 } from "lucide-react";
+import { getApiUrl } from "@/lib/api";
 
 interface OrderItem {
   id: string;
@@ -113,7 +114,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
   };
 
   const purchaseTrackedRef = useRef(false);
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+  const apiUrl = getApiUrl();
 
   async function fetchOrderStatus(showCheckingIndicator = false) {
     if (showCheckingIndicator) setChecking(true);

@@ -33,7 +33,8 @@ app.use(
 app.get("/uploads/*", async (c) => {
   try {
     const relativePath = c.req.path.replace(/^\/uploads\//, "");
-    const filePath = path.resolve(__dirname, "../uploads", relativePath);
+    const uploadsBase = process.env.UPLOADS_DIR || path.resolve(__dirname, "../uploads");
+    const filePath = path.resolve(uploadsBase, relativePath);
 
     if (fs.existsSync(filePath)) {
       const ext = path.extname(filePath).toLowerCase();
@@ -87,6 +88,10 @@ app.get("/api/resolve-route", async (c) => {
 // Mount modular routers
 app.route("/api", publicRouter);
 app.route("/api/admin", adminRouter);
+
+// Health endpoints
+app.get("/health", (c) => c.json({ status: "ok", uptime: process.uptime() }));
+app.get("/api/health", (c) => c.json({ status: "ok", uptime: process.uptime() }));
 
 // Base Route
 app.get("/", (c) => c.text("Digicom Hono API Server Running"));

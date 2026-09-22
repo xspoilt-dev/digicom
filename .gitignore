@@ -1,8 +1,11 @@
 .env
+.env.*
+!.env.example
 dist
 node_modules
 .agents
 .next
+letsencrypt
 server/uploads/*
 !server/uploads/thumbnails/.gitkeep
 !server/uploads/products/.gitkeep

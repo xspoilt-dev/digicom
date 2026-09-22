@@ -678,7 +678,8 @@ adminRouter.post("/upload", async (c) => {
     }
 
     const uploadDirName = type === "thumbnail" ? "thumbnails" : "products";
-    const uploadPathDir = path.resolve(__dirname, "../../uploads", uploadDirName);
+    const uploadsBaseDir = process.env.UPLOADS_DIR || path.resolve(__dirname, "../../uploads");
+    const uploadPathDir = path.resolve(uploadsBaseDir, uploadDirName);
 
     // Create folder structure if not exist
     if (!fs.existsSync(uploadPathDir)) {

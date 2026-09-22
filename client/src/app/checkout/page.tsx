@@ -17,7 +17,6 @@ export default function CheckoutPage() {
     name: "",
     email: "",
     phone: "",
-    notes: "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -70,7 +69,6 @@ export default function CheckoutPage() {
           name: formData.name.trim(),
           email: formData.email.trim(),
           phone: cleanPhone,
-          notes: formData.notes.trim(),
           paymentGateway: "zinipay",
           metaEventId: eventId,
           fbp: fbCookies.fbp,
@@ -207,20 +205,6 @@ export default function CheckoutPage() {
                     className="input input-bordered w-full rounded-xl bg-amber-50/30 border-amber-200 focus:border-amber-400 focus:outline-none text-sm text-stone-800"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  />
-                </div>
-
-                {/* Order Note */}
-                <div className="form-control w-full">
-                  <label className="label py-1">
-                    <span className="label-text font-bold text-xs text-stone-700">অর্ডারের বিশেষ নির্দেশনা (ঐচ্ছিক)</span>
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="কোনো অতিরিক্ত রিকোয়ারমেন্ট বা নির্দেশনা থাকলে লিখুন..."
-                    className="textarea textarea-bordered w-full rounded-xl bg-amber-50/30 border-amber-200 focus:border-amber-400 focus:outline-none text-xs text-stone-800"
-                    value={formData.notes}
-                    onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   />
                 </div>
 

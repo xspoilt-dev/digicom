@@ -9,8 +9,6 @@ import {
   Star,
   Eye,
   TrendingUp,
-  ShieldCheck,
-  Truck,
   Minus,
   Plus,
   ChevronRight,
@@ -250,41 +248,6 @@ export default function ProductDetailPage({
                     {getProductTypeLabel(product.type)}
                   </span>
                 </div>
-              </div>
-            </div>
-
-            {/* Quick Guarantees (2 Columns) */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex items-center gap-3 p-3.5 bg-white rounded-2xl border border-stone-200/90 shadow-xs">
-                <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
-                  <ShieldCheck className="w-5 h-5 text-emerald-600" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-stone-900">১০০% সিকিউর</div>
-                  <div className="text-[11px] text-stone-500 font-medium">বিকাশ, নগদ, কার্ড</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3.5 bg-white rounded-2xl border border-stone-200/90 shadow-xs">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-                  <Truck className="w-5 h-5 text-amber-600" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-stone-900">তাৎক্ষণিক ডেলিভারি</div>
-                  <div className="text-[11px] text-stone-500 font-medium">অটোমেটিক স্ক্রিন ও ইমেইল</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Delivery Assurance Notice */}
-            <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-amber-200/70 flex items-center justify-center shrink-0 mt-0.5">
-                <Zap className="w-4 h-4 text-amber-800" />
-              </div>
-              <div>
-                <p className="text-xs font-bold text-stone-900">অটোমেটেড ডিজিটাল ডেলিভারি সিস্টেম</p>
-                <p className="text-[11px] text-stone-600 mt-0.5 leading-relaxed">
-                  পেমেন্ট সফল হওয়ার সাথে সাথে আপনি সরাসরি স্ক্রিনে প্রোডাক্ট দেখতে পাবেন এবং আপনার ইমেইলে সমস্ত ডিটেইলস স্বয়ংক্রিয়ভাবে পাঠিয়ে দেওয়া হবে।
-                </p>
               </div>
             </div>
           </div>

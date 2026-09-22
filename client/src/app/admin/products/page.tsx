@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useModal } from "@/context/ModalContext";
 import { getApiUrl } from "@/lib/api";
-import { getCleanSnippet } from "@/components/FormattedDescription";
+import FormattedDescription, { getCleanSnippet } from "@/components/FormattedDescription";
 import {
   Package,
   Plus,
@@ -68,6 +68,7 @@ export default function ProductsPage() {
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [generatingAiCopy, setGeneratingAiCopy] = useState(false);
+  const [descTab, setDescTab] = useState<"edit" | "preview">("edit");
   const [loading, setLoading] = useState(true);
 
   const handleGenerateAiCopy = async () => {
@@ -105,6 +106,7 @@ export default function ProductsPage() {
               }
             : null
         );
+        setDescTab("preview");
         await showAlert({
           title: "AI Copy Generated",
           message: "Bangla marketing title and description generated successfully!",
@@ -633,9 +635,35 @@ export default function ProductsPage() {
               {/* Description */}
               <div className="form-control w-full">
                 <div className="flex items-center justify-between py-1">
-                  <label className="label py-0 px-0">
-                    <span className="label-text font-bold text-xs text-stone-700">Description (বাংলা বিবরণ) *</span>
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="label py-0 px-0">
+                      <span className="label-text font-bold text-xs text-stone-700">Description (বাংলা বিবরণ) *</span>
+                    </label>
+                    <div className="flex items-center gap-1 bg-stone-200/70 p-0.5 rounded-lg text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setDescTab("edit")}
+                        className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
+                          descTab === "edit"
+                            ? "bg-white text-stone-900 shadow-2xs font-bold"
+                            : "text-stone-600 hover:text-stone-900"
+                        }`}
+                      >
+                        এডিট (Code)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDescTab("preview")}
+                        className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
+                          descTab === "preview"
+                            ? "bg-white text-stone-900 shadow-2xs font-bold"
+                            : "text-stone-600 hover:text-stone-900"
+                        }`}
+                      >
+                        প্রিভিউ (Live)
+                      </button>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={handleGenerateAiCopy}
@@ -646,14 +674,24 @@ export default function ProductsPage() {
                     <span>{generatingAiCopy ? "AI লিখছে..." : "✨ AI দিয়ে বাংলায় লিখুন"}</span>
                   </button>
                 </div>
-                <textarea
-                  required
-                  rows={5}
-                  placeholder="পণ্য পরিচিতি, সুবিধা ও ডেলিভারি বিবরণ..."
-                  className="textarea textarea-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-xs font-mono leading-relaxed"
-                  value={selectedProduct.description}
-                  onChange={(e) => setSelectedProduct({ ...selectedProduct, description: e.target.value })}
-                />
+                {descTab === "edit" ? (
+                  <textarea
+                    required
+                    rows={6}
+                    placeholder="পণ্য পরিচিতি, সুবিধা ও ডেলিভারি বিবরণ..."
+                    className="textarea textarea-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50 w-full text-xs font-mono leading-relaxed"
+                    value={selectedProduct.description}
+                    onChange={(e) => setSelectedProduct({ ...selectedProduct, description: e.target.value })}
+                  />
+                ) : (
+                  <div className="max-h-72 overflow-y-auto rounded-xl border border-stone-200 bg-white p-2">
+                    {selectedProduct.description ? (
+                      <FormattedDescription content={selectedProduct.description} />
+                    ) : (
+                      <p className="text-xs text-stone-400 p-4 text-center">কোনো বিবরণ লেখা হয়নি।</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Price, Compare-At, and Type */}

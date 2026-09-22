@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useModal } from "@/context/ModalContext";
 import { getApiUrl } from "@/lib/api";
+import FormattedDescription from "@/components/FormattedDescription";
 import {
   Server,
   RefreshCw,
@@ -101,6 +102,7 @@ export default function CanbosoStockPage() {
 
   // AI Copywriting State
   const [generatingAiCopy, setGeneratingAiCopy] = useState(false);
+  const [descTab, setDescTab] = useState<"edit" | "preview">("edit");
   const [aiSuccessMessage, setAiSuccessMessage] = useState("");
   const [aiErrorMessage, setAiErrorMessage] = useState("");
 
@@ -244,6 +246,7 @@ export default function CanbosoStockPage() {
           slug: data.slug || prev.slug,
           description: data.description || prev.description,
         }));
+        setDescTab("preview");
         setAiSuccessMessage(`✓ AI সফলভাবে বাংলায় মার্কেটিং টাইটেল ও ডেসক্রিপশন তৈরি করেছে (${data.modelUsed})`);
       } else {
         const errorMsg = data.message || "AI copy generation failed.";
@@ -1012,9 +1015,35 @@ export default function CanbosoStockPage() {
               {/* Description */}
               <div className="space-y-1.5 w-full">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-stone-800">
-                    Product Description (বাংলা মার্কেটিং বর্ণনা)
-                  </label>
+                  <div className="flex items-center gap-2">
+                    <label className="block text-xs font-bold text-stone-800">
+                      Product Description (বাংলা মার্কেটিং বর্ণনা)
+                    </label>
+                    <div className="flex items-center gap-1 bg-stone-200/70 p-0.5 rounded-lg text-[11px]">
+                      <button
+                        type="button"
+                        onClick={() => setDescTab("edit")}
+                        className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
+                          descTab === "edit"
+                            ? "bg-white text-stone-900 shadow-2xs font-bold"
+                            : "text-stone-600 hover:text-stone-900"
+                        }`}
+                      >
+                        এডিট (Code)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDescTab("preview")}
+                        className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
+                          descTab === "preview"
+                            ? "bg-white text-stone-900 shadow-2xs font-bold"
+                            : "text-stone-600 hover:text-stone-900"
+                        }`}
+                      >
+                        প্রিভিউ (Live)
+                      </button>
+                    </div>
+                  </div>
                   <button
                     type="button"
                     onClick={() => handleGenerateAiCopy()}
@@ -1025,15 +1054,25 @@ export default function CanbosoStockPage() {
                     <span>{generatingAiCopy ? "Writing..." : "AI Generate Bangla"}</span>
                   </button>
                 </div>
-                <textarea
-                  rows={6}
-                  placeholder="পণ্য পরিচিতি, সুবিধা ও ডেলিভারি বিবরণ..."
-                  className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-mono leading-relaxed w-full block"
-                  value={importForm.description}
-                  onChange={(e) =>
-                    setImportForm((prev) => ({ ...prev, description: e.target.value }))
-                  }
-                />
+                {descTab === "edit" ? (
+                  <textarea
+                    rows={6}
+                    placeholder="পণ্য পরিচিতি, সুবিধা ও ডেলিভারি বিবরণ..."
+                    className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-mono leading-relaxed w-full block"
+                    value={importForm.description}
+                    onChange={(e) =>
+                      setImportForm((prev) => ({ ...prev, description: e.target.value }))
+                    }
+                  />
+                ) : (
+                  <div className="max-h-72 overflow-y-auto rounded-xl border border-stone-200 bg-white p-2">
+                    {importForm.description ? (
+                      <FormattedDescription content={importForm.description} />
+                    ) : (
+                      <p className="text-xs text-stone-400 p-4 text-center">কোনো বিবরণ লেখা হয়নি।</p>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Toggles */}

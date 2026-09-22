@@ -13,7 +13,26 @@ export default function FormattedDescription({
 }: FormattedDescriptionProps) {
   if (!content) return null;
 
-  // Helper to parse inline bold **text**
+  // Check if content contains semantic HTML tags (from AI or rich editor)
+  const hasHtml = /<(?:h[1-6]|p|ul|ol|li|div|br)\b[^>]*>/i.test(content);
+
+  if (hasHtml) {
+    return (
+      <div
+        className={`bg-stone-50/70 rounded-2xl border border-stone-200/80 p-4 sm:p-6 text-xs sm:text-sm text-stone-700 leading-relaxed space-y-1
+          [&_h3]:text-sm sm:[&_h3]:text-base [&_h3]:font-bold [&_h3]:text-stone-900 [&_h3]:pt-4 [&_h3]:pb-1.5 [&_h3]:border-b [&_h3]:border-stone-200/70 [&_h3]:first:pt-0 [&_h3]:mb-2 [&_h3]:flex [&_h3]:items-center [&_h3]:gap-2
+          [&_h4]:text-xs sm:[&_h4]:text-sm [&_h4]:font-bold [&_h4]:text-stone-900 [&_h4]:pt-2 [&_h4]:mb-1
+          [&_p]:my-2.5 [&_p]:leading-relaxed [&_p]:text-stone-700
+          [&_ul]:space-y-2 [&_ul]:my-2.5 [&_ul]:pl-5 [&_ul]:list-disc
+          [&_li]:marker:text-amber-500 [&_li]:text-stone-700 [&_li]:leading-relaxed
+          [&_strong]:font-bold [&_strong]:text-stone-950
+          ${className}`}
+        dangerouslySetInnerHTML={{ __html: content }}
+      />
+    );
+  }
+
+  // Fallback for raw markdown or plain text with newlines
   const parseInline = (text: string) => {
     const parts = text.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, idx) => {
@@ -28,7 +47,6 @@ export default function FormattedDescription({
     });
   };
 
-  // Split lines
   const lines = content.split(/\r?\n/);
   const elements: React.ReactNode[] = [];
   let currentList: string[] = [];
@@ -114,17 +132,18 @@ export default function FormattedDescription({
 }
 
 /**
- * Strips markdown syntax and returns a short, clean single-line preview snippet for cards & banners
+ * Strips HTML tags, markdown syntax, and returns a short, clean single-line preview snippet for cards & banners
  */
 export function getCleanSnippet(description?: string, maxLength: number = 140): string {
   if (!description) return "";
 
   const clean = description
-    .replace(/^#+\s*[^\n]*\n?/gm, "") // remove heading lines like ### 📌 পণ্য পরিচিতি
-    .replace(/^[-*•✅]\s+/gm, "")     // remove bullet prefixes
-    .replace(/\*\*(.*?)\*\*/g, "$1")  // remove bold asterisks
-    .replace(/\n+/g, " ")             // replace newlines with space
-    .replace(/\s{2,}/g, " ")          // collapse spaces
+    .replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, " ") // remove headings completely so preview starts with intro text
+    .replace(/^#+\s*[^\n]*\n?/gm, "")                 // remove markdown heading lines
+    .replace(/<[^>]*>/g, " ")                         // strip all other HTML tags
+    .replace(/^[-*•✅]\s+/gm, "")                     // remove bullet prefixes
+    .replace(/\*\*(.*?)\*\*/g, "$1")                  // remove bold asterisks
+    .replace(/\s+/g, " ")                             // collapse all whitespace
     .trim();
 
   if (clean.length <= maxLength) return clean;

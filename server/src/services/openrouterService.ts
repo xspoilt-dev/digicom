@@ -160,7 +160,7 @@ The JSON object must have this exact structure:
   "highlights": [
     "৩-৪টি প্রধান আকর্ষণীয় সুবিধা বাংলায় সংক্ষেপে বুলেট পয়েন্ট আকারে"
   ],
-  "description": "A comprehensive, high-converting product description in standard Bengali using rich Markdown headings and bullet points. Must include:\\n\\n### 📌 পণ্য পরিচিতি (What the product/service does)\\n### ⚡ মূল বৈশিষ্ট্য ও প্রিমিয়াম সুবিধাসমূহ (Key benefits and unlocked pro features)\\n### 🚀 ইনস্ট্যান্ট ডেলিভারি প্রক্রিয়া (Instant automated delivery upon bKash/Nagad payment)\\n### 🛡️ অফিসিয়াল ওয়ারেন্টি ও হেল্পলাইন (Full validity warranty and WhatsApp support)\\n### 💡 কেন Kalobazar.shop থেকে নিবেন? (100% verified, secure & best rate in Bangladesh)"
+  "description": "Clean, ready-to-render semantic HTML formatted description in Bengali. DO NOT use raw markdown hashes like ###. Use clean HTML tags: <h3>, <p>, <ul>, <li>, and <strong>. Must include:\\n<h3>📌 পণ্য পরিচিতি</h3>\\n<p>পণ্য পরিচিতি ও এটি কীভাবে ব্যবহারকারীর কাজে লাগবে...</p>\\n<h3>⚡ মূল বৈশিষ্ট্য ও প্রিমিয়াম সুবিধাসমূহ</h3>\\n<ul>\\n  <li><strong>সুবিধা ১:</strong> বিস্তারিত বিবরণ</li>\\n  <li><strong>সুবিধা ২:</strong> বিস্তারিত বিবরণ</li>\\n</ul>\\n<h3>🚀 ইনস্ট্যান্ট ডেলিভারি প্রক্রিয়া</h3>\\n<p>bKash/Nagad পেমেন্টের সাথে সাথেই স্বয়ংক্রিয়ভাবে অ্যাকাউন্ট ও এক্সেস ডেলিভারি করা হয়।</p>\\n<h3>🛡️ অফিসিয়াল ওয়ারেন্টি ও হেল্পলাইন</h3>\\n<p>সম্পূর্ণ মেয়াদকালীন অফিসিয়াল রিপ্লেসমেন্ট ওয়ারেন্টি এবং WhatsApp হেল্পলাইন সাপোর্ট।</p>\\n<h3>💡 কেন Kalobazar.shop থেকে নিবেন?</h3>\\n<ul>\\n  <li><strong>১০০% ভেরিফাইড:</strong> কোনো ইনভ্যালিড এক্সেসের ভয় নেই।</li>\\n  <li><strong>সেরা মূল্য:</strong> বাংলাদেশে সবচেয়ে সাশ্রয়ী মূল্যে ডিজিটাল সার্ভিস।</li>\\n</ul>"
 }
 ${config.customInstructions ? `\nAdditional Custom Instruction: ${config.customInstructions}` : ""}`;
 
@@ -171,6 +171,9 @@ ${config.customInstructions ? `\nAdditional Custom Instruction: ${config.customI
 - Category: ${input.category || "Digital Service"}
 - Upstream Description / Details:
 ${input.description || "Official digital subscription with instant activation."}
+
+FORMAT REQUIREMENT:
+The "description" field MUST be output as clean semantic HTML using <h3>, <p>, <ul>, <li>, and <strong> tags. Do NOT output raw markdown hashes (###) or unformatted plain text.
 
 Generate the JSON output now:`;
 
@@ -290,7 +293,7 @@ function parseLLMJsonResponse(
   return {
     title,
     slug,
-    description,
+    description: ensureFormattedHtml(description),
     highlights: [],
   };
 }
@@ -301,7 +304,7 @@ function sanitizeParsedCopy(
 ): { title: string; slug: string; description: string; highlights?: string[] } {
   const title = String(data.title || fallbackName).trim();
   const slug = generateCleanSlug(data.slug || title || fallbackName);
-  const description = String(data.description || "").trim();
+  const description = ensureFormattedHtml(String(data.description || "").trim());
   const highlights = Array.isArray(data.highlights)
     ? data.highlights.map((h: any) => String(h).trim()).filter(Boolean)
     : [];
@@ -312,6 +315,72 @@ function sanitizeParsedCopy(
     description,
     highlights,
   };
+}
+
+/**
+ * Ensures a text string is cleanly formatted as semantic HTML.
+ * If already containing semantic tags (<h3>, <p>, <ul>, etc.), it normalizes bold tags.
+ * If markdown or plain text, converts headings and bullet points into semantic HTML.
+ */
+export function ensureFormattedHtml(text: string): string {
+  if (!text || !text.trim()) return "";
+
+  const replaceBold = (str: string) => str.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+  // If already contains structural HTML tags
+  if (/<(?:h[1-6]|p|ul|ol|li|div|br)\b[^>]*>/i.test(text)) {
+    return replaceBold(text.trim());
+  }
+
+  const lines = text.split(/\r?\n/);
+  const parts: string[] = [];
+  let inList = false;
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) {
+      if (inList) {
+        parts.push("</ul>");
+        inList = false;
+      }
+      continue;
+    }
+
+    // Heading: ### Heading or ## Heading or # Heading
+    if (/^#+\s+/.test(line)) {
+      if (inList) {
+        parts.push("</ul>");
+        inList = false;
+      }
+      const heading = line.replace(/^#+\s*/, "").trim();
+      parts.push(`<h3>${heading}</h3>`);
+      continue;
+    }
+
+    // Bullet item: - item, * item, • item, or starting with ✅
+    if (/^[-*•]\s+/.test(line) || /^✅\s+/.test(line)) {
+      if (!inList) {
+        parts.push("<ul>");
+        inList = true;
+      }
+      const itemText = line.replace(/^[-*•]\s*/, "").trim();
+      parts.push(`<li>${replaceBold(itemText)}</li>`);
+      continue;
+    }
+
+    // Normal paragraph
+    if (inList) {
+      parts.push("</ul>");
+      inList = false;
+    }
+    parts.push(`<p>${replaceBold(line)}</p>`);
+  }
+
+  if (inList) {
+    parts.push("</ul>");
+  }
+
+  return parts.join("\n");
 }
 
 function generateCleanSlug(text: string): string {

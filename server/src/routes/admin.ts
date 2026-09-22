@@ -20,6 +20,7 @@ import {
   testOpenRouterConnection,
   generateBanglaProductCopy,
   getOpenRouterConfig,
+  ensureFormattedHtml,
 } from "../services/openrouterService";
 import { getZiniPayApiKey } from "../utils/zinipay";
 import path from "path";
@@ -490,7 +491,7 @@ adminRouter.post("/canboso/import", async (c) => {
       {
         title,
         slug: cleanSlug,
-        description: description || `${title} - Premium Digital Subscription`,
+        description: ensureFormattedHtml(description || `${title} - Premium Digital Subscription`),
         price: Number(price),
         compareAtPrice: finalComparePrice,
         type: type || "account",
@@ -631,6 +632,9 @@ adminRouter.get("/products", async (c) => {
 adminRouter.post("/products", async (c) => {
   try {
     const body = await c.req.json();
+    if (body.description) {
+      body.description = ensureFormattedHtml(body.description);
+    }
     const product = new Product(body);
     await product.save();
     return c.json({ success: true, product });
@@ -643,6 +647,9 @@ adminRouter.put("/products/:id", async (c) => {
   try {
     const id = c.req.param("id");
     const body = await c.req.json();
+    if (body.description) {
+      body.description = ensureFormattedHtml(body.description);
+    }
     const product = await Product.findByIdAndUpdate(id, body, { new: true });
     if (!product) {
       return c.json({ success: false, message: "Product not found" }, 404);

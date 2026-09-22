@@ -51,21 +51,35 @@ async function fulfillPaidOrder(
     const prod = (await Product.findById(prodId)) as any;
 
     if (prod) {
-      // Check if product is connected to Canboso Buyer API
-      if (prod.canbosoProductId && canbosoConfig.autoFulfill && prod.autoFulfill !== false) {
+      const targetUpstreamId = prod.canbosoProductId || prod.upstreamProductId;
+      const targetProviderId = (prod.providerId || item.providerId)?.toString();
+
+      if (targetUpstreamId && canbosoConfig.autoFulfill && prod.autoFulfill !== false) {
         order.fulfillmentStatus = "processing";
         try {
           const purchaseRes = await executeCanbosoPurchase({
             orderId: order.orderId,
-            productId: prod.canbosoProductId,
+            productId: targetUpstreamId,
             quantity: item.quantity || 1,
             customerEmail: order.email,
             slotMonths: order.slotMonths || item.slotMonths,
+            providerId: targetProviderId,
           });
 
           if (purchaseRes.success) {
             order.fulfillmentStatus = "completed";
             order.canbosoOrderCode = purchaseRes.orderCode;
+            order.upstreamOrderCode = purchaseRes.orderCode;
+            if (purchaseRes.providerName) {
+              order.providerName = purchaseRes.providerName;
+              item.providerName = purchaseRes.providerName;
+            }
+            if (purchaseRes.providerId) {
+              order.providerId = purchaseRes.providerId as any;
+              item.providerId = purchaseRes.providerId as any;
+            }
+            item.upstreamOrderCode = purchaseRes.orderCode;
+            item.upstreamProductId = targetUpstreamId;
             if (purchaseRes.deliveryAccounts && purchaseRes.deliveryAccounts.length > 0) {
               order.deliveryAccounts = (order.deliveryAccounts || []).concat(purchaseRes.deliveryAccounts);
             }
@@ -74,13 +88,17 @@ async function fulfillPaidOrder(
             totalCostUsd += itemCost * (item.quantity || 1);
           } else {
             order.fulfillmentStatus = "failed";
-            order.fulfillmentError = purchaseRes.errorMessage || "Canboso automated purchase failed";
-            console.warn(`[Canboso Fulfillment Warning] Order ${order.orderId}:`, purchaseRes.errorMessage);
+            order.fulfillmentError = purchaseRes.errorMessage || "Automated purchase failed";
+            if (purchaseRes.providerName) {
+              order.providerName = purchaseRes.providerName;
+              item.providerName = purchaseRes.providerName;
+            }
+            console.warn(`[Provider Fulfillment Warning] Order ${order.orderId}:`, purchaseRes.errorMessage);
           }
         } catch (err: any) {
           order.fulfillmentStatus = "failed";
           order.fulfillmentError = err.message;
-          console.error(`[Canboso Fulfillment Exception] Order ${order.orderId}:`, err);
+          console.error(`[Provider Fulfillment Exception] Order ${order.orderId}:`, err);
         }
       } else {
         // Static or non-Canboso product

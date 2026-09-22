@@ -75,6 +75,16 @@ interface StoreProduct {
   active: boolean;
 }
 
+interface ProviderOption {
+  _id: string;
+  name: string;
+  dollarRate: number;
+  isDefault: boolean;
+  isActive: boolean;
+  balanceUsd?: number;
+  balanceVnd?: number;
+}
+
 export default function CanbosoStockPage() {
   const { showAlert } = useModal();
   const [mounted, setMounted] = useState(false);
@@ -83,6 +93,10 @@ export default function CanbosoStockPage() {
   const [categories, setCategories] = useState<StoreCategory[]>([]);
   const [dollarRate, setDollarRate] = useState<number>(127);
   const [balance, setBalance] = useState<{ balanceUsd: number; balanceVnd: number } | null>(null);
+
+  // Multi-Provider state
+  const [providers, setProviders] = useState<ProviderOption[]>([]);
+  const [selectedProviderId, setSelectedProviderId] = useState<string>("");
 
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -142,16 +156,35 @@ export default function CanbosoStockPage() {
     };
   };
 
-  const loadData = async (isRefresh = false) => {
+  const loadData = async (isRefresh = false, providerIdOverride?: string) => {
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
     try {
+      // 1. Fetch providers
+      let activeProviderId = providerIdOverride !== undefined ? providerIdOverride : selectedProviderId;
+      try {
+        const provRes = await fetch(`${apiUrl}/api/admin/providers`, { headers: getAuthHeaders() });
+        const provData = await provRes.json();
+        if (provData.success && Array.isArray(provData.providers)) {
+          setProviders(provData.providers);
+          if (!activeProviderId && provData.providers.length > 0) {
+            const def = provData.providers.find((p: any) => p.isDefault) || provData.providers[0];
+            activeProviderId = def._id;
+            setSelectedProviderId(activeProviderId);
+          }
+        }
+      } catch (e) {
+        console.error("Error loading providers:", e);
+      }
+
+      const providerParam = activeProviderId ? `?providerId=${activeProviderId}` : "";
+
       const [upstreamRes, storeProdsRes, catsRes, balanceRes] = await Promise.all([
-        fetch(`${apiUrl}/api/admin/canboso/products`, { headers: getAuthHeaders() }),
+        fetch(`${apiUrl}/api/admin/canboso/products${providerParam}`, { headers: getAuthHeaders() }),
         fetch(`${apiUrl}/api/admin/products`, { headers: getAuthHeaders() }),
         fetch(`${apiUrl}/api/admin/categories`, { headers: getAuthHeaders() }),
-        fetch(`${apiUrl}/api/admin/canboso/balance`, { headers: getAuthHeaders() }),
+        fetch(`${apiUrl}/api/admin/canboso/balance${providerParam}`, { headers: getAuthHeaders() }),
       ]);
 
       const upstreamData = await upstreamRes.json();
@@ -197,7 +230,7 @@ export default function CanbosoStockPage() {
         setBalance({ balanceUsd: Number(balanceData.balanceUsd || 0), balanceVnd: Number(balanceData.balanceVnd || 0) });
       }
     } catch (err) {
-      console.error("Error loading Canboso data:", err);
+      console.error("Error loading Upstream data:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -357,11 +390,14 @@ export default function CanbosoStockPage() {
 
     setSubmittingImport(true);
     try {
+      const selectedProv = providers.find((p) => p._id === selectedProviderId);
       const res = await fetch(`${apiUrl}/api/admin/canboso/import`, {
         method: "POST",
         headers: getAuthHeaders(),
         body: JSON.stringify({
           canbosoProductId: selectedProduct.id,
+          providerId: selectedProviderId || undefined,
+          providerName: selectedProv?.name || undefined,
           title: importForm.title.trim(),
           slug: importForm.slug.trim() || generateSlug(importForm.title),
           description: importForm.description,
@@ -449,29 +485,50 @@ export default function CanbosoStockPage() {
   return (
     <div className="space-y-8 animate-fadeIn max-w-7xl mx-auto pb-16">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-black text-stone-900 flex items-center gap-2.5">
-            <Server className="w-7 h-7 text-amber-500" /> Canboso Upstream Stock
+            <Server className="w-7 h-7 text-amber-500" /> Upstream Stock &amp; Automation
           </h1>
           <p className="text-xs sm:text-sm text-stone-600 font-medium mt-1">
-            Browse live stock, connect digital accounts, set Taka pricing, and preview USD margins
+            Browse live stock across providers, connect digital products, set Taka pricing, and preview margins
           </p>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {providers.length > 0 && (
+            <div className="flex items-center gap-2 bg-white border-2 border-stone-200 rounded-xl px-3 py-1.5 shadow-2xs">
+              <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider">Provider:</span>
+              <select
+                value={selectedProviderId}
+                onChange={(e) => {
+                  const newId = e.target.value;
+                  setSelectedProviderId(newId);
+                  loadData(true, newId);
+                }}
+                className="bg-transparent font-bold text-xs text-stone-900 focus:outline-none cursor-pointer"
+              >
+                {providers.map((p) => (
+                  <option key={p._id} value={p._id}>
+                    {p.name} {p.isDefault ? "(Default)" : ""} {p.balanceUsd !== undefined ? `• $${Number(p.balanceUsd).toFixed(2)}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <button
             onClick={() => loadData(true)}
             disabled={refreshing}
-            className="btn bg-white hover:bg-stone-50 border-2 border-stone-200 text-stone-900 rounded-xl font-bold text-xs flex items-center gap-2 shadow-xs"
+            className="btn bg-white hover:bg-stone-50 border-2 border-stone-200 text-stone-900 rounded-xl font-bold text-xs flex items-center gap-2 shadow-xs cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-amber-500 ${refreshing ? "animate-spin" : ""}`} />
             <span>{refreshing ? "Syncing..." : "Sync Stock"}</span>
           </button>
           <Link
-            href="/admin/settings"
+            href="/admin/settings#canboso"
             className="btn bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-bold text-xs shadow-xs"
           >
-            Settings
+            Manage Providers
           </Link>
         </div>
       </div>
@@ -485,7 +542,7 @@ export default function CanbosoStockPage() {
           </div>
           <div className="overflow-hidden">
             <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider block">
-              Upstream Wallet
+              Wallet ({providers.find((p) => p._id === selectedProviderId)?.name || "Primary"})
             </span>
             <div className="text-xl font-black text-stone-900 truncate">
               {balance ? `$${Number(balance.balanceUsd || 0).toFixed(2)} USD` : "Not Available"}
@@ -719,14 +776,19 @@ export default function CanbosoStockPage() {
                   <Package className="w-5 h-5 text-amber-500" />
                   Connect Product to Store Catalog
                 </h3>
-                <span className="text-xs text-stone-500 mt-0.5 block">
-                  Upstream: {selectedProduct.name} (ID: {selectedProduct.id})
-                </span>
+                <div className="flex items-center gap-2 mt-1 flex-wrap">
+                  <span className="text-xs text-stone-500">
+                    Upstream: {selectedProduct.name} (ID: {selectedProduct.id})
+                  </span>
+                  <span className="badge bg-amber-100 text-amber-900 border-none font-bold text-[10px]">
+                    Provider: {providers.find((p) => p._id === selectedProviderId)?.name || "Default"}
+                  </span>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="btn btn-sm btn-ghost btn-circle text-stone-400 hover:text-stone-700"
+                className="btn btn-sm btn-ghost btn-circle text-stone-400 hover:text-stone-700 cursor-pointer"
                 aria-label="Close"
               >
                 <X className="w-4 h-4" />

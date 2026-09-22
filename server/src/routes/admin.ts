@@ -7,6 +7,7 @@ import Transaction from "../models/Transaction";
 import Setting from "../models/Setting";
 import RouteRedirect from "../models/RouteRedirect";
 import CapiLog from "../models/CapiLog";
+import Provider from "../models/Provider";
 import { sendCapiEvent } from "../utils/metaCapi";
 import { sendOrderDeliveryEmail } from "../utils/mailer";
 import { invalidateSettingCache } from "../utils/settingsCache";
@@ -15,6 +16,8 @@ import {
   fetchCanbosoProducts,
   executeCanbosoPurchase,
   getCanbosoConfig,
+  resolveProvider,
+  ensureDefaultProviderMigrated,
 } from "../services/canbosoClient";
 import {
   testOpenRouterConnection,
@@ -244,20 +247,33 @@ adminRouter.get("/orders", async (c) => {
   try {
     const status = c.req.query("status");
     const search = c.req.query("search");
+    const providerId = c.req.query("providerId");
 
     const query: any = {};
     if (status) {
       query.status = status;
     }
+    if (providerId) {
+      query.$or = [{ providerId }, { "items.providerId": providerId }];
+    }
     if (search) {
-      query.$or = [
+      const searchConditions = [
         { orderId: new RegExp(search, "i") },
         { email: new RegExp(search, "i") },
         { phone: new RegExp(search, "i") },
+        { providerName: new RegExp(search, "i") },
+        { upstreamOrderCode: new RegExp(search, "i") },
+        { canbosoOrderCode: new RegExp(search, "i") },
         { zinipayInvoiceId: new RegExp(search, "i") },
         { transactionId: new RegExp(search, "i") },
         { bkashTrxID: new RegExp(search, "i") },
       ];
+      if (query.$or) {
+        query.$and = [{ $or: query.$or }, { $or: searchConditions }];
+        delete query.$or;
+      } else {
+        query.$or = searchConditions;
+      }
     }
 
     const orders = await Order.find(query).sort({ createdAt: -1 }).lean();
@@ -291,7 +307,7 @@ adminRouter.post("/orders/:id/verify", async (c) => {
       order.paymentMethod = "admin_approval";
     }
 
-    // Automated Canboso Purchase Execution
+    // Automated Multi-Provider Purchase Execution
     const canbosoConfig = await getCanbosoConfig();
     const dollarRate = canbosoConfig.dollarRate || 127;
     order.dollarRateUsed = dollarRate;
@@ -304,20 +320,35 @@ adminRouter.post("/orders/:id/verify", async (c) => {
       const prod = (await Product.findById(prodId)) as any;
 
       if (prod) {
-        if (prod.canbosoProductId && canbosoConfig.autoFulfill && prod.autoFulfill !== false) {
+        const targetUpstreamId = prod.canbosoProductId || prod.upstreamProductId;
+        const targetProviderId = (prod.providerId || item.providerId)?.toString();
+
+        if (targetUpstreamId && canbosoConfig.autoFulfill && prod.autoFulfill !== false) {
           order.fulfillmentStatus = "processing";
           try {
             const purchaseRes = await executeCanbosoPurchase({
               orderId: order.orderId,
-              productId: prod.canbosoProductId,
+              productId: targetUpstreamId,
               quantity: item.quantity || 1,
               customerEmail: order.email,
               slotMonths: order.slotMonths || item.slotMonths,
+              providerId: targetProviderId,
             });
 
             if (purchaseRes.success) {
               order.fulfillmentStatus = "completed";
               order.canbosoOrderCode = purchaseRes.orderCode;
+              order.upstreamOrderCode = purchaseRes.orderCode;
+              if (purchaseRes.providerName) {
+                order.providerName = purchaseRes.providerName;
+                item.providerName = purchaseRes.providerName;
+              }
+              if (purchaseRes.providerId) {
+                order.providerId = purchaseRes.providerId as any;
+                item.providerId = purchaseRes.providerId as any;
+              }
+              item.upstreamOrderCode = purchaseRes.orderCode;
+              item.upstreamProductId = targetUpstreamId;
               if (purchaseRes.deliveryAccounts && purchaseRes.deliveryAccounts.length > 0) {
                 order.deliveryAccounts = (order.deliveryAccounts || []).concat(purchaseRes.deliveryAccounts);
               }
@@ -326,7 +357,11 @@ adminRouter.post("/orders/:id/verify", async (c) => {
               totalCostUsd += itemCost * (item.quantity || 1);
             } else {
               order.fulfillmentStatus = "failed";
-              order.fulfillmentError = purchaseRes.errorMessage || "Canboso automated purchase failed";
+              order.fulfillmentError = purchaseRes.errorMessage || "Automated purchase failed";
+              if (purchaseRes.providerName) {
+                order.providerName = purchaseRes.providerName;
+                item.providerName = purchaseRes.providerName;
+              }
             }
           } catch (err: any) {
             order.fulfillmentStatus = "failed";
@@ -421,29 +456,106 @@ adminRouter.post("/orders/:id/verify", async (c) => {
   }
 });
 
-// 2.1 Canboso Upstream Wallet Balance
+// 2.05 Retry/Manual fulfillment for an order
+adminRouter.post("/orders/:id/fulfill", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json().catch(() => ({}));
+    const overrideProviderId = body.providerId;
+    const order = await Order.findById(id);
+    if (!order) {
+      return c.json({ success: false, message: "Order not found" }, 404);
+    }
+
+    let fulfilledCount = 0;
+    let lastError = "";
+
+    for (const item of order.items) {
+      const prodId = item.productId?._id || item.productId;
+      const prod = (await Product.findById(prodId)) as any;
+      if (!prod) continue;
+
+      const targetUpstreamId = prod.canbosoProductId || prod.upstreamProductId;
+      const targetProviderId = overrideProviderId || (prod.providerId || item.providerId)?.toString();
+
+      if (targetUpstreamId) {
+        order.fulfillmentStatus = "processing";
+        const purchaseRes = await executeCanbosoPurchase({
+          orderId: order.orderId,
+          productId: targetUpstreamId,
+          quantity: item.quantity || 1,
+          customerEmail: order.email,
+          slotMonths: order.slotMonths || item.slotMonths,
+          providerId: targetProviderId,
+        });
+
+        if (purchaseRes.success) {
+          fulfilledCount++;
+          order.fulfillmentStatus = "completed";
+          order.canbosoOrderCode = purchaseRes.orderCode;
+          order.upstreamOrderCode = purchaseRes.orderCode;
+          if (purchaseRes.providerName) {
+            order.providerName = purchaseRes.providerName;
+            item.providerName = purchaseRes.providerName;
+          }
+          if (purchaseRes.providerId) {
+            order.providerId = purchaseRes.providerId as any;
+            item.providerId = purchaseRes.providerId as any;
+          }
+          item.upstreamOrderCode = purchaseRes.orderCode;
+          if (purchaseRes.deliveryAccounts && purchaseRes.deliveryAccounts.length > 0) {
+            order.deliveryAccounts = (order.deliveryAccounts || []).concat(purchaseRes.deliveryAccounts);
+          }
+          const itemCost = purchaseRes.costUsd || prod.canbosoCostUsd || 0;
+          item.costUsd = itemCost;
+        } else {
+          lastError = purchaseRes.errorMessage || "Fulfillment failed";
+          order.fulfillmentStatus = "failed";
+          order.fulfillmentError = lastError;
+          if (purchaseRes.providerName) {
+            order.providerName = purchaseRes.providerName;
+            item.providerName = purchaseRes.providerName;
+          }
+        }
+      }
+    }
+
+    await order.save();
+
+    if (fulfilledCount > 0) {
+      return c.json({ success: true, message: "Order fulfilled successfully!", order });
+    } else {
+      return c.json({ success: false, message: lastError || "No upstream products could be fulfilled.", order }, 400);
+    }
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 2.1 Upstream Wallet Balance
 adminRouter.get("/canboso/balance", async (c) => {
   try {
-    const result = await fetchCanbosoBalance();
+    const providerId = c.req.query("providerId");
+    const result = await fetchCanbosoBalance(providerId);
     return c.json(result);
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }
 });
 
-// 2.2 Canboso Live Products List
+// 2.2 Upstream Live Products List
 adminRouter.get("/canboso/products", async (c) => {
   try {
     const forceRefresh = c.req.query("refresh") === "1";
-    const result = await fetchCanbosoProducts(forceRefresh);
-    const canbosoConfig = await getCanbosoConfig();
-    return c.json({ ...result, dollarRate: canbosoConfig.dollarRate || 127 });
+    const providerId = c.req.query("providerId");
+    const result = await fetchCanbosoProducts(forceRefresh, providerId);
+    return c.json(result);
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }
 });
 
-// 2.3 Import & Connect Canboso Product to Storefront
+// 2.3 Import & Connect Upstream Product to Storefront with Provider Connection
 adminRouter.post("/canboso/import", async (c) => {
   try {
     const body = await c.req.json();
@@ -465,12 +577,14 @@ adminRouter.post("/canboso/import", async (c) => {
       autoFulfill,
       purchaseRequirements,
       costUsd,
+      providerId,
     } = body;
 
     if (!canbosoProductId || !title || !slug || !price) {
       return c.json({ success: false, message: "canbosoProductId, title, slug, and price are required." }, 400);
     }
 
+    const provider = await resolveProvider(providerId);
     const cleanSlug = String(slug).toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-");
     const finalThumbnail = thumbnailPath || image || undefined;
     const finalComparePrice =
@@ -487,7 +601,7 @@ adminRouter.post("/canboso/import", async (c) => {
         : false;
 
     const product = await Product.findOneAndUpdate(
-      { $or: [{ canbosoProductId }, { slug: cleanSlug }] },
+      { $or: [{ canbosoProductId, providerId: provider.id }, { slug: cleanSlug }] },
       {
         title,
         slug: cleanSlug,
@@ -501,6 +615,8 @@ adminRouter.post("/canboso/import", async (c) => {
         isFeatured: Boolean(isFeatured),
         autoFulfill: autoFulfill !== false,
         canbosoProductId,
+        providerId: provider.id,
+        providerName: provider.name,
         canbosoCostUsd: Number(costUsd) || 0,
         purchaseRequirements: purchaseRequirements || {},
         active: true,
@@ -508,7 +624,7 @@ adminRouter.post("/canboso/import", async (c) => {
       { upsert: true, new: true }
     );
 
-    return c.json({ success: true, message: "Product imported & connected successfully!", product });
+    return c.json({ success: true, message: `Product imported & connected to provider "${provider.name}" successfully!`, product });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
   }
@@ -635,6 +751,10 @@ adminRouter.post("/products", async (c) => {
     if (body.description) {
       body.description = ensureFormattedHtml(body.description);
     }
+    if (body.providerId) {
+      const prov = await resolveProvider(body.providerId);
+      body.providerName = prov.name;
+    }
     const product = new Product(body);
     await product.save();
     return c.json({ success: true, product });
@@ -649,6 +769,13 @@ adminRouter.put("/products/:id", async (c) => {
     const body = await c.req.json();
     if (body.description) {
       body.description = ensureFormattedHtml(body.description);
+    }
+    if (body.providerId) {
+      const prov = await resolveProvider(body.providerId);
+      body.providerName = prov.name;
+    } else if (body.providerId === "" || body.providerId === null) {
+      body.providerId = undefined;
+      body.providerName = undefined;
     }
     const product = await Product.findByIdAndUpdate(id, body, { new: true });
     if (!product) {
@@ -1048,6 +1175,187 @@ adminRouter.post("/zinipay/test", async (c) => {
       success: false,
       message: `Failed to connect to ZiniPay API: ${error.message}`,
     });
+  }
+});
+
+// ─── UPSTREAM PROVIDERS MANAGEMENT (MULTI-PROVIDER SYSTEM) ───────────────────
+
+// List all providers with product counts
+adminRouter.get("/providers", async (c) => {
+  try {
+    await ensureDefaultProviderMigrated();
+    const providers = await Provider.find().sort({ isDefault: -1, createdAt: -1 }).lean();
+
+    // Aggregate product counts per provider
+    const counts = await Product.aggregate([
+      { $match: { providerId: { $exists: true, $ne: null } } },
+      { $group: { _id: "$providerId", count: { $sum: 1 } } },
+    ]);
+    const countMap: Record<string, number> = {};
+    counts.forEach((item: any) => {
+      if (item._id) countMap[item._id.toString()] = item.count;
+    });
+
+    const enriched = providers.map((p: any) => ({
+      ...p,
+      productCount: countMap[p._id.toString()] || 0,
+    }));
+
+    return c.json({ success: true, providers: enriched });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// Add new provider
+adminRouter.post("/providers", async (c) => {
+  try {
+    const body = await c.req.json();
+    const { name, apiKey, baseUrl, dollarRate, autoFulfill, isDefault, isActive, notes } = body;
+
+    if (!name || !name.trim() || !apiKey || !apiKey.trim()) {
+      return c.json({ success: false, message: "Provider name and API key are required." }, 400);
+    }
+
+    const cleanName = name.trim();
+    const slug =
+      cleanName
+        .toLowerCase()
+        .replace(/[^\w\s-]/g, "")
+        .replace(/[\s_-]+/g, "-") +
+      "-" +
+      Date.now().toString().slice(-4);
+
+    if (isDefault) {
+      await Provider.updateMany({}, { isDefault: false });
+    }
+
+    const provider = new Provider({
+      name: cleanName,
+      slug,
+      type: "canboso",
+      apiKey: apiKey.trim(),
+      baseUrl: (baseUrl || "https://canboso.com").trim().replace(/\/+$/, ""),
+      dollarRate: Number(dollarRate) > 0 ? Number(dollarRate) : 127,
+      autoFulfill: autoFulfill !== false,
+      isActive: isActive !== false,
+      isDefault: Boolean(isDefault),
+      notes: notes ? notes.trim() : undefined,
+    });
+
+    await provider.save();
+
+    // Check balance in background upon creation
+    fetchCanbosoBalance(provider._id.toString()).catch(() => {});
+
+    return c.json({ success: true, message: "Provider added successfully!", provider });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 400);
+  }
+});
+
+// Update provider
+adminRouter.put("/providers/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const body = await c.req.json();
+
+    if (body.isDefault) {
+      await Provider.updateMany({ _id: { $ne: id } }, { isDefault: false });
+    }
+    if (body.name) {
+      body.name = body.name.trim();
+    }
+    if (body.apiKey) {
+      body.apiKey = body.apiKey.trim();
+    }
+    if (body.baseUrl) {
+      body.baseUrl = body.baseUrl.trim().replace(/\/+$/, "");
+    }
+    if (body.dollarRate) {
+      body.dollarRate = Number(body.dollarRate) > 0 ? Number(body.dollarRate) : 127;
+    }
+
+    const provider = await Provider.findByIdAndUpdate(id, body, { new: true });
+    if (!provider) {
+      return c.json({ success: false, message: "Provider not found" }, 404);
+    }
+
+    // Sync provider name to connected products
+    if (body.name) {
+      await Product.updateMany({ providerId: id }, { providerName: body.name });
+    }
+
+    return c.json({ success: true, message: "Provider updated successfully!", provider });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 400);
+  }
+});
+
+// Delete provider
+adminRouter.delete("/providers/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const count = await Product.countDocuments({ providerId: id });
+    if (count > 0) {
+      return c.json(
+        {
+          success: false,
+          message: `Cannot delete provider: ${count} product(s) are currently connected to this provider. Please reassign them to another provider first.`,
+        },
+        400
+      );
+    }
+
+    await Provider.findByIdAndDelete(id);
+    return c.json({ success: true, message: "Provider removed successfully!" });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// Test connection and fetch live balance for a saved provider
+adminRouter.post("/providers/:id/test", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const result = await fetchCanbosoBalance(id);
+    return c.json(result);
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
+  }
+});
+
+// Test raw API key & endpoint before saving
+adminRouter.post("/providers/test-key", async (c) => {
+  try {
+    const body = await c.req.json();
+    const apiKey = (body.apiKey || "").trim();
+    const baseUrl = (body.baseUrl || "https://canboso.com").trim().replace(/\/+$/, "");
+
+    if (!apiKey) {
+      return c.json({ success: false, message: "API key is required" }, 400);
+    }
+
+    const res = await fetch(`${baseUrl}/api/v2/telegram-buyer/balance?key=${encodeURIComponent(apiKey)}`, {
+      headers: { Accept: "application/json" },
+    });
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok || !data.success) {
+      return c.json({ success: false, message: data.message || `Upstream error: HTTP ${res.status}` }, 400);
+    }
+
+    const balanceVnd = Number(data.balanceVnd || data.balance || 0);
+    const balanceUsd = Number(data.balanceUsd || (balanceVnd > 0 ? balanceVnd / 27000 : 0));
+
+    return c.json({
+      success: true,
+      message: `Connection successful! Balance: $${balanceUsd.toFixed(2)} USD (${balanceVnd.toLocaleString()} ₫)`,
+      balanceUsd: Number(balanceUsd.toFixed(2)),
+      balanceVnd,
+    });
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
   }
 });
 

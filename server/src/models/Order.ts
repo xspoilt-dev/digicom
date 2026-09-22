@@ -15,6 +15,10 @@ export interface IOrderItem {
   quantity: number;
   costUsd?: number;
   canbosoProductId?: string;
+  upstreamProductId?: string;
+  providerId?: mongoose.Types.ObjectId | string;
+  providerName?: string;
+  upstreamOrderCode?: string;
   slotMonths?: number;
 }
 
@@ -39,6 +43,8 @@ export interface IOrder extends Document {
   status: "pending" | "processing" | "paid" | "failed" | "cancelled";
   autoCompleted?: boolean;
   upstreamOrderCode?: string;
+  providerId?: mongoose.Types.ObjectId | string;
+  providerName?: string;
   idempotencyKey?: string;
   paymentGateway: "zinipay" | "bkash" | "eps" | "manual";
   zinipayInvoiceId?: string;
@@ -54,8 +60,8 @@ export interface IOrder extends Document {
   userAgent?: string;
   ip?: string;
 
-  // Canboso Upstream Fulfillment & Accounts
-  canbosoOrderCode?: string;
+  // Upstream Multi-Provider Fulfillment & Accounts
+  canbosoOrderCode?: string; // legacy alias
   fulfillmentStatus: "unfulfilled" | "processing" | "completed" | "failed" | "manual";
   fulfillmentError?: string;
   deliveryAccounts?: IDeliveryAccount[];
@@ -89,6 +95,10 @@ const OrderSchema: Schema = new Schema(
         quantity: { type: Number, required: true, default: 1 },
         costUsd: { type: Number, default: 0 },
         canbosoProductId: { type: String },
+        upstreamProductId: { type: String },
+        providerId: { type: Schema.Types.ObjectId, ref: "Provider" },
+        providerName: { type: String },
+        upstreamOrderCode: { type: String },
         slotMonths: { type: Number },
       },
     ],
@@ -100,7 +110,9 @@ const OrderSchema: Schema = new Schema(
       required: true,
     },
     autoCompleted: { type: Boolean, default: false },
-    upstreamOrderCode: { type: String },
+    upstreamOrderCode: { type: String, index: true },
+    providerId: { type: Schema.Types.ObjectId, ref: "Provider", index: true },
+    providerName: { type: String, index: true },
     idempotencyKey: { type: String },
     paymentGateway: { type: String, default: "zinipay", required: true },
     zinipayInvoiceId: { type: String },
@@ -116,7 +128,7 @@ const OrderSchema: Schema = new Schema(
     userAgent: { type: String },
     ip: { type: String },
 
-    // Canboso Upstream Fulfillment & Accounts
+    // Upstream Multi-Provider Fulfillment & Accounts
     canbosoOrderCode: { type: String },
     fulfillmentStatus: {
       type: String,

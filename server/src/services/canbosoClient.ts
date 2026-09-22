@@ -1,4 +1,5 @@
 import { getSetting } from "../utils/settingsCache";
+import { Provider, IProvider } from "../models/Provider";
 
 const CANBOSO_BASE_URL = "https://canboso.com";
 
@@ -6,6 +7,9 @@ export interface CanbosoConfig {
   apiKey: string;
   dollarRate: number; // e.g. 127 BDT per 1 USD
   autoFulfill: boolean;
+  baseUrl?: string;
+  providerId?: string;
+  providerName?: string;
 }
 
 export interface CanbosoProductPrice {
@@ -29,6 +33,8 @@ export interface CanbosoProduct {
   costUsd?: number;
   costVnd?: number;
   stock?: number;
+  providerId?: string;
+  providerName?: string;
   price: CanbosoProductPrice;
   availability: {
     available: number;
@@ -49,6 +55,8 @@ export interface CanbosoPurchaseResult {
   fulfillmentStatus: "completed" | "failed" | "waiting_seller";
   costUsd?: number;
   costVnd?: number;
+  providerId?: string;
+  providerName?: string;
   deliveryAccounts?: Array<{
     user: string;
     password?: string;
@@ -60,98 +68,245 @@ export interface CanbosoPurchaseResult {
   errorMessage?: string;
 }
 
-// In-memory catalog cache to honor Canboso 30 req/min quota
-let cachedProducts: CanbosoProduct[] = [];
-let cacheExpiresAt = 0;
-const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
+// In-memory catalog cache keyed by providerId or "default" (TTL: 2 minutes)
+const providerCatalogCache: Record<string, { products: CanbosoProduct[]; expiresAt: number }> = {};
+const CACHE_TTL_MS = 2 * 60 * 1000;
 
-export async function getCanbosoConfig(): Promise<CanbosoConfig> {
+/**
+ * Automatically creates initial default Provider record if none exist yet
+ */
+export async function ensureDefaultProviderMigrated(): Promise<void> {
+  try {
+    const count = await Provider.countDocuments();
+    if (count === 0) {
+      const settings = (await getSetting("canboso_settings")) || {};
+      const apiKey = (settings.apiKey || process.env.CANBOSO_BUYER_API_KEY || "").trim();
+      if (apiKey) {
+        await Provider.create({
+          name: "Canboso Primary",
+          slug: "canboso-primary",
+          type: "canboso",
+          apiKey,
+          baseUrl: CANBOSO_BASE_URL,
+          dollarRate: Number(settings.dollarRate) > 0 ? Number(settings.dollarRate) : 127,
+          autoFulfill: settings.autoFulfill !== false,
+          isActive: true,
+          isDefault: true,
+          notes: "Auto-migrated from initial Canboso settings",
+        });
+        console.log("[Provider] Created initial default provider from canboso_settings.");
+      }
+    }
+  } catch (err) {
+    console.error("[Provider] Error ensuring default provider:", err);
+  }
+}
+
+/**
+ * Resolves provider configuration by specific ID or falls back to default active provider
+ */
+export async function resolveProvider(providerId?: string): Promise<{
+  id?: string;
+  name: string;
+  apiKey: string;
+  baseUrl: string;
+  dollarRate: number;
+  autoFulfill: boolean;
+}> {
+  await ensureDefaultProviderMigrated();
+
+  if (providerId) {
+    try {
+      const p = await Provider.findById(providerId);
+      if (p) {
+        return {
+          id: p._id.toString(),
+          name: p.name,
+          apiKey: p.apiKey.trim(),
+          baseUrl: (p.baseUrl || CANBOSO_BASE_URL).trim().replace(/\/+$/, ""),
+          dollarRate: Number(p.dollarRate) > 0 ? Number(p.dollarRate) : 127,
+          autoFulfill: p.autoFulfill !== false,
+        };
+      }
+    } catch (_) {}
+  }
+
+  // 1. Find default active provider
+  const defaultProv = await Provider.findOne({ isActive: true, isDefault: true });
+  if (defaultProv) {
+    return {
+      id: defaultProv._id.toString(),
+      name: defaultProv.name,
+      apiKey: defaultProv.apiKey.trim(),
+      baseUrl: (defaultProv.baseUrl || CANBOSO_BASE_URL).trim().replace(/\/+$/, ""),
+      dollarRate: Number(defaultProv.dollarRate) > 0 ? Number(defaultProv.dollarRate) : 127,
+      autoFulfill: defaultProv.autoFulfill !== false,
+    };
+  }
+
+  // 2. Find any active provider
+  const anyProv = await Provider.findOne({ isActive: true });
+  if (anyProv) {
+    return {
+      id: anyProv._id.toString(),
+      name: anyProv.name,
+      apiKey: anyProv.apiKey.trim(),
+      baseUrl: (anyProv.baseUrl || CANBOSO_BASE_URL).trim().replace(/\/+$/, ""),
+      dollarRate: Number(anyProv.dollarRate) > 0 ? Number(anyProv.dollarRate) : 127,
+      autoFulfill: anyProv.autoFulfill !== false,
+    };
+  }
+
+  // 3. Fallback to settings / env
   const settings = (await getSetting("canboso_settings")) || {};
   const apiKey = (settings.apiKey || process.env.CANBOSO_BUYER_API_KEY || "").trim();
   const dollarRate = Number(settings.dollarRate) > 0 ? Number(settings.dollarRate) : 127;
   const autoFulfill = settings.autoFulfill !== false;
 
-  return { apiKey, dollarRate, autoFulfill };
+  return {
+    name: "Default Provider",
+    apiKey,
+    baseUrl: CANBOSO_BASE_URL,
+    dollarRate,
+    autoFulfill,
+  };
 }
 
 /**
- * Fetch spendable upstream wallet balance
+ * Retrieve Canboso configuration (backward compatible)
  */
-export async function fetchCanbosoBalance() {
-  const { apiKey } = await getCanbosoConfig();
-  if (!apiKey) {
-    return { success: false, message: "Canboso Buyer API Key is not configured." };
+export async function getCanbosoConfig(providerId?: string): Promise<CanbosoConfig> {
+  const p = await resolveProvider(providerId);
+  return {
+    apiKey: p.apiKey,
+    dollarRate: p.dollarRate,
+    autoFulfill: p.autoFulfill,
+    baseUrl: p.baseUrl,
+    providerId: p.id,
+    providerName: p.name,
+  };
+}
+
+/**
+ * Fetch spendable upstream wallet balance for a specific provider
+ */
+export async function fetchCanbosoBalance(providerId?: string) {
+  const provider = await resolveProvider(providerId);
+  if (!provider.apiKey) {
+    return {
+      success: false,
+      message: `Provider "${provider.name}" API Key is not configured.`,
+      providerName: provider.name,
+      providerId: provider.id,
+    };
   }
 
   try {
-    const url = `${CANBOSO_BASE_URL}/api/v2/telegram-buyer/balance?key=${encodeURIComponent(apiKey)}`;
+    const url = `${provider.baseUrl}/api/v2/telegram-buyer/balance?key=${encodeURIComponent(provider.apiKey)}`;
     const res = await fetch(url, { headers: { Accept: "application/json" } });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok || !data.success) {
       return {
         success: false,
         message: data.message || `Upstream error: HTTP ${res.status}`,
         code: data.code,
+        providerName: provider.name,
+        providerId: provider.id,
       };
     }
 
     const balanceVnd = Number(data.balanceVnd || data.balance || 0);
     const balanceUsd = Number(data.balanceUsd || (balanceVnd > 0 ? balanceVnd / 27000 : 0));
 
+    // Update balance in database if provider has record
+    if (provider.id) {
+      await Provider.findByIdAndUpdate(provider.id, {
+        balanceUsd: Number(balanceUsd.toFixed(2)),
+        balanceVnd,
+        lastSyncAt: new Date(),
+      }).catch(() => {});
+    }
+
     return {
       success: true,
       balanceVnd,
       balanceUsd: Number(balanceUsd.toFixed(2)),
       balanceText: data.balanceText || `${balanceVnd.toLocaleString()} ₫`,
+      providerName: provider.name,
+      providerId: provider.id,
       requester: data.requester || {},
       botSource: data.botSource,
       updatedAt: data.updatedAt,
     };
   } catch (error: any) {
-    return { success: false, message: error.message || "Failed to reach Canboso server" };
+    return {
+      success: false,
+      message: error.message || "Failed to reach provider server",
+      providerName: provider.name,
+      providerId: provider.id,
+    };
   }
 }
 
 /**
- * Fetch available upstream products with stock and converted USD / BDT pricing
+ * Fetch available upstream products with stock and converted USD / BDT pricing for a provider
  */
-export async function fetchCanbosoProducts(forceRefresh = false): Promise<{
+export async function fetchCanbosoProducts(
+  forceRefresh = false,
+  providerId?: string
+): Promise<{
   success: boolean;
   products: CanbosoProduct[];
+  providerName?: string;
+  providerId?: string;
+  dollarRate?: number;
   message?: string;
   fromCache?: boolean;
 }> {
+  const provider = await resolveProvider(providerId);
+  const cacheKey = provider.id || "default";
   const now = Date.now();
-  if (!forceRefresh && cachedProducts.length > 0 && now < cacheExpiresAt) {
-    return { success: true, products: cachedProducts, fromCache: true };
+
+  if (!forceRefresh && providerCatalogCache[cacheKey]?.expiresAt > now) {
+    return {
+      success: true,
+      products: providerCatalogCache[cacheKey].products,
+      providerName: provider.name,
+      providerId: provider.id,
+      dollarRate: provider.dollarRate,
+      fromCache: true,
+    };
   }
 
-  const { apiKey, dollarRate } = await getCanbosoConfig();
-  if (!apiKey) {
+  if (!provider.apiKey) {
     return {
       success: false,
       products: [],
-      message: "Canboso Buyer API Key is not configured. Please set it in Admin Settings.",
+      providerName: provider.name,
+      providerId: provider.id,
+      dollarRate: provider.dollarRate,
+      message: `Provider "${provider.name}" API Key is not configured.`,
     };
   }
 
   try {
-    const url = `${CANBOSO_BASE_URL}/api/v2/telegram-buyer/products?key=${encodeURIComponent(apiKey)}`;
+    const url = `${provider.baseUrl}/api/v2/telegram-buyer/products?key=${encodeURIComponent(provider.apiKey)}`;
     const res = await fetch(url, { headers: { Accept: "application/json" } });
-    const data = await res.json();
+    const data = await res.json().catch(() => ({}));
 
     if (!res.ok || !data.success) {
       return {
         success: false,
         products: [],
-        message: data.message || `Canboso HTTP ${res.status}`,
+        providerName: provider.name,
+        providerId: provider.id,
+        dollarRate: provider.dollarRate,
+        message: data.message || `Provider HTTP ${res.status}`,
       };
     }
 
     const rawProducts = Array.isArray(data.products) ? data.products : [];
-
-    // Approximate VND to USD rate if upstream currency is VND (~27,000 VND = $1 USD)
     const VND_TO_USD = 27000;
 
     const normalized: CanbosoProduct[] = rawProducts.map((p: any) => {
@@ -168,9 +323,7 @@ export async function fetchCanbosoProducts(forceRefresh = false): Promise<{
         amountUsd = Number((amount / VND_TO_USD).toFixed(2));
       }
 
-      // Converted BDT equivalent using admin's configured dollarRate
-      const calculatedBdt = Math.round(amountUsd * dollarRate);
-
+      const calculatedBdt = Math.round(amountUsd * provider.dollarRate);
       const id = String(p.productId || p._id || p.id);
       const stock = Number(p.availability?.available ?? p.stock ?? 0);
       const costVnd = currency === "VND" ? amount : Math.round(amountUsd * VND_TO_USD);
@@ -179,7 +332,7 @@ export async function fetchCanbosoProducts(forceRefresh = false): Promise<{
       return {
         id,
         productId: id,
-        name: String(p.name || "Canboso Product"),
+        name: p.name || "Digital Product",
         code: p.code || "",
         description: p.description || "",
         image: p.image || "",
@@ -189,10 +342,12 @@ export async function fetchCanbosoProducts(forceRefresh = false): Promise<{
         costUsd: amountUsd,
         costVnd,
         stock,
+        providerId: provider.id,
+        providerName: provider.name,
         price: {
           amount,
           currency,
-          text: rawPrice.text || `${amount} ${currency}`,
+          text: rawPrice.text || `${amount.toLocaleString()} ${currency}`,
           amountUsd,
           calculatedBdt,
         },
@@ -205,20 +360,43 @@ export async function fetchCanbosoProducts(forceRefresh = false): Promise<{
       };
     });
 
-    cachedProducts = normalized;
-    cacheExpiresAt = now + CACHE_TTL_MS;
+    providerCatalogCache[cacheKey] = {
+      products: normalized,
+      expiresAt: now + CACHE_TTL_MS,
+    };
 
-    return { success: true, products: normalized, fromCache: false };
+    return {
+      success: true,
+      products: normalized,
+      providerName: provider.name,
+      providerId: provider.id,
+      dollarRate: provider.dollarRate,
+      fromCache: false,
+    };
   } catch (error: any) {
-    if (cachedProducts.length > 0) {
-      return { success: true, products: cachedProducts, fromCache: true };
+    if (providerCatalogCache[cacheKey]?.products?.length > 0) {
+      return {
+        success: true,
+        products: providerCatalogCache[cacheKey].products,
+        providerName: provider.name,
+        providerId: provider.id,
+        dollarRate: provider.dollarRate,
+        fromCache: true,
+      };
     }
-    return { success: false, products: [], message: error.message };
+    return {
+      success: false,
+      products: [],
+      providerName: provider.name,
+      providerId: provider.id,
+      dollarRate: provider.dollarRate,
+      message: error.message,
+    };
   }
 }
 
 /**
- * Execute automated purchase against Canboso Buyer API
+ * Execute automated purchase against a specific provider's API
  */
 export async function executeCanbosoPurchase(options: {
   orderId: string;
@@ -226,13 +404,16 @@ export async function executeCanbosoPurchase(options: {
   quantity?: number;
   customerEmail?: string;
   slotMonths?: number;
+  providerId?: string;
 }): Promise<CanbosoPurchaseResult> {
-  const { apiKey } = await getCanbosoConfig();
-  if (!apiKey) {
+  const provider = await resolveProvider(options.providerId);
+  if (!provider.apiKey) {
     return {
       success: false,
       fulfillmentStatus: "failed",
-      errorMessage: "Canboso Buyer API Key is missing. Manual fulfillment required.",
+      errorMessage: `Provider "${provider.name}" API Key is missing. Manual fulfillment required.`,
+      providerName: provider.name,
+      providerId: provider.id,
     };
   }
 
@@ -240,7 +421,7 @@ export async function executeCanbosoPurchase(options: {
   const idempotencyKey = `purchase-${orderId}-${productId}-${Date.now()}`;
 
   const payload: Record<string, any> = {
-    key: apiKey,
+    key: provider.apiKey,
     product_id: productId,
     quantity: Math.max(1, quantity),
   };
@@ -253,7 +434,7 @@ export async function executeCanbosoPurchase(options: {
   }
 
   try {
-    const url = `${CANBOSO_BASE_URL}/api/v2/telegram-buyer/purchase`;
+    const url = `${provider.baseUrl}/api/v2/telegram-buyer/purchase`;
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -267,12 +448,14 @@ export async function executeCanbosoPurchase(options: {
     const data = await res.json().catch(() => ({}));
 
     if (!res.ok || !data.success) {
-      const errorMsg = data.message || `Canboso purchase failed with HTTP ${res.status}`;
-      console.error(`[Canboso Purchase Error] Order ${orderId}, Product ${productId}:`, errorMsg, data);
+      const errorMsg = data.message || `Upstream provider (${provider.name}) purchase failed with HTTP ${res.status}`;
+      console.error(`[Provider Purchase Error] Provider: ${provider.name}, Order: ${orderId}, Product: ${productId}:`, errorMsg, data);
       return {
         success: false,
         fulfillmentStatus: "failed",
         errorMessage: errorMsg,
+        providerName: provider.name,
+        providerId: provider.id,
         rawResponse: data,
       };
     }
@@ -287,10 +470,12 @@ export async function executeCanbosoPurchase(options: {
 
     return {
       success: true,
-      orderCode: orderData.orderCode || `CANBOSO-${orderId}`,
+      orderCode: orderData.orderCode || `ORDER-${orderId}`,
       fulfillmentStatus: "completed",
       costUsd,
       costVnd,
+      providerName: provider.name,
+      providerId: provider.id,
       deliveryAccounts: accounts.map((acc: any) => ({
         user: String(acc.user || acc.email || acc.username || ""),
         password: String(acc.password || acc.pass || ""),
@@ -301,11 +486,13 @@ export async function executeCanbosoPurchase(options: {
       rawResponse: data,
     };
   } catch (error: any) {
-    console.error(`[Canboso Network Error] Order ${orderId}:`, error);
+    console.error(`[Provider Network Error] Provider: ${provider.name}, Order: ${orderId}:`, error);
     return {
       success: false,
       fulfillmentStatus: "failed",
-      errorMessage: error.message || "Failed to communicate with Canboso upstream server.",
+      errorMessage: error.message || `Failed to communicate with provider ${provider.name} server.`,
+      providerName: provider.name,
+      providerId: provider.id,
     };
   }
 }

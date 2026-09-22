@@ -45,8 +45,10 @@ export interface IProduct extends Document {
   curriculum: ICurriculumItem[];
   active: boolean;
 
-  // Canboso Upstream Integration & Accounting
-  canbosoProductId?: string; // Upstream Canboso product ID
+  // Upstream Multi-Provider Integration & Accounting
+  providerId?: mongoose.Types.ObjectId | string; // Reference to Provider
+  providerName?: string;                          // Cached Provider display name
+  canbosoProductId?: string; // Upstream product ID
   canbosoCostUsd?: number;   // Upstream purchase cost in USD
   canbosoCostVnd?: number;   // Upstream purchase cost in VND
   autoFulfill?: boolean;     // Automatically trigger Canboso purchase on order payment
@@ -109,7 +111,9 @@ const ProductSchema: Schema = new Schema(
     ],
     active: { type: Boolean, default: true },
 
-    // Canboso Upstream Fields
+    // Upstream Multi-Provider Fields
+    providerId: { type: Schema.Types.ObjectId, ref: "Provider", index: true },
+    providerName: { type: String },
     canbosoProductId: { type: String, index: true },
     canbosoCostUsd: { type: Number, default: 0 },
     canbosoCostVnd: { type: Number, default: 0 },

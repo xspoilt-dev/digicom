@@ -21,6 +21,8 @@ import {
   Tag,
   Eye,
   X,
+  Server,
+  Search,
 } from "lucide-react";
 
 interface Product {
@@ -32,6 +34,10 @@ interface Product {
   compareAtPrice?: number;
   type: "account" | "slot" | "license" | "course" | "pdf" | "video" | "zip" | "other";
   category?: string;
+  providerId?: string;
+  providerName?: string;
+  canbosoProductId?: string;
+  canbosoCostUsd?: number;
   serviceTag?: string;
   filePath?: string;
   deliveryLink?: string;
@@ -55,21 +61,45 @@ interface CategoryOption {
   slug: string;
 }
 
+interface ProviderOption {
+  _id: string;
+  name: string;
+  dollarRate?: number;
+  isDefault?: boolean;
+  balanceUsd?: number;
+}
+
 export default function ProductsPage() {
   const { showAlert, showConfirm } = useModal();
   const [mounted, setMounted] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<CategoryOption[]>([]);
+  const [providers, setProviders] = useState<ProviderOption[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [curriculumTitle, setCurriculumTitle] = useState("");
   const [curriculumDuration, setCurriculumDuration] = useState("");
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [providerFilter, setProviderFilter] = useState("all");
 
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [generatingAiCopy, setGeneratingAiCopy] = useState(false);
   const [descTab, setDescTab] = useState<"edit" | "preview">("edit");
   const [loading, setLoading] = useState(true);
+
+  // Read URL query parameter for provider filter
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      const provParam = urlParams.get("providerId");
+      if (provParam) {
+        setProviderFilter(provParam);
+      }
+    }
+  }, []);
 
   const handleGenerateAiCopy = async () => {
     if (!selectedProduct?.title) {
@@ -158,9 +188,10 @@ export default function ProductsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [prodsRes, catsRes] = await Promise.all([
+      const [prodsRes, catsRes, provsRes] = await Promise.all([
         fetch(`${apiUrl}/api/admin/products`, { headers: getAuthHeaders() }),
         fetch(`${apiUrl}/api/admin/categories`, { headers: getAuthHeaders() }),
+        fetch(`${apiUrl}/api/admin/providers`, { headers: getAuthHeaders() }),
       ]);
 
       const prodsData = await prodsRes.json();
@@ -170,8 +201,13 @@ export default function ProductsPage() {
       if (catsData.success && Array.isArray(catsData.categories)) {
         setCategories(catsData.categories);
       }
+
+      const provsData = await provsRes.json();
+      if (provsData.success && Array.isArray(provsData.providers)) {
+        setProviders(provsData.providers);
+      }
     } catch (err) {
-      console.error("Error loading products/categories:", err);
+      console.error("Error loading products/categories/providers:", err);
     } finally {
       setLoading(false);
     }
@@ -355,6 +391,27 @@ export default function ProductsPage() {
     }
   };
 
+  const filteredProducts = products.filter((p) => {
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      const matchTitle = p.title.toLowerCase().includes(q);
+      const matchSlug = p.slug.toLowerCase().includes(q);
+      const matchType = p.type.toLowerCase().includes(q);
+      if (!matchTitle && !matchSlug && !matchType) return false;
+    }
+    if (categoryFilter !== "all" && p.category !== categoryFilter) {
+      return false;
+    }
+    if (providerFilter !== "all") {
+      if (providerFilter === "none") {
+        if (p.providerId || p.canbosoProductId) return false;
+      } else {
+        if (p.providerId !== providerFilter) return false;
+      }
+    }
+    return true;
+  });
+
   if (loading) {
     return (
       <div className="flex items-center justify-center p-16">
@@ -384,91 +441,161 @@ export default function ProductsPage() {
         </button>
       </div>
 
+      {/* Search & Provider Filter Bar */}
+      <div className="bg-white p-4 rounded-2xl border-2 border-stone-200 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        <div className="relative flex-1">
+          <input
+            type="text"
+            placeholder="Search products by title, slug, or type..."
+            className="input input-bordered input-sm rounded-xl w-full pl-9 text-xs bg-stone-50 text-stone-900 border-stone-200 focus:border-amber-400"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <Search className="w-4 h-4 text-stone-400 absolute left-3 top-2.5" />
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Category Filter */}
+          <select
+            className="select select-bordered select-sm rounded-xl font-bold text-xs bg-stone-50 text-stone-900 border-stone-200"
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+          >
+            <option value="all">All Categories</option>
+            {categories.map((c) => (
+              <option key={c._id} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+
+          {/* Provider Filter */}
+          <select
+            className="select select-bordered select-sm rounded-xl font-bold text-xs bg-stone-50 text-stone-900 border-stone-200"
+            value={providerFilter}
+            onChange={(e) => setProviderFilter(e.target.value)}
+          >
+            <option value="all">All Providers</option>
+            {providers.map((pr) => (
+              <option key={pr._id} value={pr._id}>
+                Provider: {pr.name}
+              </option>
+            ))}
+            <option value="none">Manual / No Provider</option>
+          </select>
+
+          {(searchQuery || categoryFilter !== "all" || providerFilter !== "all") && (
+            <button
+              onClick={() => {
+                setSearchQuery("");
+                setCategoryFilter("all");
+                setProviderFilter("all");
+              }}
+              className="btn btn-ghost btn-sm text-stone-500 hover:text-stone-900 text-xs rounded-xl"
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+      </div>
+
       {/* Product Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {products.length > 0 ? (
-          products.map((p) => (
-            <div
-              key={p._id}
-              className="bg-white border-2 border-stone-200 shadow-sm hover:border-amber-300 transition-all rounded-2xl overflow-hidden flex flex-col justify-between"
-            >
-              {/* Product Cover Thumbnail */}
-              {p.thumbnailPath ? (
-                <div className="h-44 w-full bg-stone-50 overflow-hidden relative border-b border-stone-100 flex items-center justify-center p-2">
-                  <img
-                    src={`${apiUrl}/${p.thumbnailPath}`}
-                    alt={p.title}
-                    className="w-full h-full object-contain"
-                  />
-                  <div className="absolute top-2 right-2 flex flex-wrap gap-1">
-                    {p.showInSlider && (
-                      <span className="badge bg-amber-400 text-stone-950 font-bold text-[10px] border-none shadow-sm flex items-center gap-1">
-                        <Sliders className="w-2.5 h-2.5" /> Slider
-                      </span>
-                    )}
-                    {p.isFeatured && (
-                      <span className="badge bg-stone-900 text-white font-bold text-[10px] border-none shadow-sm flex items-center gap-1">
-                        <Sparkles className="w-2.5 h-2.5 text-amber-400" /> Featured
-                      </span>
-                    )}
-                    <span
-                      className={`badge ${
-                        p.active ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
-                      } font-bold text-[10px] border-none shadow-sm`}
-                    >
-                      {p.active ? "Active" : "Hidden"}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <div className="h-24 bg-stone-100 p-3 flex justify-between items-start border-b border-stone-200">
-                  <div className="flex flex-wrap gap-1">
-                    {p.showInSlider && (
-                      <span className="badge bg-amber-400 text-stone-950 font-bold text-[10px] border-none">
-                        Slider
-                      </span>
-                    )}
-                    {p.isFeatured && (
-                      <span className="badge bg-stone-900 text-white font-bold text-[10px] border-none">
-                        Featured
-                      </span>
-                    )}
-                    <span
-                      className={`badge ${
-                        p.active ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
-                      } font-bold text-[10px] border-none`}
-                    >
-                      {p.active ? "Active" : "Hidden"}
-                    </span>
-                  </div>
-                  <span className="text-[11px] text-stone-400 font-medium italic">No image</span>
-                </div>
-              )}
-
-              {/* Card Body */}
-              <div className="p-5 flex flex-col justify-between flex-1">
-                <div>
-                  <div className="flex justify-between items-center gap-2 mb-2">
-                    <span className="badge bg-stone-100 text-stone-700 font-bold text-[10px] border border-stone-200 uppercase tracking-wide">
-                      {p.type}
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      {p.compareAtPrice && p.compareAtPrice > p.price && (
-                        <span className="text-xs text-stone-400 line-through">৳{p.compareAtPrice}</span>
-                      )}
-                      <span className="font-black text-base text-amber-600">৳{p.price}</span>
+        {filteredProducts.length > 0 ? (
+              filteredProducts.map((p) => (
+                <div
+                  key={p._id}
+                  className="bg-white border-2 border-stone-200 shadow-sm hover:border-amber-300 transition-all rounded-2xl overflow-hidden flex flex-col justify-between"
+                >
+                  {/* Product Cover Thumbnail */}
+                  {p.thumbnailPath ? (
+                    <div className="h-44 w-full bg-stone-50 overflow-hidden relative border-b border-stone-100 flex items-center justify-center p-2">
+                      <img
+                        src={`${apiUrl}/${p.thumbnailPath}`}
+                        alt={p.title}
+                        className="w-full h-full object-contain"
+                      />
+                      <div className="absolute top-2 right-2 flex flex-wrap gap-1">
+                        {p.showInSlider && (
+                          <span className="badge bg-amber-400 text-stone-950 font-bold text-[10px] border-none shadow-sm flex items-center gap-1">
+                            <Sliders className="w-2.5 h-2.5" /> Slider
+                          </span>
+                        )}
+                        {p.isFeatured && (
+                          <span className="badge bg-stone-900 text-white font-bold text-[10px] border-none shadow-sm flex items-center gap-1">
+                            <Sparkles className="w-2.5 h-2.5 text-amber-400" /> Featured
+                          </span>
+                        )}
+                        <span
+                          className={`badge ${
+                            p.active ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
+                          } font-bold text-[10px] border-none shadow-sm`}
+                        >
+                          {p.active ? "Active" : "Hidden"}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                  <h3 className="text-stone-900 text-base font-bold line-clamp-1 mb-1">
-                    {p.title}
-                  </h3>
-                  <div className="text-[11px] font-semibold text-amber-700 mb-2">
-                    Category: /{p.category || p.type || "account"}
-                  </div>
-                  <p className="text-xs text-stone-600 line-clamp-2 mb-4">
-                    {getCleanSnippet(p.description, 100)}
-                  </p>
-                </div>
+                  ) : (
+                    <div className="h-24 bg-stone-100 p-3 flex justify-between items-start border-b border-stone-200">
+                      <div className="flex flex-wrap gap-1">
+                        {p.showInSlider && (
+                          <span className="badge bg-amber-400 text-stone-950 font-bold text-[10px] border-none">
+                            Slider
+                          </span>
+                        )}
+                        {p.isFeatured && (
+                          <span className="badge bg-stone-900 text-white font-bold text-[10px] border-none">
+                            Featured
+                          </span>
+                        )}
+                        <span
+                          className={`badge ${
+                            p.active ? "bg-emerald-500 text-white" : "bg-rose-500 text-white"
+                          } font-bold text-[10px] border-none`}
+                        >
+                          {p.active ? "Active" : "Hidden"}
+                        </span>
+                      </div>
+                      <span className="text-[11px] text-stone-400 font-medium italic">No image</span>
+                    </div>
+                  )}
+
+                  {/* Card Body */}
+                  <div className="p-5 flex flex-col justify-between flex-1">
+                    <div>
+                      <div className="flex justify-between items-center gap-2 mb-2">
+                        <span className="badge bg-stone-100 text-stone-700 font-bold text-[10px] border border-stone-200 uppercase tracking-wide">
+                          {p.type}
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {p.compareAtPrice && p.compareAtPrice > p.price && (
+                            <span className="text-xs text-stone-400 line-through">৳{p.compareAtPrice}</span>
+                          )}
+                          <span className="font-black text-base text-amber-600">৳{p.price}</span>
+                        </div>
+                      </div>
+                      <h3 className="text-stone-900 text-base font-bold line-clamp-1 mb-1">
+                        {p.title}
+                      </h3>
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="text-[11px] font-semibold text-amber-700">
+                          Category: /{p.category || p.type || "account"}
+                        </span>
+                        {p.providerName || p.canbosoProductId ? (
+                          <span className="badge bg-amber-50 text-amber-900 border border-amber-200 text-[10px] font-bold flex items-center gap-1">
+                            <Server className="w-2.5 h-2.5 text-amber-600" />
+                            {p.providerName || "Canboso"}
+                          </span>
+                        ) : (
+                          <span className="badge bg-stone-100 text-stone-600 border border-stone-200 text-[10px] font-semibold">
+                            Manual Local
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-stone-600 line-clamp-2 mb-4">
+                        {getCleanSnippet(p.description, 100)}
+                      </p>
+                    </div>
 
                 {/* Quick Toggle Controls */}
                 <div className="space-y-2 pt-3 border-t border-stone-100">
@@ -789,6 +916,47 @@ export default function ProductsPage() {
                     }
                   />
                 </div>
+              </div>
+
+              {/* Upstream Provider Selector */}
+              <div className="form-control w-full bg-stone-50/90 p-4 rounded-2xl border border-stone-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="label-text font-bold text-xs text-stone-800 flex items-center gap-1.5">
+                    <Server className="w-4 h-4 text-amber-500" />
+                    Upstream Provider / Fulfillment Route
+                  </span>
+                  {selectedProduct.canbosoProductId && (
+                    <span className="badge badge-ghost badge-sm text-[10px] font-mono text-stone-500">
+                      Product ID: {selectedProduct.canbosoProductId}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <select
+                    className="select select-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-white text-xs flex-1 font-semibold"
+                    value={selectedProduct.providerId || ""}
+                    onChange={(e) => {
+                      const provId = e.target.value;
+                      const prov = providers.find((p) => p._id === provId);
+                      setSelectedProduct({
+                        ...selectedProduct,
+                        providerId: provId || undefined,
+                        providerName: prov?.name || undefined,
+                      });
+                    }}
+                  >
+                    <option value="">No Upstream Provider (Manual / Local Fulfillment)</option>
+                    {providers.map((p) => (
+                      <option key={p._id} value={p._id}>
+                        {p.name} {p.isDefault ? "(Default)" : ""} {p.balanceUsd !== undefined ? `• $${Number(p.balanceUsd).toFixed(2)} USD` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <p className="text-[11px] text-stone-500">
+                  When an order is paid, API orders route automatically to this specific provider.
+                </p>
               </div>
 
               {/* Placement Checkboxes */}

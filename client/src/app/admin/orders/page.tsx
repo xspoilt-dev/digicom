@@ -18,6 +18,9 @@ import {
   User,
   Phone,
   Mail,
+  Server,
+  Zap,
+  RefreshCw,
 } from "lucide-react";
 
 interface OrderItem {
@@ -25,6 +28,10 @@ interface OrderItem {
   title: string;
   price: number;
   quantity: number;
+  providerId?: string;
+  providerName?: string;
+  upstreamProductId?: string;
+  upstreamOrderCode?: string;
 }
 
 interface DeliveryAccount {
@@ -59,20 +66,34 @@ interface Order {
   dollarRateUsed?: number;
   fulfillmentStatus?: "pending" | "fulfilled" | "failed" | "manual" | "not_required";
   fulfillmentError?: string;
+  providerId?: string;
+  providerName?: string;
   canbosoOrderCode?: string;
+  upstreamOrderCode?: string;
   deliveryAccounts?: DeliveryAccount[];
   slotMonths?: number;
   createdAt: string;
 }
 
+interface ProviderOption {
+  _id: string;
+  name: string;
+  dollarRate?: number;
+  isDefault?: boolean;
+}
+
 export default function OrdersPage() {
   const { showAlert, showConfirm } = useModal();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [providers, setProviders] = useState<ProviderOption[]>([]);
   const [orderFilter, setOrderFilter] = useState("");
+  const [providerFilter, setProviderFilter] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedOrderDetails, setSelectedOrderDetails] = useState<Order | null>(null);
+  const [fulfillingOrderId, setFulfillingOrderId] = useState<string | null>(null);
+  const [overrideProviderId, setOverrideProviderId] = useState<string>("");
 
   const apiUrl = getApiUrl();
 
@@ -84,11 +105,24 @@ export default function OrdersPage() {
     };
   };
 
+  const fetchProviders = async () => {
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/providers`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.providers)) {
+        setProviders(data.providers);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const fetchOrders = async () => {
     try {
       let url = `${apiUrl}/api/admin/orders`;
       const params = new URLSearchParams();
       if (orderFilter) params.append("status", orderFilter);
+      if (providerFilter) params.append("providerId", providerFilter);
       if (orderSearch) params.append("search", orderSearch);
       if (params.toString()) url += `?${params.toString()}`;
 
@@ -103,8 +137,12 @@ export default function OrdersPage() {
   };
 
   useEffect(() => {
+    fetchProviders();
+  }, [apiUrl]);
+
+  useEffect(() => {
     fetchOrders();
-  }, [apiUrl, orderFilter, orderSearch]);
+  }, [apiUrl, orderFilter, providerFilter, orderSearch]);
 
   const verifyOrder = async (id: string) => {
     const confirmed = await showConfirm({
@@ -183,6 +221,41 @@ export default function OrdersPage() {
     }
   };
 
+  const handleFulfillOrder = async (id: string, providerIdOverride?: string) => {
+    setFulfillingOrderId(id);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/orders/${id}/fulfill`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ providerId: providerIdOverride || undefined }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await showAlert({
+          title: "Order Fulfilled",
+          message: data.message || "Fulfillment completed and digital credentials secured!",
+          type: "success",
+        });
+        fetchOrders();
+        setSelectedOrderDetails(null);
+      } else {
+        await showAlert({
+          title: "Fulfillment Failed",
+          message: data.message || "Failed to fulfill with provider.",
+          type: "error",
+        });
+      }
+    } catch (err: any) {
+      await showAlert({
+        title: "Error",
+        message: err.message || "Network error processing fulfillment.",
+        type: "error",
+      });
+    } finally {
+      setFulfillingOrderId(null);
+    }
+  };
+
   const copyToClipboard = (text: string, id: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(id);
@@ -243,7 +316,7 @@ export default function OrdersPage() {
       </div>
 
       {/* Filter and query search bar */}
-      <div className="flex flex-col sm:flex-row gap-4 bg-white p-5 rounded-2xl border-2 border-stone-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row gap-3 bg-white p-5 rounded-2xl border-2 border-stone-200 shadow-sm">
         <div className="form-control w-full sm:max-w-xs">
           <select
             className="select select-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50 font-semibold text-sm"
@@ -258,11 +331,28 @@ export default function OrdersPage() {
             <option value="cancelled">Cancelled</option>
           </select>
         </div>
+
+        {/* Provider Filter */}
+        <div className="form-control w-full sm:max-w-xs">
+          <select
+            className="select select-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50 font-semibold text-sm"
+            value={providerFilter}
+            onChange={(e) => setProviderFilter(e.target.value)}
+          >
+            <option value="">All Providers</option>
+            {providers.map((p) => (
+              <option key={p._id} value={p._id}>
+                Provider: {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="form-control flex-1">
           <div className="relative flex items-center">
             <input
               type="text"
-              placeholder="Search by Order ID (e.g. DIGI-1001), phone, email, or TrxID..."
+              placeholder="Search by Order ID (e.g. DIGI-1001), phone, email, provider, or TrxID..."
               className="input input-bordered w-full pr-10 focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50 text-sm"
               value={orderSearch}
               onChange={(e) => setOrderSearch(e.target.value)}
@@ -283,7 +373,7 @@ export default function OrdersPage() {
                 <th>Payment</th>
                 <th>Revenue & Cost ($)</th>
                 <th>Profit ($)</th>
-                <th>Fulfillment</th>
+                <th>Provider &amp; Fulfill</th>
                 <th>Status</th>
                 <th>Date</th>
                 <th className="text-right">Actions</th>
@@ -374,11 +464,20 @@ export default function OrdersPage() {
                         </span>
                       </td>
                       <td>
-                        <div className="space-y-0.5">
+                        <div className="space-y-1">
                           {fulfillmentBadge(o.fulfillmentStatus)}
-                          {o.canbosoOrderCode && (
-                            <div className="font-mono text-[10px] text-stone-500 truncate max-w-[100px]" title={o.canbosoOrderCode}>
-                              #{o.canbosoOrderCode}
+                          {o.providerName ? (
+                            <span className="badge bg-amber-50 text-amber-900 border border-amber-200 text-[9px] font-bold block max-w-fit truncate">
+                              {o.providerName}
+                            </span>
+                          ) : o.canbosoOrderCode ? (
+                            <span className="badge bg-amber-50 text-amber-900 border border-amber-200 text-[9px] font-bold block max-w-fit truncate">
+                              Canboso
+                            </span>
+                          ) : null}
+                          {(o.upstreamOrderCode || o.canbosoOrderCode) && (
+                            <div className="font-mono text-[10px] text-stone-500 truncate max-w-[110px]" title={o.upstreamOrderCode || o.canbosoOrderCode}>
+                              #{o.upstreamOrderCode || o.canbosoOrderCode}
                             </div>
                           )}
                         </div>
@@ -466,8 +565,29 @@ export default function OrdersPage() {
             </div>
 
             <div className="space-y-4 text-xs">
+              {/* Provider Connection Banner */}
+              <div className="p-3.5 bg-amber-50/80 rounded-2xl border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5">
+                  <Server className="w-4 h-4 text-amber-600 shrink-0" />
+                  <div>
+                    <span className="text-[10px] font-bold text-stone-500 uppercase tracking-wider block">
+                      Connected Upstream Provider
+                    </span>
+                    <span className="font-bold text-stone-900 text-xs">
+                      {selectedOrderDetails.providerName || (selectedOrderDetails.canbosoOrderCode ? "Canboso Primary" : "Manual / Local Fulfillment")}
+                    </span>
+                  </div>
+                </div>
+
+                {(selectedOrderDetails.upstreamOrderCode || selectedOrderDetails.canbosoOrderCode) && (
+                  <div className="font-mono text-xs text-stone-700 bg-white px-2.5 py-1 rounded-lg border border-amber-200">
+                    Upstream Order: <span className="font-bold">#{selectedOrderDetails.upstreamOrderCode || selectedOrderDetails.canbosoOrderCode}</span>
+                  </div>
+                )}
+              </div>
+
               {/* Financial Accounting Breakdown (Admin USD View) */}
-              <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4">
+              <div className="bg-stone-50/80 border border-stone-200 rounded-2xl p-4">
                 <span className="font-bold text-stone-800 text-xs block mb-2 uppercase tracking-wide">
                   Financial Ledger (Admin USD Accounting)
                 </span>
@@ -506,7 +626,7 @@ export default function OrdersPage() {
                 </div>
               </div>
 
-              {/* Upstream Canboso Credentials (If Fulfilled) */}
+              {/* Upstream Provider Credentials (If Fulfilled) */}
               {selectedOrderDetails.deliveryAccounts && selectedOrderDetails.deliveryAccounts.length > 0 && (
                 <div className="space-y-2">
                   <span className="font-bold text-stone-800 block text-xs">
@@ -529,7 +649,7 @@ export default function OrdersPage() {
                               onClick={() => copyToClipboard(acc.user!, `acc-user-${idx}`)}
                               className="btn btn-ghost btn-xs p-1"
                             >
-                              {copiedId === `acc-user-${idx}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                              {copiedId === `acc-user-${idx}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-stone-400" />}
                             </button>
                           </div>
                         </div>
@@ -555,7 +675,7 @@ export default function OrdersPage() {
                               onClick={() => copyToClipboard(acc.password!, `acc-pw-${idx}`)}
                               className="btn btn-ghost btn-xs p-1"
                             >
-                              {copiedId === `acc-pw-${idx}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                              {copiedId === `acc-pw-${idx}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-stone-400" />}
                             </button>
                           </div>
                         </div>
@@ -589,6 +709,50 @@ export default function OrdersPage() {
                 </div>
               )}
 
+              {/* Manual / Retry Fulfillment Controls */}
+              {selectedOrderDetails.fulfillmentStatus !== "fulfilled" && (
+                <div className="p-4 bg-stone-50 rounded-2xl border border-stone-200 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-xs text-stone-800 flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-amber-500" />
+                      Fulfill with Upstream Provider
+                    </span>
+                    <span className="text-[10px] text-stone-500 font-semibold uppercase">
+                      Status: {selectedOrderDetails.fulfillmentStatus || "pending"}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <select
+                      className="select select-bordered select-xs rounded-lg font-bold text-xs bg-white text-stone-900 flex-1 border-stone-200"
+                      value={overrideProviderId}
+                      onChange={(e) => setOverrideProviderId(e.target.value)}
+                    >
+                      <option value="">Use Connected / Default Provider</option>
+                      {providers.map((p) => (
+                        <option key={p._id} value={p._id}>
+                          Route to: {p.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <button
+                      type="button"
+                      disabled={fulfillingOrderId === selectedOrderDetails._id}
+                      onClick={() => handleFulfillOrder(selectedOrderDetails._id, overrideProviderId || undefined)}
+                      className="btn btn-xs bg-amber-400 hover:bg-amber-500 text-stone-950 font-bold rounded-lg border-none shadow-xs px-3 cursor-pointer"
+                    >
+                      {fulfillingOrderId === selectedOrderDetails._id ? (
+                        <span className="loading loading-spinner loading-xs"></span>
+                      ) : (
+                        <Zap className="w-3 h-3" />
+                      )}
+                      <span>{fulfillingOrderId === selectedOrderDetails._id ? "Fulfilling..." : "Fulfill Now"}</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Ordered Products List */}
               <div className="space-y-2">
                 <span className="font-bold text-stone-700 block">Ordered Items:</span>
@@ -600,7 +764,19 @@ export default function OrdersPage() {
                     >
                       <div>
                         <div className="font-bold text-stone-900">{item.title}</div>
-                        <div className="text-[11px] text-stone-500">Quantity: {item.quantity}</div>
+                        <div className="flex items-center gap-2 text-[11px] text-stone-500 mt-0.5 flex-wrap">
+                          <span>Qty: {item.quantity}</span>
+                          {item.providerName && (
+                            <span className="badge bg-amber-100 text-amber-900 border-none text-[9px] font-bold">
+                              Provider: {item.providerName}
+                            </span>
+                          )}
+                          {item.upstreamOrderCode && (
+                            <span className="font-mono text-[10px]">
+                              Order #{item.upstreamOrderCode}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="font-bold text-amber-600">৳{item.price * item.quantity}</div>
                     </div>

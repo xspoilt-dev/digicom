@@ -29,6 +29,12 @@ import {
   Check,
   Copy,
   ExternalLink,
+  Plus,
+  Globe,
+  Layers,
+  Edit2,
+  X,
+  Star,
 } from "lucide-react";
 
 interface CapiLogEntry {
@@ -52,6 +58,24 @@ interface CapiLogEntry {
   testEventCode?: string;
   executionTimeMs?: number;
   createdAt: string;
+}
+
+interface ProviderItem {
+  _id: string;
+  name: string;
+  slug: string;
+  type: string;
+  apiKey: string;
+  baseUrl: string;
+  dollarRate: number;
+  autoFulfill: boolean;
+  isActive: boolean;
+  isDefault: boolean;
+  balanceUsd?: number;
+  balanceVnd?: number;
+  lastSyncAt?: string;
+  notes?: string;
+  productCount?: number;
 }
 
 type SettingsTab = "ai" | "canboso" | "store" | "payments" | "email" | "meta" | "logs";
@@ -109,6 +133,31 @@ export default function SettingsPage() {
   const [capiLogs, setCapiLogs] = useState<CapiLogEntry[]>([]);
   const [loadingLogs, setLoadingLogs] = useState(false);
   const [selectedLog, setSelectedLog] = useState<CapiLogEntry | null>(null);
+
+  // Multi-Provider Management State
+  const [providers, setProviders] = useState<ProviderItem[]>([]);
+  const [loadingProviders, setLoadingProviders] = useState(false);
+  const [isProviderModalOpen, setIsProviderModalOpen] = useState(false);
+  const [editingProvider, setEditingProvider] = useState<ProviderItem | null>(null);
+  const [providerForm, setProviderForm] = useState({
+    name: "",
+    apiKey: "",
+    baseUrl: "https://canboso.com",
+    dollarRate: 127,
+    autoFulfill: true,
+    isActive: true,
+    isDefault: false,
+    notes: "",
+  });
+  const [testingProviderKey, setTestingProviderKey] = useState(false);
+  const [testProviderResult, setTestProviderResult] = useState<{
+    success: boolean;
+    message: string;
+    balanceUsd?: number;
+    balanceVnd?: number;
+  } | null>(null);
+  const [checkingProviderId, setCheckingProviderId] = useState<string | null>(null);
+  const [savingProvider, setSavingProvider] = useState(false);
 
   const apiUrl = getApiUrl();
 
@@ -248,9 +297,228 @@ export default function SettingsPage() {
     }
   };
 
+  const fetchProviders = async () => {
+    setLoadingProviders(true);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/providers`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      if (data.success) {
+        setProviders(data.providers || []);
+      }
+    } catch (err) {
+      console.error("Error fetching providers:", err);
+    } finally {
+      setLoadingProviders(false);
+    }
+  };
+
+  const handleOpenAddProvider = () => {
+    setEditingProvider(null);
+    setProviderForm({
+      name: "",
+      apiKey: "",
+      baseUrl: "https://canboso.com",
+      dollarRate: 127,
+      autoFulfill: true,
+      isActive: true,
+      isDefault: providers.length === 0,
+      notes: "",
+    });
+    setTestProviderResult(null);
+    setIsProviderModalOpen(true);
+  };
+
+  const handleOpenEditProvider = (p: ProviderItem) => {
+    setEditingProvider(p);
+    setProviderForm({
+      name: p.name,
+      apiKey: p.apiKey,
+      baseUrl: p.baseUrl || "https://canboso.com",
+      dollarRate: p.dollarRate || 127,
+      autoFulfill: p.autoFulfill !== false,
+      isActive: p.isActive !== false,
+      isDefault: Boolean(p.isDefault),
+      notes: p.notes || "",
+    });
+    setTestProviderResult(null);
+    setIsProviderModalOpen(true);
+  };
+
+  const handleSaveProvider = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!providerForm.name.trim() || !providerForm.apiKey.trim()) {
+      await showAlert({
+        title: "Validation Error",
+        message: "Provider Name and API Key are required.",
+        type: "warning",
+      });
+      return;
+    }
+
+    setSavingProvider(true);
+    try {
+      const endpoint = editingProvider
+        ? `${apiUrl}/api/admin/providers/${editingProvider._id}`
+        : `${apiUrl}/api/admin/providers`;
+      const method = editingProvider ? "PUT" : "POST";
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: getAuthHeaders(),
+        body: JSON.stringify(providerForm),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        await showAlert({
+          title: "Provider Saved",
+          message: editingProvider ? "Provider updated successfully!" : "Provider added successfully!",
+          type: "success",
+        });
+        setIsProviderModalOpen(false);
+        fetchProviders();
+      } else {
+        await showAlert({
+          title: "Error",
+          message: data.message || "Failed to save provider.",
+          type: "error",
+        });
+      }
+    } catch (err: any) {
+      await showAlert({
+        title: "Error",
+        message: err.message || "Failed to communicate with server.",
+        type: "error",
+      });
+    } finally {
+      setSavingProvider(false);
+    }
+  };
+
+  const handleDeleteProvider = async (p: ProviderItem) => {
+    const confirmed = await showConfirm({
+      title: "Delete Provider",
+      message: `Are you sure you want to delete "${p.name}"? If products are connected to this provider, you must reassign them first.`,
+      type: "warning",
+      confirmText: "Delete Provider",
+      isDestructive: true,
+    });
+    if (!confirmed) return;
+
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/providers/${p._id}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await showAlert({
+          title: "Provider Deleted",
+          message: "Provider removed successfully.",
+          type: "success",
+        });
+        fetchProviders();
+      } else {
+        await showAlert({
+          title: "Delete Failed",
+          message: data.message || "Cannot delete provider.",
+          type: "error",
+        });
+      }
+    } catch (err: any) {
+      await showAlert({
+        title: "Error",
+        message: err.message || "Network error.",
+        type: "error",
+      });
+    }
+  };
+
+  const handleCheckProviderBalance = async (p: ProviderItem) => {
+    setCheckingProviderId(p._id);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/providers/${p._id}/test`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await showAlert({
+          title: `${p.name} Balance`,
+          message: `Live Balance: $${data.balanceUsd} USD (${data.balanceVnd?.toLocaleString()} ₫)`,
+          type: "success",
+        });
+        fetchProviders();
+      } else {
+        await showAlert({
+          title: "Balance Check Failed",
+          message: data.message || "Failed to fetch balance from provider.",
+          type: "error",
+        });
+      }
+    } catch (err: any) {
+      await showAlert({
+        title: "Error",
+        message: err.message || "Network error checking balance.",
+        type: "error",
+      });
+    } finally {
+      setCheckingProviderId(null);
+    }
+  };
+
+  const handleTestProviderKey = async () => {
+    if (!providerForm.apiKey.trim()) {
+      await showAlert({
+        title: "API Key Required",
+        message: "Please enter an API Key to test.",
+        type: "warning",
+      });
+      return;
+    }
+    setTestingProviderKey(true);
+    setTestProviderResult(null);
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/providers/test-key`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          apiKey: providerForm.apiKey,
+          baseUrl: providerForm.baseUrl,
+        }),
+      });
+      const data = await res.json();
+      setTestProviderResult(data);
+    } catch (err: any) {
+      setTestProviderResult({
+        success: false,
+        message: err.message || "Failed to test key with provider server.",
+      });
+    } finally {
+      setTestingProviderKey(false);
+    }
+  };
+
+  const handleSetDefaultProvider = async (p: ProviderItem) => {
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/providers/${p._id}`, {
+        method: "PUT",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ isDefault: true }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchProviders();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchSettings();
     fetchCapiLogs();
+    fetchProviders();
   }, [apiUrl]);
 
   const handleSettingsSubmit = async (key: string, value: any) => {
@@ -380,10 +648,10 @@ export default function SettingsPage() {
     },
     {
       id: "canboso" as SettingsTab,
-      label: "Canboso Automation",
+      label: "Upstream Providers",
       icon: Server,
-      badge: settings.canboso_settings?.apiKey ? "Connected" : "Setup",
-      badgeColor: settings.canboso_settings?.apiKey ? "bg-emerald-100 text-emerald-900 font-bold" : "bg-stone-100 text-stone-600",
+      badge: providers.length > 0 ? `${providers.length} Connected` : "Setup",
+      badgeColor: providers.length > 0 ? "bg-emerald-100 text-emerald-900 font-bold" : "bg-stone-100 text-stone-600",
     },
     {
       id: "store" as SettingsTab,
@@ -426,7 +694,7 @@ export default function SettingsPage() {
             <Settings className="w-7 h-7 text-amber-500" /> Settings &amp; Integrations
           </h1>
           <p className="text-xs sm:text-sm text-stone-600 font-medium mt-1">
-            Configure OpenRouter AI, Canboso automation, store profile, payment gateways, and analytics
+            Configure OpenRouter AI, Upstream Providers, store profile, payment gateways, and analytics
           </p>
         </div>
 
@@ -443,11 +711,11 @@ export default function SettingsPage() {
 
           <span
             className={`badge border-none text-xs font-bold py-2.5 px-3 flex items-center gap-1.5 ${
-              settings.canboso_settings?.apiKey ? "bg-emerald-100 text-emerald-950" : "bg-stone-100 text-stone-600"
+              providers.length > 0 ? "bg-emerald-100 text-emerald-950" : "bg-stone-100 text-stone-600"
             }`}
           >
             <Server className="w-3.5 h-3.5 text-emerald-600" />
-            <span>Canboso: {settings.canboso_settings?.apiKey ? "Ready" : "No Key"}</span>
+            <span>Providers: {providers.length > 0 ? `${providers.length} Connected` : "No Providers"}</span>
           </span>
         </div>
       </div>
@@ -724,181 +992,494 @@ export default function SettingsPage() {
         </div>
       )}
 
-      {/* 2. CANBOSO AUTOMATION TAB */}
+      {/* 2. UPSTREAM PROVIDERS TAB */}
       {activeTab === "canboso" && (
-        <div className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-100 pb-5">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-                <Server className="w-6 h-6" />
+        <div className="space-y-6">
+          {/* Header Card */}
+          <div className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-5">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <Server className="w-6 h-6" />
+                </div>
+                <div>
+                  <h2 className="text-lg sm:text-xl font-black text-stone-900 flex items-center gap-2">
+                    Upstream Suppliers &amp; Providers
+                  </h2>
+                  <p className="text-xs text-stone-500 mt-0.5">
+                    Register multiple API keys, configure custom exchange rates, and route product fulfillments.
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="text-lg font-black text-stone-900 flex items-center gap-2">
-                  Canboso Buyer API &amp; Upstream Automation
-                </h2>
-                <p className="text-xs text-stone-500 mt-0.5">
-                  Automated stock import, real-time fulfillment purchase, and currency conversion rate
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Link
-                href="/admin/canboso"
-                className="btn btn-outline btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5"
-              >
-                <span>Browse Upstream Stock</span>
-                <ExternalLink className="w-3 h-3 text-stone-400" />
-              </Link>
-            </div>
-          </div>
-
-          {/* Upstream Balance Banner */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-amber-50/90 to-stone-50 border border-amber-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-xl bg-amber-400 text-stone-950 flex items-center justify-center font-black shadow-xs shrink-0">
-                <DollarSign className="w-5 h-5" />
-              </div>
-              <div>
-                <span className="text-[10px] font-bold text-stone-500 block uppercase tracking-wider">
-                  Canboso Upstream Wallet Balance
-                </span>
-                {canbosoBalance ? (
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xl font-black text-stone-950 font-mono">
-                      ${Number(canbosoBalance.balanceUsd || 0).toFixed(2)} USD
-                    </span>
-                    <span className="text-xs font-semibold text-stone-500">
-                      ({Number(canbosoBalance.balanceVnd || 0).toLocaleString()} VND)
-                    </span>
-                  </div>
-                ) : (
-                  <span className="text-xs font-medium text-stone-500">
-                    Click &apos;Check Live Balance&apos; to query your spendable balance
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleCheckCanbosoBalance}
-              disabled={checkingCanbosoBalance || !settings.canboso_settings.apiKey}
-              className="btn bg-stone-950 hover:bg-stone-800 text-white btn-sm rounded-xl font-bold text-xs flex items-center gap-2 px-4 shrink-0 shadow-xs cursor-pointer"
-            >
-              <Wallet className={`w-3.5 h-3.5 ${checkingCanbosoBalance ? "animate-spin" : "text-amber-400"}`} />
-              <span>{checkingCanbosoBalance ? "Checking..." : "Check Live Balance"}</span>
-            </button>
-          </div>
-
-          {canbosoBalanceError && (
-            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-semibold flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-              <span>{canbosoBalanceError}</span>
-            </div>
-          )}
-
-          <div className="space-y-5">
-            {/* Bearer Token */}
-            <div className="space-y-1.5 w-full">
-              <label className="block text-xs font-bold text-stone-800">
-                Canboso Buyer API Bearer Token *
-              </label>
-              <div className="relative flex items-center w-full">
-                <input
-                  type={showTokens["canboso"] ? "text" : "password"}
-                  placeholder="e.g. 19|GzN5x7g84K3xV69NmsGf9oI17i8oO..."
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full font-mono text-xs pr-10 block"
-                  value={settings.canboso_settings.apiKey}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      canboso_settings: { ...settings.canboso_settings, apiKey: e.target.value.trim() },
-                    })
-                  }
-                />
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <Link
+                  href="/admin/canboso"
+                  className="btn btn-outline btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5 hover:bg-stone-100"
+                >
+                  <Globe className="w-3.5 h-3.5 text-stone-500" />
+                  <span>Browse Upstream Stock</span>
+                  <ExternalLink className="w-3 h-3 text-stone-400" />
+                </Link>
                 <button
                   type="button"
-                  onClick={() => toggleTokenVisibility("canboso")}
-                  className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
+                  onClick={handleOpenAddProvider}
+                  className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5 shadow-xs cursor-pointer border-none"
                 >
-                  {showTokens["canboso"] ? <EyeOff size={16} /> : <Eye size={16} />}
+                  <Plus className="w-4 h-4" />
+                  <span>Add New Provider</span>
                 </button>
               </div>
-              <p className="text-[11px] text-stone-500 mt-1">
-                From Canboso Developer Dashboard. Endpoint: https://canboso.com/api/v2/telegram-buyer
-              </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* Dollar Exchange Rate */}
-              <div className="space-y-1.5 w-full">
-                <label className="block text-xs font-bold text-stone-800">
-                  Dollar Exchange Rate (BDT per 1 USD) *
-                </label>
-                <div className="relative flex items-center w-full">
-                  <input
-                    type="number"
-                    min="1"
-                    step="0.5"
-                    placeholder="127"
-                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-bold pl-10 block"
-                    value={settings.canboso_settings.dollarRate || 127}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        canboso_settings: {
-                          ...settings.canboso_settings,
-                          dollarRate: parseFloat(e.target.value) || 127,
-                        },
-                      })
-                    }
-                  />
-                  <DollarSign className="w-4 h-4 text-stone-400 absolute left-3.5" />
-                </div>
-                <p className="text-[11px] text-stone-500 mt-1">
-                  Default: 127 BDT per 1 USD. Used for margin calculations and product import pricing.
+            {/* Providers List / Cards */}
+            {loadingProviders ? (
+              <div className="flex items-center justify-center py-12">
+                <span className="loading loading-spinner loading-md text-amber-500"></span>
+              </div>
+            ) : providers.length === 0 ? (
+              <div className="text-center py-12 px-4 rounded-2xl border-2 border-dashed border-stone-200 bg-stone-50/50">
+                <Server className="w-12 h-12 text-stone-300 mx-auto mb-3" />
+                <h3 className="text-base font-bold text-stone-800">No Providers Configured</h3>
+                <p className="text-xs text-stone-500 max-w-md mx-auto mt-1 mb-4">
+                  Add your primary Canboso Buyer API key or secondary upstream suppliers to start importing stock and routing auto-fulfillments.
                 </p>
+                <button
+                  type="button"
+                  onClick={handleOpenAddProvider}
+                  className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 btn-sm rounded-xl font-bold text-xs inline-flex items-center gap-1.5 border-none shadow-xs cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add First Provider</span>
+                </button>
               </div>
+            ) : (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                {providers.map((p) => {
+                  const isKeyVisible = showTokens[p._id];
+                  const maskedKey = p.apiKey
+                    ? isKeyVisible
+                      ? p.apiKey
+                      : `${p.apiKey.slice(0, 8)}••••••••••••••••${p.apiKey.slice(-4)}`
+                    : "No Key";
 
-              {/* Instant Automation Fulfillment Toggle */}
-              <div className="space-y-1.5 w-full flex flex-col justify-end">
-                <div className="bg-stone-50/90 border border-stone-200/90 rounded-2xl p-3.5 flex items-center justify-between gap-3">
-                  <div>
-                    <span className="text-xs font-bold text-stone-900 block">
-                      Instant Automated Fulfillment
-                    </span>
-                    <span className="text-[11px] text-stone-500 block">
-                      Auto-purchases from Canboso &amp; sends credentials upon order payment
-                    </span>
+                  return (
+                    <div
+                      key={p._id}
+                      className={`rounded-2xl border transition-all p-5 flex flex-col justify-between gap-4 ${
+                        p.isDefault
+                          ? "bg-amber-50/40 border-amber-300 shadow-sm"
+                          : "bg-stone-50/60 border-stone-200/90 hover:border-stone-300"
+                      }`}
+                    >
+                      {/* Card Top: Name, Badges, Menu */}
+                      <div>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="text-base font-black text-stone-900">{p.name}</h3>
+                              {p.isDefault && (
+                                <span className="badge badge-warning badge-sm font-black text-[10px] uppercase gap-1">
+                                  <Star className="w-2.5 h-2.5 fill-current" /> Default
+                                </span>
+                              )}
+                              <span
+                                className={`badge badge-sm font-bold text-[10px] uppercase ${
+                                  p.isActive
+                                    ? "bg-emerald-100 text-emerald-800 border-none"
+                                    : "bg-stone-200 text-stone-600 border-none"
+                                }`}
+                              >
+                                {p.isActive ? "Active" : "Disabled"}
+                              </span>
+                              <span className="badge badge-ghost badge-sm text-[10px] font-semibold text-stone-500">
+                                {p.type || "canboso"}
+                              </span>
+                            </div>
+                            {p.notes && (
+                              <p className="text-[11px] text-stone-500 mt-1 italic">{p.notes}</p>
+                            )}
+                          </div>
+
+                          {/* Quick Actions */}
+                          <div className="flex items-center gap-1 shrink-0">
+                            {!p.isDefault && (
+                              <button
+                                type="button"
+                                onClick={() => handleSetDefaultProvider(p)}
+                                title="Set as default provider"
+                                className="btn btn-ghost btn-xs text-stone-500 hover:text-amber-600 rounded-lg cursor-pointer"
+                              >
+                                <Star className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEditProvider(p)}
+                              title="Edit provider settings"
+                              className="btn btn-ghost btn-xs text-stone-600 hover:text-stone-950 rounded-lg cursor-pointer"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteProvider(p)}
+                              title="Delete provider"
+                              className="btn btn-ghost btn-xs text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* API Key Box */}
+                        <div className="mt-4 bg-white rounded-xl border border-stone-200/80 p-2.5 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 overflow-hidden flex-1">
+                            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider shrink-0">
+                              API Key:
+                            </span>
+                            <span className="font-mono text-xs text-stone-800 truncate">
+                              {maskedKey}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1 shrink-0">
+                            <button
+                              type="button"
+                              onClick={() => toggleTokenVisibility(p._id)}
+                              className="btn btn-ghost btn-xs p-1 text-stone-400 hover:text-stone-700 cursor-pointer"
+                              title={isKeyVisible ? "Hide key" : "Show key"}
+                            >
+                              {isKeyVisible ? <EyeOff size={14} /> : <Eye size={14} />}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(p.apiKey);
+                                setCopiedKey(p._id);
+                                setTimeout(() => setCopiedKey(null), 2000);
+                              }}
+                              className="btn btn-ghost btn-xs p-1 text-stone-400 hover:text-stone-700 cursor-pointer"
+                              title="Copy API key"
+                            >
+                              {copiedKey === p._id ? <Check size={14} className="text-emerald-600" /> : <Copy size={14} />}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Details Grid */}
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white/80 p-2.5 rounded-xl border border-stone-200/60">
+                            <span className="text-[10px] font-bold text-stone-400 block uppercase tracking-wider">
+                              Exchange Rate
+                            </span>
+                            <span className="font-bold text-stone-900 mt-0.5 block">
+                              1 USD = {p.dollarRate || 127} BDT
+                            </span>
+                          </div>
+                          <div className="bg-white/80 p-2.5 rounded-xl border border-stone-200/60">
+                            <span className="text-[10px] font-bold text-stone-400 block uppercase tracking-wider">
+                              Auto-Fulfillment
+                            </span>
+                            <span className={`font-bold mt-0.5 block ${p.autoFulfill ? "text-emerald-700" : "text-stone-500"}`}>
+                              {p.autoFulfill ? "Enabled (Auto)" : "Disabled"}
+                            </span>
+                          </div>
+                          <div className="bg-white/80 p-2.5 rounded-xl border border-stone-200/60">
+                            <span className="text-[10px] font-bold text-stone-400 block uppercase tracking-wider">
+                              Connected Products
+                            </span>
+                            <Link
+                              href={`/admin/products?providerId=${p._id}`}
+                              className="font-bold text-amber-700 hover:underline mt-0.5 block"
+                            >
+                              {p.productCount || 0} Products Linked &rarr;
+                            </Link>
+                          </div>
+                          <div className="bg-white/80 p-2.5 rounded-xl border border-stone-200/60">
+                            <span className="text-[10px] font-bold text-stone-400 block uppercase tracking-wider">
+                              Endpoint Host
+                            </span>
+                            <span className="font-mono text-[11px] text-stone-700 mt-0.5 block truncate" title={p.baseUrl}>
+                              {p.baseUrl || "canboso.com"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card Bottom: Upstream Balance & Refresh */}
+                      <div className="pt-3 border-t border-stone-200/70 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <Wallet className="w-4 h-4 text-stone-400 shrink-0" />
+                          <div>
+                            <span className="text-[10px] font-bold text-stone-400 uppercase tracking-wider block">
+                              Live Balance
+                            </span>
+                            {p.balanceUsd !== undefined ? (
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-sm font-black text-stone-900 font-mono">
+                                  ${Number(p.balanceUsd).toFixed(2)} USD
+                                </span>
+                                {p.balanceVnd !== undefined && (
+                                  <span className="text-[10px] text-stone-500 font-medium">
+                                    ({Number(p.balanceVnd).toLocaleString()} ₫)
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-[11px] text-stone-400">Not queried yet</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleCheckProviderBalance(p)}
+                          disabled={checkingProviderId === p._id}
+                          className="btn btn-xs bg-stone-900 hover:bg-stone-800 text-white rounded-lg font-bold flex items-center gap-1.5 px-3 cursor-pointer"
+                        >
+                          <RefreshCw className={`w-3 h-3 ${checkingProviderId === p._id ? "animate-spin text-amber-400" : ""}`} />
+                          <span>{checkingProviderId === p._id ? "Checking..." : "Check"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ADD / EDIT PROVIDER MODAL */}
+          {isProviderModalOpen && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-950/60 backdrop-blur-xs animate-fadeIn">
+              <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-2xl border border-stone-200 space-y-6 max-h-[90vh] overflow-y-auto">
+                <div className="flex items-center justify-between border-b border-stone-100 pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center">
+                      <Server className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-black text-stone-950">
+                        {editingProvider ? `Edit Provider: ${editingProvider.name}` : "Add Upstream Provider"}
+                      </h3>
+                      <p className="text-xs text-stone-500">
+                        Configure supplier credentials and fulfillment rules
+                      </p>
+                    </div>
                   </div>
-                  <input
-                    type="checkbox"
-                    className="toggle toggle-warning toggle-sm shrink-0"
-                    checked={settings.canboso_settings.autoFulfill !== false}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        canboso_settings: {
-                          ...settings.canboso_settings,
-                          autoFulfill: e.target.checked,
-                        },
-                      })
-                    }
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsProviderModalOpen(false)}
+                    className="btn btn-ghost btn-circle btn-sm text-stone-400 hover:text-stone-700 cursor-pointer"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Provider Name */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-stone-800">
+                      Provider Name *
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Canboso VIP, Canboso Backup"
+                      className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-bold"
+                      value={providerForm.name}
+                      onChange={(e) => setProviderForm({ ...providerForm, name: e.target.value })}
+                    />
+                    <p className="text-[11px] text-stone-500">
+                      A human-friendly label displayed in product selectors and order fulfillment logs.
+                    </p>
+                  </div>
+
+                  {/* API Bearer Token */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-stone-800">
+                      API Bearer Token *
+                    </label>
+                    <div className="relative flex items-center w-full">
+                      <input
+                        type={showTokens["form_api_key"] ? "text" : "password"}
+                        placeholder="e.g. 19|GzN5x7g84K3xV69NmsGf9oI17i8oO..."
+                        className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full font-mono text-xs pr-10"
+                        value={providerForm.apiKey}
+                        onChange={(e) => setProviderForm({ ...providerForm, apiKey: e.target.value.trim() })}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => toggleTokenVisibility("form_api_key")}
+                        className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500 cursor-pointer"
+                      >
+                        {showTokens["form_api_key"] ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Base URL & Exchange Rate */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-stone-800">
+                        Base URL
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="https://canboso.com"
+                        className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full font-mono text-xs"
+                        value={providerForm.baseUrl}
+                        onChange={(e) => setProviderForm({ ...providerForm, baseUrl: e.target.value.trim() })}
+                      />
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="block text-xs font-bold text-stone-800">
+                        Dollar Rate (BDT / 1 USD) *
+                      </label>
+                      <div className="relative flex items-center">
+                        <input
+                          type="number"
+                          min="1"
+                          step="0.5"
+                          placeholder="127"
+                          className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm font-bold pl-9"
+                          value={providerForm.dollarRate}
+                          onChange={(e) => setProviderForm({ ...providerForm, dollarRate: parseFloat(e.target.value) || 127 })}
+                        />
+                        <DollarSign className="w-4 h-4 text-stone-400 absolute left-3" />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Toggles */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <label className="flex items-center gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200/80 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="toggle toggle-warning toggle-sm"
+                        checked={providerForm.autoFulfill}
+                        onChange={(e) => setProviderForm({ ...providerForm, autoFulfill: e.target.checked })}
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold text-stone-900 block">Auto-Fulfill</span>
+                        <span className="text-[10px] text-stone-500">Auto buy on pay</span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200/80 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="toggle toggle-success toggle-sm"
+                        checked={providerForm.isActive}
+                        onChange={(e) => setProviderForm({ ...providerForm, isActive: e.target.checked })}
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold text-stone-900 block">Active</span>
+                        <span className="text-[10px] text-stone-500">Enable provider</span>
+                      </div>
+                    </label>
+
+                    <label className="flex items-center gap-3 p-3 bg-stone-50 rounded-xl border border-stone-200/80 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="toggle toggle-info toggle-sm"
+                        checked={providerForm.isDefault}
+                        onChange={(e) => setProviderForm({ ...providerForm, isDefault: e.target.checked })}
+                      />
+                      <div className="text-xs">
+                        <span className="font-bold text-stone-900 block">Default</span>
+                        <span className="text-[10px] text-stone-500">Fallback routing</span>
+                      </div>
+                    </label>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-stone-800">
+                      Internal Notes / Account Tag
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. VIP Telegram bot account, high priority margin"
+                      className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs"
+                      value={providerForm.notes}
+                      onChange={(e) => setProviderForm({ ...providerForm, notes: e.target.value })}
+                    />
+                  </div>
+
+                  {/* Live Key Test Section */}
+                  <div className="pt-2">
+                    <div className="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80">
+                      <div>
+                        <span className="text-xs font-bold text-stone-900 block">
+                          Test Connection &amp; Balance
+                        </span>
+                        <span className="text-[11px] text-stone-600 block">
+                          Validates API key with supplier before saving
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleTestProviderKey}
+                        disabled={testingProviderKey || !providerForm.apiKey.trim()}
+                        className="btn bg-stone-950 hover:bg-stone-800 text-white btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5 shrink-0 shadow-xs cursor-pointer"
+                      >
+                        <Zap className={`w-3.5 h-3.5 ${testingProviderKey ? "animate-spin" : "text-amber-400"}`} />
+                        <span>{testingProviderKey ? "Testing..." : "Test Key"}</span>
+                      </button>
+                    </div>
+
+                    {testProviderResult && (
+                      <div
+                        className={`mt-2.5 p-3 rounded-xl border text-xs font-semibold flex items-start gap-2 ${
+                          testProviderResult.success
+                            ? "bg-emerald-50 border-emerald-200 text-emerald-900"
+                            : "bg-rose-50 border-rose-200 text-rose-900"
+                        }`}
+                      >
+                        {testProviderResult.success ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        ) : (
+                          <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                        )}
+                        <div>
+                          <span>{testProviderResult.message}</span>
+                          {testProviderResult.balanceUsd !== undefined && (
+                            <div className="font-mono font-bold mt-1">
+                              Live Balance: ${Number(testProviderResult.balanceUsd).toFixed(2)} USD
+                              {testProviderResult.balanceVnd !== undefined && ` (${Number(testProviderResult.balanceVnd).toLocaleString()} ₫)`}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Modal Footer */}
+                <div className="flex items-center justify-end gap-3 pt-4 border-t border-stone-100">
+                  <button
+                    type="button"
+                    onClick={() => setIsProviderModalOpen(false)}
+                    className="btn btn-ghost btn-sm rounded-xl font-bold text-stone-600 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveProvider}
+                    disabled={savingProvider || !providerForm.name.trim() || !providerForm.apiKey.trim()}
+                    className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 btn-sm rounded-xl font-bold text-xs flex items-center gap-1.5 border-none shadow-xs cursor-pointer px-5"
+                  >
+                    {savingProvider ? (
+                      <span className="loading loading-spinner loading-xs"></span>
+                    ) : (
+                      <Check className="w-4 h-4" />
+                    )}
+                    <span>{savingProvider ? "Saving..." : editingProvider ? "Update Provider" : "Create Provider"}</span>
+                  </button>
                 </div>
               </div>
             </div>
-
-            <div className="pt-3 border-t border-stone-100">
-              <button
-                onClick={() => handleSettingsSubmit("canboso_settings", settings.canboso_settings)}
-                disabled={savingKey === "canboso_settings"}
-                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full cursor-pointer"
-              >
-                {savingKey === "canboso_settings" ? "Saving..." : "Save Canboso API Settings"}
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       )}
 

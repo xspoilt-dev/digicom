@@ -292,14 +292,22 @@ export default function ProductDetailPage({
           {/* Right Column (7 Cols on PC): Product Title, Pricing, Actions, Description */}
           <div className="lg:col-span-7 bg-white rounded-3xl border border-stone-200/90 shadow-sm p-6 sm:p-8 space-y-6">
             
-            {/* Category Pill & Proof Indicators */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
+            {/* Category / Type Badge */}
+            <div>
               <span className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-100/80 px-3 py-1 rounded-full border border-amber-200">
                 <Package className="w-3.5 h-3.5" />
                 {getProductTypeLabel(product.type)}
               </span>
+            </div>
 
-              <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Product Title & Proof Indicators (Down the Title) */}
+            <div className="space-y-2.5">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-stone-900 leading-snug">
+                {product.title}
+              </h1>
+
+              {/* Proof Indicators: Rating, Views, In-Demand & Duration */}
+              <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap pt-0.5">
                 <div className="flex items-center gap-1 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200/80">
                   <div className="flex items-center text-amber-400">
                     {[...Array(5)].map((_, i) => (
@@ -316,20 +324,13 @@ export default function ProductDetailPage({
                   <TrendingUp className="w-3 h-3 text-amber-600" />
                   ইন ডিমান্ড
                 </span>
+                {product.duration && (
+                  <span className="inline-flex items-center gap-1 text-xs text-stone-600 bg-stone-50 px-2.5 py-1 rounded-full border border-stone-200 font-medium">
+                    <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                    <span>মেয়াদ: <strong className="text-stone-800">{product.duration}</strong></span>
+                  </span>
+                )}
               </div>
-            </div>
-
-            {/* Product Title */}
-            <div>
-              <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-stone-900 leading-snug">
-                {product.title}
-              </h1>
-              {product.duration && (
-                <div className="flex items-center gap-2 text-xs sm:text-sm text-stone-500 mt-2 font-medium">
-                  <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>সাবস্ক্রিপশন মেয়াদ: <strong className="text-stone-800">{product.duration}</strong></span>
-                </div>
-              )}
             </div>
 
             {/* Price Box */}

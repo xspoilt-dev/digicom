@@ -31,9 +31,9 @@ export default function CheckoutPage() {
       return;
     }
 
-    const cleanPhone = normalizeBanglaPhone(formData.phone.trim());
-    if (!formData.name.trim() || !formData.email.trim() || !cleanPhone) {
-      setErrorMsg("দয়া করে নাম, ইমেইল এবং সঠিক মোবাইল নম্বর পূরণ করুন।");
+    const cleanPhone = formData.phone.trim() ? normalizeBanglaPhone(formData.phone.trim()) : "";
+    if (!formData.name.trim() || !formData.email.trim()) {
+      setErrorMsg("দয়া করে নাম এবং সঠিক ইমেইল ঠিকানা পূরণ করুন।");
       return;
     }
 
@@ -193,15 +193,16 @@ export default function CheckoutPage() {
                   />
                 </div>
 
-                {/* Phone */}
+                {/* Phone (Optional) */}
                 <div className="form-control w-full">
                   <label className="label py-1">
-                    <span className="label-text font-bold text-xs text-stone-700">মোবাইল নম্বর * (বিকাশ/নগদ নম্বর)</span>
+                    <span className="label-text font-bold text-xs text-stone-700">
+                      মোবাইল নম্বর <span className="font-normal text-stone-400">(ঐচ্ছিক)</span>
+                    </span>
                   </label>
                   <input
                     type="tel"
-                    required
-                    placeholder="017xxxxxxxx বা ০১৭xxxxxxxx"
+                    placeholder="017xxxxxxxx (ঐচ্ছিক)"
                     className="input input-bordered w-full rounded-xl bg-amber-50/30 border-amber-200 focus:border-amber-400 focus:outline-none text-sm text-stone-800"
                     value={formData.phone}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}

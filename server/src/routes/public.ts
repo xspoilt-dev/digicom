@@ -348,18 +348,17 @@ publicRouter.post("/checkout", async (c) => {
     const body = await c.req.json();
     const { productId, items: rawItems, name, email, phone, customerEmail, slotMonths, quantity = 1, metaEventId, fbp, fbc } = body;
 
-    // Validate customer contact info
-    if (!name || !email || !phone) {
+    // Validate customer contact info (name and email required, phone optional)
+    if (!name || !email) {
       const missingFields: string[] = [];
       if (!name) missingFields.push("name");
       if (!email) missingFields.push("email");
-      if (!phone) missingFields.push("phone");
       return c.json({ success: false, message: `Missing required fields: ${missingFields.join(", ")}` }, 400);
     }
 
-    // Normalize any Bengali digits (০-৯) to English digits (0-9)
+    // Normalize any Bengali digits (০-৯) to English digits (0-9) if phone is provided
     const bnDigits = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
-    const normalizedPhone = String(phone).replace(/[০-৯]/g, (d) => String(bnDigits.indexOf(d))).trim();
+    const normalizedPhone = phone ? String(phone).replace(/[০-৯]/g, (d) => String(bnDigits.indexOf(d))).trim() : "";
 
     let orderItems: any[] = [];
     let orderTotal = 0;

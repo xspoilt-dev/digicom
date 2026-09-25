@@ -746,6 +746,19 @@ adminRouter.get("/products", async (c) => {
   }
 });
 
+adminRouter.get("/products/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const product = await Product.findById(id).lean();
+    if (!product) {
+      return c.json({ success: false, message: "Product not found" }, 404);
+    }
+    return c.json({ success: true, product });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 adminRouter.post("/products", async (c) => {
   try {
     const body = await c.req.json();

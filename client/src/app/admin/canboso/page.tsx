@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useModal } from "@/context/ModalContext";
 import { getApiUrl } from "@/lib/api";
 import FormattedDescription, { cleanAndFormatDescription } from "@/components/FormattedDescription";
+import HtmlEditor from "@/components/admin/HtmlEditor";
 import ProviderComparisonModal, { ComparisonProductParam } from "@/components/ProviderComparisonModal";
 import {
   Server,
@@ -803,7 +804,7 @@ export default function CanbosoStockPage() {
           aria-modal="true"
         >
           <div 
-            className="relative w-full max-w-2xl bg-white rounded-3xl border-2 border-stone-200 shadow-2xl text-stone-900 my-auto max-h-[85vh] sm:max-h-[90vh] flex flex-col overflow-hidden"
+            className="relative w-full max-w-5xl bg-white rounded-3xl border-2 border-stone-200 shadow-2xl text-stone-900 my-auto max-h-[92vh] flex flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Fixed Modal Header */}
@@ -1129,86 +1130,17 @@ export default function CanbosoStockPage() {
                 )}
               </div>
 
-              {/* Description */}
-              <div className="space-y-1.5 w-full">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <label className="block text-xs font-bold text-stone-800">
-                      Product Description (বাংলা মার্কেটিং বর্ণনা)
-                    </label>
-                    <div className="flex items-center gap-1 bg-stone-200/70 p-0.5 rounded-lg text-[11px]">
-                      <button
-                        type="button"
-                        onClick={() => setDescTab("edit")}
-                        className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
-                          descTab === "edit"
-                            ? "bg-white text-stone-900 shadow-2xs font-bold"
-                            : "text-stone-600 hover:text-stone-900"
-                        }`}
-                      >
-                        এডিট (Code)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (importForm.description) {
-                            const cleaned = cleanAndFormatDescription(importForm.description);
-                            setImportForm((prev) => ({ ...prev, description: cleaned }));
-                          }
-                          setDescTab("preview");
-                        }}
-                        className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
-                          descTab === "preview"
-                            ? "bg-white text-stone-900 shadow-2xs font-bold"
-                            : "text-stone-600 hover:text-stone-900"
-                        }`}
-                      >
-                        প্রিভিউ (Live)
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (importForm.description) {
-                          const cleaned = cleanAndFormatDescription(importForm.description);
-                          setImportForm((prev) => ({ ...prev, description: cleaned }));
-                        }
-                      }}
-                      className="btn btn-ghost btn-xs text-stone-600 hover:text-stone-900 font-bold flex items-center gap-1 text-[11px] px-2"
-                      title="Clean up format, headings, bullets & spacing"
-                    >
-                      <span>✨ ফরম্যাট ঠিক করুন</span>
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleGenerateAiCopy()}
-                    disabled={generatingAiCopy}
-                    className="text-[11px] font-bold text-amber-600 hover:text-amber-700 flex items-center gap-1 hover:underline cursor-pointer"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    <span>{generatingAiCopy ? "Writing..." : "AI Generate Bangla"}</span>
-                  </button>
-                </div>
-                {descTab === "edit" ? (
-                  <textarea
-                    rows={6}
-                    placeholder="পণ্য পরিচিতি, সুবিধা ও ডেলিভারি বিবরণ..."
-                    className="textarea textarea-bordered focus:border-amber-400 rounded-xl bg-stone-50 text-stone-900 text-xs font-mono leading-relaxed w-full block"
-                    value={importForm.description}
-                    onChange={(e) =>
-                      setImportForm((prev) => ({ ...prev, description: e.target.value }))
-                    }
-                  />
-                ) : (
-                  <div className="max-h-72 overflow-y-auto rounded-xl border border-stone-200 bg-white p-2">
-                    {importForm.description ? (
-                      <FormattedDescription content={importForm.description} />
-                    ) : (
-                      <p className="text-xs text-stone-400 p-4 text-center">কোনো বিবরণ লেখা হয়নি।</p>
-                    )}
-                  </div>
-                )}
+              {/* Description HTML Editor */}
+              <div className="w-full">
+                <HtmlEditor
+                  value={importForm.description}
+                  onChange={(val) => setImportForm((prev) => ({ ...prev, description: val }))}
+                  label="Product Description (বাংলা মার্কেটিং বর্ণনা)"
+                  placeholder="পণ্য পরিচিতি, সুবিধা ও ডেলিভারি বিবরণ..."
+                  minHeight="240px"
+                  onGenerateAi={() => handleGenerateAiCopy()}
+                  generatingAi={generatingAiCopy}
+                />
               </div>
 
               {/* Toggles */}

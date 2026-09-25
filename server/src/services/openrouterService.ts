@@ -148,20 +148,23 @@ Target Audience: Bangladeshi freelancers, students, digital marketers, software 
 Your Task:
 Transform the raw upstream product information into an irresistible, highly professional marketing listing tailored for Bangladeshi buyers.
 
-Language: Natural, fluent, persuasive Bengali (বাংলা ভাষা). Essential brand names, technical terms, and validity periods should remain in English/transliteration for clarity (e.g., "Canva Pro 1 Year", "Chat GPT Plus", "VPN").
+Language: Natural, fluent, persuasive Bengali (বাংলা ভাষা). Essential brand names, technical terms, and validity periods should remain in English/transliteration for clarity (e.g., "Canva Pro 1 Year", "Chat GPT Plus", "Claude 3.5 Sonnet", "VPN").
 
 CRITICAL FORMATTING INSTRUCTION:
-You must respond with ONLY a valid JSON object (no extra commentary, no preamble, no markdown code block surrounding the JSON if possible, or inside a clean \`\`\`json block).
-
-The JSON object must have this exact structure:
+You must respond with ONLY a valid, parseable JSON object matching this exact schema:
 {
   "title": "A compelling Bangla marketing title mentioning product brand and duration in English/Bangla (e.g. ক্যানভা প্রো ১ বছর সাবস্ক্রিপশন (Canva Pro 1 Year))",
   "slug": "clean-english-url-slug-using-only-lowercase-letters-numbers-and-hyphens",
   "highlights": [
     "৩-৪টি প্রধান আকর্ষণীয় সুবিধা বাংলায় সংক্ষেপে বুলেট পয়েন্ট আকারে"
   ],
-  "description": "Clean, ready-to-render semantic HTML formatted description in Bengali. DO NOT use raw markdown hashes like ###. Use clean HTML tags: <h3>, <p>, <ul>, <li>, and <strong>. Must include:\\n<h3>📌 পণ্য পরিচিতি</h3>\\n<p>পণ্য পরিচিতি ও এটি কীভাবে ব্যবহারকারীর কাজে লাগবে...</p>\\n<h3>⚡ মূল বৈশিষ্ট্য ও প্রিমিয়াম সুবিধাসমূহ</h3>\\n<ul>\\n  <li><strong>সুবিধা ১:</strong> বিস্তারিত বিবরণ</li>\\n  <li><strong>সুবিধা ২:</strong> বিস্তারিত বিবরণ</li>\\n</ul>\\n<h3>🚀 ইনস্ট্যান্ট ডেলিভারি প্রক্রিয়া</h3>\\n<p>bKash/Nagad পেমেন্টের সাথে সাথেই স্বয়ংক্রিয়ভাবে অ্যাকাউন্ট ও এক্সেস ডেলিভারি করা হয়।</p>\\n<h3>🛡️ অফিসিয়াল ওয়ারেন্টি ও হেল্পলাইন</h3>\\n<p>সম্পূর্ণ মেয়াদকালীন অফিসিয়াল রিপ্লেসমেন্ট ওয়ারেন্টি এবং WhatsApp হেল্পলাইন সাপোর্ট।</p>\\n<h3>💡 কেন Kalobazar.shop থেকে নিবেন?</h3>\\n<ul>\\n  <li><strong>১০০% ভেরিফাইড:</strong> কোনো ইনভ্যালিড এক্সেসের ভয় নেই।</li>\\n  <li><strong>সেরা মূল্য:</strong> বাংলাদেশে সবচেয়ে সাশ্রয়ী মূল্যে ডিজিটাল সার্ভিস।</li>\\n</ul>"
+  "description": "📌 পণ্য পরিচিতি\\nপণ্য পরিচিতি ও এটি কীভাবে ব্যবহারকারীর কাজে লাগবে...\\n\\n⚡ মূল বৈশিষ্ট্যসমূহ\\n- সুবিধা ১\\n- সুবিধা ২\\n- সুবিধা ৩\\n\\n🚀 ইনস্ট্যান্ট ডেলিভারি\\nbKash/Nagad পেমেন্টের সাথে সাথেই স্বয়ংক্রিয়ভাবে এক্সেস শুরু হয়।\\n\\n🛡️ অফিসিয়াল ওয়ারেন্টি ও হেল্পলাইন\\nসম্পূর্ণ মেয়াদকালীন অফিসিয়াল রিপ্লেসমেন্ট ওয়ারেন্টি এবং WhatsApp হেল্পলাইন সাপোর্ট।\\n\\n💡 কেন Kalobazar.shop থেকে নিবেন?\\n- ১০০% ভেরিফাইড ও নিরাপদ সার্ভিস\\n- বাংলাদেশে সবচেয়ে সাশ্রয়ী মূল্য"
 }
+
+IMPORTANT:
+- In "description", organize into these 5 clear sections with emojis (📌 পণ্য পরিচিতি, ⚡ মূল বৈশিষ্ট্যসমূহ, 🚀 ইনস্ট্যান্ট ডেলিভারি, 🛡️ অফিসিয়াল ওয়ারেন্টি, 💡 কেন Kalobazar.shop থেকে নিবেন?).
+- Use bullet points (- point) for features.
+- Escape all double quotes inside text as \\\" or use single quotes ('). Do NOT leave raw unescaped double quotes.
 ${config.customInstructions ? `\nAdditional Custom Instruction: ${config.customInstructions}` : ""}`;
 
   const userPrompt = `Please write marketing copy in Bengali for this upstream product:
@@ -171,9 +174,6 @@ ${config.customInstructions ? `\nAdditional Custom Instruction: ${config.customI
 - Category: ${input.category || "Digital Service"}
 - Upstream Description / Details:
 ${input.description || "Official digital subscription with instant activation."}
-
-FORMAT REQUIREMENT:
-The "description" field MUST be output as clean semantic HTML using <h3>, <p>, <ul>, <li>, and <strong> tags. Do NOT output raw markdown hashes (###) or unformatted plain text.
 
 Generate the JSON output now:`;
 
@@ -246,55 +246,138 @@ Generate the JSON output now:`;
 }
 
 /**
+ * Safely sanitizes unescaped control characters and unescaped newlines inside JSON strings
+ */
+export function sanitizeJsonControlChars(str: string): string {
+  let inString = false;
+  let escaped = false;
+  let out = "";
+  for (let i = 0; i < str.length; i++) {
+    const char = str[i];
+    if (char === '"' && !escaped) {
+      inString = !inString;
+      out += char;
+    } else if (inString) {
+      if (char === "\n") {
+        out += "\\n";
+      } else if (char === "\r") {
+        // omit carriage return
+      } else if (char === "\t") {
+        out += "\\t";
+      } else if (char.charCodeAt(0) < 0x20) {
+        out += " ";
+      } else {
+        out += char;
+      }
+    } else {
+      out += char;
+    }
+    escaped = char === "\\" && !escaped;
+  }
+  return out;
+}
+
+/**
  * Helper to reliably parse JSON from various LLM response formats
  */
 function parseLLMJsonResponse(
   content: string,
   fallbackName: string
 ): { title: string; slug: string; description: string; highlights?: string[] } {
-  // 1. Try direct parse
+  let clean = content.trim();
+
+  // 1. Strip markdown codeblock ```json ... ``` or ``` ... ```
+  const codeBlockMatch = clean.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+  if (codeBlockMatch && codeBlockMatch[1]) {
+    clean = codeBlockMatch[1].trim();
+  }
+
+  // 2. Try direct parse
   try {
-    const direct = JSON.parse(content);
-    if (direct.title && direct.description) {
+    const direct = JSON.parse(clean);
+    if (direct && (direct.title || direct.description)) {
       return sanitizeParsedCopy(direct, fallbackName);
     }
   } catch (_) {}
 
-  // 2. Try extracting from markdown code block ```json ... ``` or ``` ... ```
-  const codeBlockMatch = content.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-  if (codeBlockMatch && codeBlockMatch[1]) {
-    try {
-      const fromBlock = JSON.parse(codeBlockMatch[1].trim());
-      if (fromBlock.title && fromBlock.description) {
-        return sanitizeParsedCopy(fromBlock, fallbackName);
-      }
-    } catch (_) {}
-  }
+  // 3. Try parsing with sanitized control characters
+  try {
+    const sanitized = sanitizeJsonControlChars(clean);
+    const parsed = JSON.parse(sanitized);
+    if (parsed && (parsed.title || parsed.description)) {
+      return sanitizeParsedCopy(parsed, fallbackName);
+    }
+  } catch (_) {}
 
-  // 3. Try finding first { and last }
-  const firstBrace = content.indexOf("{");
-  const lastBrace = content.lastIndexOf("}");
+  // 4. Try finding substring from first { to last }
+  const firstBrace = clean.indexOf("{");
+  const lastBrace = clean.lastIndexOf("}");
   if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const jsonSub = clean.substring(firstBrace, lastBrace + 1);
     try {
-      const extracted = JSON.parse(content.substring(firstBrace, lastBrace + 1));
-      if (extracted.title || extracted.description) {
-        return sanitizeParsedCopy(extracted, fallbackName);
+      const sanitizedSub = sanitizeJsonControlChars(jsonSub);
+      const parsed = JSON.parse(sanitizedSub);
+      if (parsed && (parsed.title || parsed.description)) {
+        return sanitizeParsedCopy(parsed, fallbackName);
       }
     } catch (_) {}
   }
 
-  // 4. Graceful fallback if JSON parsing failed completely
-  console.warn("[OpenRouter] Could not parse strictly structured JSON, constructing fallback copy.");
-  const lines = content.split("\n").map((l) => l.trim()).filter(Boolean);
-  const title = lines[0]?.replace(/^#+\s*/, "").replace(/^"|"$/g, "") || `${fallbackName} (অফিশিয়াল সাবস্ক্রিপশন)`;
-  const slug = generateCleanSlug(fallbackName);
-  const description = lines.slice(1).join("\n\n") || content;
+  // 5. Robust Regex / Key-Value Extraction (handles unescaped quotes or truncated JSON)
+  console.warn("[OpenRouter] Standard JSON.parse failed, running field extraction regex.");
+  let title = "";
+  let slug = "";
+  let description = "";
+  let highlights: string[] = [];
+
+  const titleMatch = clean.match(/"title"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i) || clean.match(/"title"\s*:\s*"(.*?)"/i);
+  if (titleMatch) title = titleMatch[1];
+
+  const slugMatch = clean.match(/"slug"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/i) || clean.match(/"slug"\s*:\s*"(.*?)"/i);
+  if (slugMatch) slug = slugMatch[1];
+
+  const highlightsMatch = clean.match(/"highlights"\s*:\s*\[([\s\S]*?)\]/i);
+  if (highlightsMatch) {
+    const rawItems = highlightsMatch[1].match(/"([^"\\]*(?:\\.[^"\\]*)*)"/g);
+    if (rawItems) {
+      highlights = rawItems.map((item) => item.slice(1, -1).trim()).filter(Boolean);
+    }
+  }
+
+  // Extract description: everything after "description": " until closing quote before another key or end
+  const descMatch = clean.match(/"description"\s*:\s*"([\s\S]*?)(?:"\s*,|\s*"\}|\s*\}\s*$|"$)/i) ||
+                    clean.match(/"description"\s*:\s*"([\s\S]*)/i);
+  if (descMatch) {
+    description = descMatch[1].replace(/"?\s*\}?\s*$/, "").trim();
+  }
+
+  // If description was successfully extracted, return it!
+  if (description) {
+    return {
+      title: title || `${fallbackName} (অফিশিয়াল সাবস্ক্রিপশন)`,
+      slug: generateCleanSlug(slug || title || fallbackName),
+      description: ensureFormattedHtml(description),
+      highlights,
+    };
+  }
+
+  // 6. Graceful fallback for non-JSON plain text response
+  console.warn("[OpenRouter] Non-JSON LLM response, parsing lines.");
+  const strippedText = clean
+    .replace(/^\{?\s*"title"\s*:\s*"/i, "")
+    .replace(/^\{|\}$/g, "")
+    .trim();
+
+  const lines = strippedText.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  title = lines[0]?.replace(/^#+\s*/, "").replace(/^"|"$/g, "") || `${fallbackName} (অফিশিয়াল সাবস্ক্রিপশন)`;
+  slug = generateCleanSlug(fallbackName);
+  const remainingText = lines.slice(1).join("\n\n") || strippedText;
 
   return {
     title,
     slug,
-    description: ensureFormattedHtml(description),
-    highlights: [],
+    description: ensureFormattedHtml(remainingText),
+    highlights,
   };
 }
 
@@ -302,7 +385,8 @@ function sanitizeParsedCopy(
   data: any,
   fallbackName: string
 ): { title: string; slug: string; description: string; highlights?: string[] } {
-  const title = String(data.title || fallbackName).trim();
+  const rawTitle = String(data.title || fallbackName).trim();
+  const title = rawTitle.replace(/^\{?\s*"title"\s*:\s*"?/i, "").replace(/"?[,}]?\s*$/, "").trim();
   const slug = generateCleanSlug(data.slug || title || fallbackName);
   const description = ensureFormattedHtml(String(data.description || "").trim());
   const highlights = Array.isArray(data.highlights)
@@ -320,51 +404,77 @@ function sanitizeParsedCopy(
 /**
  * Ensures a text string is cleanly formatted as semantic HTML.
  * If already containing semantic tags (<h3>, <p>, <ul>, etc.), it normalizes bold tags.
- * If markdown or plain text, converts headings and bullet points into semantic HTML.
+ * If markdown or plain text with emoji headings, converts into beautiful semantic HTML.
  */
 export function ensureFormattedHtml(text: string): string {
   if (!text || !text.trim()) return "";
 
-  const replaceBold = (str: string) => str.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  // 1. Unescape literal \n or \r
+  let str = text.replace(/\\n/g, "\n").replace(/\\r/g, "").trim();
 
-  // If already contains structural HTML tags
-  if (/<(?:h[1-6]|p|ul|ol|li|div|br)\b[^>]*>/i.test(text)) {
-    return replaceBold(text.trim());
+  // 2. If the text itself is accidentally a JSON string, extract the description
+  if (str.startsWith("{") || /"description"\s*:/i.test(str)) {
+    const descMatch = str.match(/"description"\s*:\s*"([\s\S]*?)(?:"\s*,|\s*"\}|\s*\}\s*$|"$)/i) ||
+                      str.match(/"description"\s*:\s*"([\s\S]*)/i);
+    if (descMatch) {
+      str = descMatch[1].replace(/"?\s*\}?\s*$/, "").replace(/\\n/g, "\n").trim();
+    }
   }
 
-  const lines = text.split(/\r?\n/);
+  // Remove any stray JSON tokens or quotes at boundaries
+  str = str.replace(/^"+|"+$/g, "").replace(/^\{+|\}+$/g, "").trim();
+
+  const replaceBold = (s: string) => s.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+  // 3. If already well-formed with structural HTML tags (h3/h2, p, ul)
+  if (/<(?:h[1-6]|ul|ol|li)\b[^>]*>/i.test(str) && /<p\b[^>]*>/i.test(str)) {
+    return replaceBold(str);
+  }
+
+  const lines = str.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
   const parts: string[] = [];
   let inList = false;
 
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) {
-      if (inList) {
-        parts.push("</ul>");
-        inList = false;
-      }
-      continue;
-    }
+  const isSectionEmoji = /^(?:[📌⚡🚀🛡️💡✨🔥🎯💎⚠️🔑📦🌟🏷️💰🔒⚙️❓👉])/;
 
-    // Heading: ### Heading or ## Heading or # Heading
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line === "\\n" || line === "\n") continue;
+
+    // Markdown heading: ### Heading or ## Heading or # Heading
     if (/^#+\s+/.test(line)) {
       if (inList) {
         parts.push("</ul>");
         inList = false;
       }
       const heading = line.replace(/^#+\s*/, "").trim();
-      parts.push(`<h3>${heading}</h3>`);
+      parts.push(`<h3>${replaceBold(heading)}</h3>`);
       continue;
     }
 
-    // Bullet item: - item, * item, • item, or starting with ✅
-    if (/^[-*•]\s+/.test(line) || /^✅\s+/.test(line)) {
+    // Emoji section heading, or bold heading on its own line, or short Bengali heading with colon
+    const isEmojiHead = isSectionEmoji.test(line) && line.length < 90 && !line.endsWith("।");
+    const isBoldHead = /^(\*\*[^*]+?\*\*[:]?)$/.test(line);
+    const isColonHead = /^([A-Za-z\u0980-\u09FF\s]{3,40}[:：])$/.test(line);
+
+    if (isEmojiHead || isBoldHead || isColonHead) {
+      if (inList) {
+        parts.push("</ul>");
+        inList = false;
+      }
+      const cleanHead = line.replace(/^\*\*|\*\*$/g, "").trim();
+      parts.push(`<h3>${replaceBold(cleanHead)}</h3>`);
+      continue;
+    }
+
+    // Bullet items: - item, * item, • item, – item, — item, ✅ item, ✓ item, 1. item
+    if (/^[-*•–—✅✓✔]\s+/.test(line) || /^\d+[.)]\s+/.test(line)) {
       if (!inList) {
         parts.push("<ul>");
         inList = true;
       }
-      const itemText = line.replace(/^[-*•]\s*/, "").trim();
-      parts.push(`<li>${replaceBold(itemText)}</li>`);
+      const itemText = line.replace(/^[-*•–—✅✓✔\d.)]+\s*/, "").trim();
+      parts.push(`  <li>${replaceBold(itemText)}</li>`);
       continue;
     }
 
@@ -547,15 +657,24 @@ CRITICAL INSTRUCTIONS:
         const rawContent = rawData.choices[0].message.content.trim();
         const jsonMatch = rawContent.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          const parsed = JSON.parse(jsonMatch[0]);
-          return {
-            success: true,
-            cheapestProviderName: parsed.cheapestProviderName || cheapest.providerName,
-            verdict: parsed.verdict || fallbackVerdict,
-            analysisHtml: ensureFormattedHtml(parsed.analysisHtml || fallbackHtml),
-            recommendation: parsed.recommendation || fallbackRecommendation,
-            modelUsed: model,
-          };
+          let parsed: any = null;
+          try {
+            parsed = JSON.parse(jsonMatch[0]);
+          } catch (_) {
+            try {
+              parsed = JSON.parse(sanitizeJsonControlChars(jsonMatch[0]));
+            } catch (__) {}
+          }
+          if (parsed) {
+            return {
+              success: true,
+              cheapestProviderName: parsed.cheapestProviderName || cheapest.providerName,
+              verdict: parsed.verdict || fallbackVerdict,
+              analysisHtml: ensureFormattedHtml(parsed.analysisHtml || fallbackHtml),
+              recommendation: parsed.recommendation || fallbackRecommendation,
+              modelUsed: model,
+            };
+          }
         }
       }
     } catch (err: any) {

@@ -7,127 +7,131 @@ interface FormattedDescriptionProps {
   className?: string;
 }
 
+/**
+ * Robust utility to extract description from accidental JSON payloads,
+ * unescape linebreaks, and format emoji headings, markdown, and bullets into clean semantic HTML.
+ */
+export function cleanAndFormatDescription(content?: string): string {
+  if (!content || !content.trim()) return "";
+
+  let str = content.trim();
+
+  // 1. If content is accidentally a JSON string (e.g. from LLM dump), extract description
+  if (str.startsWith("{") || /"description"\s*:/i.test(str)) {
+    try {
+      // sanitize unescaped control characters in JSON string
+      const sanitized = str.replace(/[\u0000-\u001f](?=(?:(?:[^"]*"){2})*[^"]*"[^"]*$)/g, " ");
+      const parsed = JSON.parse(sanitized);
+      if (parsed.description) {
+        str = String(parsed.description);
+      }
+    } catch (_) {
+      // Regex extraction fallback
+      const descMatch =
+        str.match(/"description"\s*:\s*"([\s\S]*?)(?:"\s*,|\s*"\}|\s*\}\s*$|"$)/i) ||
+        str.match(/"description"\s*:\s*"([\s\S]*)/i);
+      if (descMatch) {
+        str = descMatch[1].replace(/"?\s*\}?\s*$/, "").trim();
+      }
+    }
+  }
+
+  // 2. Normalize literal \n or \r
+  str = str.replace(/\\n/g, "\n").replace(/\\r/g, "").trim();
+
+  // 3. Remove leading/trailing stray quotes or JSON braces
+  str = str.replace(/^"+|"+$/g, "").replace(/^\{+|\}+$/g, "").trim();
+
+  const replaceBold = (s: string) => s.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+
+  // 4. If already full of proper semantic HTML tags (h2/h3/p/ul)
+  if (/<(?:h[1-6]|ul|ol|li)\b[^>]*>/i.test(str) && /<p\b[^>]*>/i.test(str)) {
+    return replaceBold(str);
+  }
+
+  const lines = str.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const parts: string[] = [];
+  let inList = false;
+
+  const isSectionEmoji = /^(?:[📌⚡🚀🛡️💡✨🔥🎯💎⚠️🔑📦🌟🏷️💰🔒⚙️❓👉])/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (line === "\\n" || line === "\n") continue;
+
+    // Markdown heading: ### Heading or ## Heading or # Heading
+    if (/^#+\s+/.test(line)) {
+      if (inList) {
+        parts.push("</ul>");
+        inList = false;
+      }
+      const heading = line.replace(/^#+\s*/, "").trim();
+      parts.push(`<h3>${replaceBold(heading)}</h3>`);
+      continue;
+    }
+
+    // Emoji section heading, or bold heading on its own line, or short Bengali heading with colon
+    const isEmojiHead = isSectionEmoji.test(line) && line.length < 90 && !line.endsWith("।");
+    const isBoldHead = /^(\*\*[^*]+?\*\*[:]?)$/.test(line);
+    const isColonHead = /^([A-Za-z\u0980-\u09FF\s]{3,40}[:：])$/.test(line);
+
+    if (isEmojiHead || isBoldHead || isColonHead) {
+      if (inList) {
+        parts.push("</ul>");
+        inList = false;
+      }
+      const cleanHead = line.replace(/^\*\*|\*\*$/g, "").trim();
+      parts.push(`<h3>${replaceBold(cleanHead)}</h3>`);
+      continue;
+    }
+
+    // Bullet items: - item, * item, • item, – item, — item, ✅ item, ✓ item, 1. item
+    if (/^[-*•–—✅✓✔]\s+/.test(line) || /^\d+[.)]\s+/.test(line)) {
+      if (!inList) {
+        parts.push("<ul>");
+        inList = true;
+      }
+      const itemText = line.replace(/^[-*•–—✅✓✔\d.)]+\s*/, "").trim();
+      parts.push(`  <li>${replaceBold(itemText)}</li>`);
+      continue;
+    }
+
+    // Normal paragraph
+    if (inList) {
+      parts.push("</ul>");
+      inList = false;
+    }
+    parts.push(`<p>${replaceBold(line)}</p>`);
+  }
+
+  if (inList) {
+    parts.push("</ul>");
+  }
+
+  return parts.join("\n");
+}
+
 export default function FormattedDescription({
   content,
   className = "",
 }: FormattedDescriptionProps) {
   if (!content) return null;
 
-  // Check if content contains semantic HTML tags (from AI or rich editor)
-  const hasHtml = /<(?:h[1-6]|p|ul|ol|li|div|br)\b[^>]*>/i.test(content);
-
-  if (hasHtml) {
-    return (
-      <div
-        className={`bg-stone-50/70 rounded-2xl border border-stone-200/80 p-4 sm:p-6 text-xs sm:text-sm text-stone-700 leading-relaxed space-y-1
-          [&_h3]:text-sm sm:[&_h3]:text-base [&_h3]:font-bold [&_h3]:text-stone-900 [&_h3]:pt-4 [&_h3]:pb-1.5 [&_h3]:border-b [&_h3]:border-stone-200/70 [&_h3]:first:pt-0 [&_h3]:mb-2 [&_h3]:flex [&_h3]:items-center [&_h3]:gap-2
-          [&_h4]:text-xs sm:[&_h4]:text-sm [&_h4]:font-bold [&_h4]:text-stone-900 [&_h4]:pt-2 [&_h4]:mb-1
-          [&_p]:my-2.5 [&_p]:leading-relaxed [&_p]:text-stone-700
-          [&_ul]:space-y-2 [&_ul]:my-2.5 [&_ul]:pl-5 [&_ul]:list-disc
-          [&_li]:marker:text-amber-500 [&_li]:text-stone-700 [&_li]:leading-relaxed
-          [&_strong]:font-bold [&_strong]:text-stone-950
-          ${className}`}
-        dangerouslySetInnerHTML={{ __html: content }}
-      />
-    );
-  }
-
-  // Fallback for raw markdown or plain text with newlines
-  const parseInline = (text: string) => {
-    const parts = text.split(/(\*\*.*?\*\*)/g);
-    return parts.map((part, idx) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return (
-          <strong key={idx} className="font-bold text-stone-950">
-            {part.slice(2, -2)}
-          </strong>
-        );
-      }
-      return part;
-    });
-  };
-
-  const lines = content.split(/\r?\n/);
-  const elements: React.ReactNode[] = [];
-  let currentList: string[] = [];
-
-  const flushList = () => {
-    if (currentList.length > 0) {
-      elements.push(
-        <ul key={`list-${elements.length}`} className="space-y-2 my-2.5 pl-1">
-          {currentList.map((item, idx) => (
-            <li
-              key={idx}
-              className="flex items-start gap-2.5 text-stone-700 text-xs sm:text-sm leading-relaxed"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 mt-2 shrink-0" />
-              <span className="flex-1">{parseInline(item)}</span>
-            </li>
-          ))}
-        </ul>
-      );
-      currentList = [];
-    }
-  };
-
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i];
-    const trimmed = rawLine.trim();
-
-    if (!trimmed) {
-      flushList();
-      continue;
-    }
-
-    // Heading: ### Heading or ## Heading or # Heading
-    if (trimmed.startsWith("#")) {
-      flushList();
-      const headingText = trimmed.replace(/^#+\s*/, "");
-      elements.push(
-        <div
-          key={`h-${i}`}
-          className="pt-4 first:pt-0 pb-1.5 border-b border-stone-200/70 mb-2"
-        >
-          <h3 className="text-sm sm:text-base font-bold text-stone-900 flex items-center gap-2">
-            {headingText}
-          </h3>
-        </div>
-      );
-      continue;
-    }
-
-    // Bullet point: - item, * item, • item, or ✅ item
-    if (
-      trimmed.startsWith("- ") ||
-      trimmed.startsWith("* ") ||
-      trimmed.startsWith("• ") ||
-      trimmed.startsWith("✅ ")
-    ) {
-      const itemText = trimmed.replace(/^[-*•✅]\s*/, "");
-      currentList.push(itemText);
-      continue;
-    }
-
-    // Regular paragraph
-    flushList();
-    elements.push(
-      <p
-        key={`p-${i}`}
-        className="text-stone-700 text-xs sm:text-sm leading-relaxed my-2"
-      >
-        {parseInline(trimmed)}
-      </p>
-    );
-  }
-
-  flushList();
+  const html = cleanAndFormatDescription(content);
+  if (!html) return null;
 
   return (
     <div
-      className={`bg-stone-50/70 rounded-2xl border border-stone-200/80 p-4 sm:p-6 space-y-1 ${className}`}
-    >
-      {elements}
-    </div>
+      className={`bg-stone-50/70 rounded-2xl border border-stone-200/80 p-4 sm:p-6 text-xs sm:text-sm text-stone-700 leading-relaxed
+        [&_h3]:text-sm sm:[&_h3]:text-base [&_h3]:font-black [&_h3]:text-stone-900 [&_h3]:pt-4 [&_h3]:pb-1.5 [&_h3]:border-b [&_h3]:border-stone-200/80 [&_h3]:first:pt-0 [&_h3]:mb-2.5 [&_h3]:flex [&_h3]:items-center [&_h3]:gap-2
+        [&_h4]:text-xs sm:[&_h4]:text-sm [&_h4]:font-bold [&_h4]:text-stone-900 [&_h4]:pt-2 [&_h4]:mb-1.5
+        [&_p]:my-2.5 [&_p]:leading-relaxed [&_p]:text-stone-700
+        [&_ul]:space-y-2 [&_ul]:my-3 [&_ul]:pl-5 [&_ul]:list-disc
+        [&_li]:marker:text-amber-500 [&_li]:text-stone-700 [&_li]:leading-relaxed
+        [&_strong]:font-bold [&_strong]:text-stone-950
+        ${className}`}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }
 
@@ -137,11 +141,14 @@ export default function FormattedDescription({
 export function getCleanSnippet(description?: string, maxLength: number = 140): string {
   if (!description) return "";
 
-  const clean = description
+  // First extract clean description (in case description was raw JSON)
+  const formatted = cleanAndFormatDescription(description);
+
+  const clean = formatted
     .replace(/<h[1-6][^>]*>[\s\S]*?<\/h[1-6]>/gi, " ") // remove headings completely so preview starts with intro text
     .replace(/^#+\s*[^\n]*\n?/gm, "")                 // remove markdown heading lines
     .replace(/<[^>]*>/g, " ")                         // strip all other HTML tags
-    .replace(/^[-*•✅]\s+/gm, "")                     // remove bullet prefixes
+    .replace(/^[-*•–—✅✓✔]\s+/gm, "")                 // remove bullet prefixes
     .replace(/\*\*(.*?)\*\*/g, "$1")                  // remove bold asterisks
     .replace(/\s+/g, " ")                             // collapse all whitespace
     .trim();

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useModal } from "@/context/ModalContext";
 import { getApiUrl } from "@/lib/api";
-import FormattedDescription, { getCleanSnippet } from "@/components/FormattedDescription";
+import FormattedDescription, { getCleanSnippet, cleanAndFormatDescription } from "@/components/FormattedDescription";
 import ProviderComparisonModal, { ComparisonProductParam } from "@/components/ProviderComparisonModal";
 import {
   Package,
@@ -143,13 +143,23 @@ export default function ProductsPage() {
 
       const data = await res.json();
       if (data.success) {
+        const cleanTitle = String(data.title || "")
+          .replace(/^\{?\s*"title"\s*:\s*"?/i, "")
+          .replace(/"?[,}]?\s*$/, "")
+          .trim();
+        const cleanSlug = String(data.slug || "")
+          .replace(/^\{?\s*"slug"\s*:\s*"?/i, "")
+          .replace(/"?[,}]?\s*$/, "")
+          .trim();
+        const cleanDesc = cleanAndFormatDescription(data.description);
+
         setSelectedProduct((prev) =>
           prev
             ? {
                 ...prev,
-                title: data.title || prev.title,
-                slug: data.slug || prev.slug,
-                description: data.description || prev.description,
+                title: cleanTitle || prev.title,
+                slug: cleanSlug || prev.slug,
+                description: cleanDesc || prev.description,
               }
             : null
         );
@@ -806,7 +816,13 @@ export default function ProductsPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setDescTab("preview")}
+                        onClick={() => {
+                          if (selectedProduct?.description) {
+                            const cleaned = cleanAndFormatDescription(selectedProduct.description);
+                            setSelectedProduct({ ...selectedProduct, description: cleaned });
+                          }
+                          setDescTab("preview");
+                        }}
                         className={`px-2 py-0.5 rounded-md font-medium transition-colors ${
                           descTab === "preview"
                             ? "bg-white text-stone-900 shadow-2xs font-bold"
@@ -816,6 +832,19 @@ export default function ProductsPage() {
                         প্রিভিউ (Live)
                       </button>
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedProduct?.description) {
+                          const cleaned = cleanAndFormatDescription(selectedProduct.description);
+                          setSelectedProduct({ ...selectedProduct, description: cleaned });
+                        }
+                      }}
+                      className="btn btn-ghost btn-xs text-stone-600 hover:text-stone-900 font-bold flex items-center gap-1 text-[11px] px-2"
+                      title="Clean up format, headings, bullets & spacing"
+                    >
+                      <span>✨ ফরম্যাট ঠিক করুন</span>
+                    </button>
                   </div>
                   <button
                     type="button"

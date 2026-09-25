@@ -6,6 +6,7 @@ import { PixelRouteTracker } from "@/components/PixelRouteTracker";
 import { CartProvider } from "@/context/CartContext";
 import { ModalProvider } from "@/context/ModalContext";
 import CartDrawer from "@/components/CartDrawer";
+import WhatsAppFloatingButton from "@/components/WhatsAppFloatingButton";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://kalobazar.shop"),
@@ -126,6 +127,7 @@ export default async function RootLayout({
           <CartProvider>
             {children}
             <CartDrawer />
+            <WhatsAppFloatingButton />
           </CartProvider>
         </ModalProvider>
       </body>

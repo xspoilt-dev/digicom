@@ -880,6 +880,33 @@ adminRouter.post("/upload", async (c) => {
   }
 });
 
+// 5.1 Delete Uploaded File API
+adminRouter.post("/upload/delete", async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const filePath = body.filePath;
+    if (!filePath || typeof filePath !== "string") {
+      return c.json({ success: false, message: "filePath is required" }, 400);
+    }
+    const cleanPath = filePath.replace(/^\/+/, "");
+    if (!cleanPath.startsWith("uploads/")) {
+      return c.json({ success: false, message: "Invalid file path" }, 400);
+    }
+    const uploadsBaseDir = process.env.UPLOADS_DIR || path.resolve(__dirname, "../../uploads");
+    const subPath = cleanPath.replace(/^uploads\//, "");
+    const absoluteFilePath = path.resolve(uploadsBaseDir, subPath);
+    if (!absoluteFilePath.startsWith(uploadsBaseDir)) {
+      return c.json({ success: false, message: "Unauthorized file path" }, 403);
+    }
+    if (fs.existsSync(absoluteFilePath)) {
+      fs.unlinkSync(absoluteFilePath);
+    }
+    return c.json({ success: true, message: "File deleted successfully" });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
 // 6. Settings Page configuration endpoints
 adminRouter.get("/settings", async (c) => {
   try {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useModal } from "@/context/ModalContext";
@@ -26,6 +26,7 @@ import {
   ShieldCheck,
   Plus,
   Trash2,
+  FileText,
 } from "lucide-react";
 
 export interface ProductPayload {
@@ -110,6 +111,10 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
   // Curriculum Form States
   const [curriculumTitle, setCurriculumTitle] = useState<string>("");
   const [curriculumDuration, setCurriculumDuration] = useState<string>("");
+
+  // File Input Refs
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const thumbnailInputRef = useRef<HTMLInputElement>(null);
 
   // AI Provider Comparison Modal State
   const [isComparisonModalOpen, setIsComparisonModalOpen] = useState<boolean>(false);
@@ -282,6 +287,37 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
     } finally {
       if (isThumbnail) setUploadingThumbnail(false);
       else setUploadingFile(false);
+    }
+  };
+
+  const handleDeleteFile = async (isThumbnail: boolean) => {
+    const targetPath = isThumbnail ? product.thumbnailPath : product.filePath;
+    if (!targetPath) return;
+
+    try {
+      const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
+      await fetch(`${apiUrl}/api/admin/upload/delete`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ filePath: targetPath }),
+      });
+    } catch (err) {
+      console.warn("Could not delete file from server:", err);
+    }
+
+    if (isThumbnail) {
+      setProduct((prev) => ({ ...prev, thumbnailPath: "" }));
+      if (thumbnailInputRef.current) {
+        thumbnailInputRef.current.value = "";
+      }
+    } else {
+      setProduct((prev) => ({ ...prev, filePath: "" }));
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -554,18 +590,58 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
                 <label className="block text-xs font-bold text-stone-800 mb-1.5">
                   Downloadable File Attachment
                 </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    onChange={(e) => handleFileUpload(e, false)}
-                    className="file-input file-input-bordered file-input-sm w-full rounded-xl bg-stone-50 text-stone-900 text-xs"
-                  />
-                  {uploadingFile && <span className="loading loading-spinner loading-xs text-amber-500"></span>}
-                </div>
-                {product.filePath && (
-                  <span className="text-[10px] font-mono text-emerald-600 font-bold mt-1 block truncate">
-                    Attached: {product.filePath}
-                  </span>
+                {product.filePath ? (
+                  <div className="flex items-center justify-between p-3 rounded-2xl border-2 border-emerald-200 bg-emerald-50/70 transition-all">
+                    <div className="flex items-center gap-2.5 overflow-hidden">
+                      <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 shadow-2xs">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <div className="overflow-hidden">
+                        <span className="text-xs font-bold text-stone-900 block truncate">
+                          {product.filePath.split("/").pop()}
+                        </span>
+                        <span className="text-[10px] font-mono text-emerald-700 font-semibold block truncate">
+                          Attached: {product.filePath}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      <a
+                        href={`${apiUrl}/${product.filePath.replace(/^\/+/, "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn btn-ghost btn-xs text-stone-600 hover:text-stone-900 flex items-center gap-1"
+                        title="Download or preview file"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">View</span>
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteFile(false)}
+                        className="btn btn-xs bg-rose-100 hover:bg-rose-200 text-rose-800 border-none rounded-lg font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                        title="Delete and detach file"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        onChange={(e) => handleFileUpload(e, false)}
+                        className="file-input file-input-bordered file-input-sm w-full rounded-xl bg-stone-50 text-stone-900 text-xs"
+                      />
+                      {uploadingFile && <span className="loading loading-spinner loading-xs text-amber-500"></span>}
+                    </div>
+                    <span className="text-[10px] text-stone-400 block">
+                      ZIP, PDF, licenses, or media files given to customers after payment.
+                    </span>
+                  </div>
                 )}
               </div>
             </div>
@@ -882,10 +958,12 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
                 />
                 <button
                   type="button"
-                  onClick={() => setProduct({ ...product, thumbnailPath: "" })}
-                  className="btn btn-xs bg-rose-50 hover:bg-rose-100 text-rose-700 border-none rounded-lg absolute top-4 right-4 font-bold shadow-xs"
+                  onClick={() => handleDeleteFile(true)}
+                  className="btn btn-xs bg-rose-100 hover:bg-rose-200 text-rose-800 border-none rounded-lg absolute top-4 right-4 font-bold shadow-xs flex items-center gap-1 cursor-pointer"
+                  title="Delete thumbnail image"
                 >
-                  Remove
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Remove</span>
                 </button>
               </div>
             ) : (
@@ -896,6 +974,7 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
                   <Upload className="w-3.5 h-3.5" />
                   <span>{uploadingThumbnail ? "Uploading..." : "Select Image"}</span>
                   <input
+                    ref={thumbnailInputRef}
                     type="file"
                     accept="image/*"
                     className="hidden"

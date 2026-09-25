@@ -628,14 +628,13 @@ export default function SettingsPage() {
 
   // Preset model options
   const PRESET_MODELS = [
-    { id: "google/gemma-4-26b-a4b-it:free", name: "Google Gemma 4 (26B) - Free Tier", tag: "Free" },
-    { id: "google/gemma-4-31b-it:free", name: "Google Gemma 4 (31B) - Free Tier", tag: "Free" },
-    { id: "nex-agi/nex-n2.5-pro:free", name: "Nex N2.5 Pro - Free & Active", tag: "Free" },
-    { id: "z-ai/glm-5.2:free", name: "GLM 5.2 - Free & Fast", tag: "Free" },
-    { id: "deepseek/deepseek-chat", name: "DeepSeek V3 (Chat) - Best Quality & Ultra Low Cost (~$0.001)", tag: "Paid / Top" },
-    { id: "meta-llama/llama-3.3-70b-instruct", name: "Meta Llama 3.3 (70B) - High Quality", tag: "Paid" },
-    { id: "openai/gpt-4o-mini", name: "OpenAI GPT-4o Mini - Ultra Fast & Cheap", tag: "Paid" },
-    { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet - Flagship Copywriting", tag: "Paid" },
+    { id: "google/gemini-2.5-flash", name: "Google Gemini 2.5 Flash - ⚡ Ultra Fast (1-2s) & Super Cheap (Recommended)", tag: "⚡ Ultra Fast" },
+    { id: "openai/gpt-4o-mini", name: "OpenAI GPT-4o Mini - ⚡ Fast (2-3s) & High Quality (Recommended)", tag: "⚡ Fast" },
+    { id: "qwen/qwen3-30b-a3b-instruct-2507", name: "Qwen 30B MoE - Fast Multilingual & Bangla (~3s)", tag: "Fast" },
+    { id: "deepseek/deepseek-chat", name: "DeepSeek V3 (Chat) - Best Quality & Ultra Low Cost (~$0.001)", tag: "Detailed" },
+    { id: "meta-llama/llama-3.3-70b-instruct", name: "Meta Llama 3.3 (70B) - Flagship Open Source", tag: "Heavy" },
+    { id: "anthropic/claude-3.5-sonnet", name: "Claude 3.5 Sonnet - Flagship Copywriting", tag: "Premium" },
+    { id: "google/gemma-4-26b-a4b-it:free", name: "Google Gemma 4 (26B) - Free Tier (Can be slow during peak hours)", tag: "Free" },
   ];
 
   const tabsConfig = [
@@ -823,7 +822,7 @@ export default function SettingsPage() {
                 >
                   openrouter.ai/keys
                 </a>
-                . Free models like <span className="font-mono font-bold text-stone-700">google/gemma-4-26b-a4b-it:free</span> require zero cost!
+                . ⚡ <strong>Recommendation:</strong> Use <span className="font-mono font-bold text-amber-700">google/gemini-2.5-flash</span> or <span className="font-mono font-bold text-amber-700">openai/gpt-4o-mini</span> for ultra-fast copy generation (1–3 seconds, under ৳0.01 per product)!
               </p>
             </div>
 

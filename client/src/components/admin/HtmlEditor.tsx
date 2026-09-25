@@ -216,10 +216,19 @@ export default function HtmlEditor({
               type="button"
               onClick={onGenerateAi}
               disabled={generatingAi}
-              className="btn btn-xs bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-lg font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer"
+              className="btn btn-xs bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-lg font-bold flex items-center gap-1.5 shadow-2xs cursor-pointer disabled:opacity-70"
             >
-              <Sparkles className="w-3.5 h-3.5 text-stone-950" />
-              <span>{generatingAi ? "AI লিখছে..." : "✨ AI দিয়ে লিখুন"}</span>
+              {generatingAi ? (
+                <>
+                  <span className="loading loading-spinner loading-xs text-stone-950"></span>
+                  <span>⚡ AI দ্রুত লিখছে...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-3.5 h-3.5 text-stone-950" />
+                  <span>✨ AI দিয়ে লিখুন</span>
+                </>
+              )}
             </button>
           )}
         </div>

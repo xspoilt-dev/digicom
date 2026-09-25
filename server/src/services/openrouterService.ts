@@ -25,15 +25,21 @@ export interface BanglaProductCopyResult {
   message?: string;
 }
 
-const DEFAULT_MODEL = "google/gemma-4-26b-a4b-it:free";
+const DEFAULT_MODEL = "google/gemini-2.5-flash";
 const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions";
 
-// Known fallback models when an upstream free provider is rate-limited
+// High-speed fallback models with rapid token generation (1-3s response time & natural Bengali)
+const FAST_FALLBACK_MODELS = [
+  "google/gemini-2.5-flash",
+  "openai/gpt-4o-mini",
+  "qwen/qwen3-30b-a3b-instruct-2507",
+  "deepseek/deepseek-chat",
+];
+
+// Fallback models when free tier is explicitly requested
 const FREE_FALLBACK_MODELS = [
   "google/gemma-4-26b-a4b-it:free",
   "google/gemma-4-31b-it:free",
-  "nex-agi/nex-n2.5-pro:free",
-  "z-ai/glm-5.2:free",
   "qwen/qwen3.8-27b:free",
 ];
 
@@ -89,6 +95,7 @@ export async function testOpenRouterConnection(
         max_tokens: 15,
         temperature: 0.1,
       }),
+      signal: AbortSignal.timeout(8000),
     });
 
     const data = await response.json();
@@ -141,14 +148,15 @@ export async function generateBanglaProductCopy(
     throw new Error("Product name is required for AI copy generation.");
   }
 
-  const systemPrompt = `You are an expert e-commerce copywriter and marketing specialist for "Kalobazar.shop" (কালোবাজার), a trusted digital store in Bangladesh offering premium subscriptions, software licenses, digital accounts, and developer tools.
+  const systemPrompt = `You are an expert e-commerce copywriter for "Kalobazar.shop" (কালোবাজার), a trusted digital store in Bangladesh offering premium subscriptions, software licenses, digital accounts, and developer tools.
 
 Target Audience: Bangladeshi freelancers, students, digital marketers, software developers, and professionals who want reliable, official, and instant digital services with local payment (bKash/Nagad).
 
 Your Task:
-Transform the raw upstream product information into an irresistible, highly professional marketing listing tailored for Bangladeshi buyers.
+Transform the raw product information into an irresistible, concise, high-converting marketing listing in natural, fluent Bengali (বাংলা). Essential brand names, technical terms, and validity periods should remain in English/transliteration for clarity (e.g., "Canva Pro 1 Year", "ChatGPT Plus", "VPN").
 
-Language: Natural, fluent, persuasive Bengali (বাংলা ভাষা). Essential brand names, technical terms, and validity periods should remain in English/transliteration for clarity (e.g., "Canva Pro 1 Year", "Chat GPT Plus", "Claude 3.5 Sonnet", "VPN").
+SPEED & CONCISENESS REQUIREMENT:
+Write concise, punchy, high-converting copy (under 250 words total). Avoid long repetitive essays or bloated paragraphs. Focus on instant value, key features, and buyer peace of mind.
 
 CRITICAL FORMATTING INSTRUCTION:
 You must respond with ONLY a valid, parseable JSON object matching this exact schema:
@@ -158,7 +166,7 @@ You must respond with ONLY a valid, parseable JSON object matching this exact sc
   "highlights": [
     "৩-৪টি প্রধান আকর্ষণীয় সুবিধা বাংলায় সংক্ষেপে বুলেট পয়েন্ট আকারে"
   ],
-  "description": "📌 পণ্য পরিচিতি\\nপণ্য পরিচিতি ও এটি কীভাবে ব্যবহারকারীর কাজে লাগবে...\\n\\n⚡ মূল বৈশিষ্ট্যসমূহ\\n- সুবিধা ১\\n- সুবিধা ২\\n- সুবিধা ৩\\n\\n🚀 ইনস্ট্যান্ট ডেলিভারি\\nbKash/Nagad পেমেন্টের সাথে সাথেই স্বয়ংক্রিয়ভাবে এক্সেস শুরু হয়।\\n\\n🛡️ অফিসিয়াল ওয়ারেন্টি ও হেল্পলাইন\\nসম্পূর্ণ মেয়াদকালীন অফিসিয়াল রিপ্লেসমেন্ট ওয়ারেন্টি এবং WhatsApp হেল্পলাইন সাপোর্ট।\\n\\n💡 কেন Kalobazar.shop থেকে নিবেন?\\n- ১০০% ভেরিফাইড ও নিরাপদ সার্ভিস\\n- বাংলাদেশে সবচেয়ে সাশ্রয়ী মূল্য"
+  "description": "📌 পণ্য পরিচিতি\\nসংক্ষিপ্ত পরিচিতি ও কীভাবে কাজে লাগবে...\\n\\n⚡ মূল বৈশিষ্ট্যসমূহ\\n- সুবিধা ১\\n- সুবিধা ২\\n- সুবিধা ৩\\n\\n🚀 ইনস্ট্যান্ট ডেলিভারি\\nbKash/Nagad পেমেন্টের সাথে সাথেই স্বয়ংক্রিয়ভাবে এক্সেস শুরু হয়।\\n\\n🛡️ অফিসিয়াল ওয়ারেন্টি ও হেল্পলাইন\\nসম্পূর্ণ মেয়াদকালীন অফিসিয়াল রিপ্লেসমেন্ট ওয়ারেন্টি এবং WhatsApp হেল্পলাইন সাপোর্ট।\\n\\n💡 কেন Kalobazar.shop থেকে নিবেন?\\n- ১০০% ভেরিফাইড ও নিরাপদ সার্ভিস\\n- বাংলাদেশে সবচেয়ে সাশ্রয়ী মূল্য"
 }
 
 IMPORTANT:
@@ -177,10 +185,16 @@ ${input.description || "Official digital subscription with instant activation."}
 
 Generate the JSON output now:`;
 
-  // Build candidate model list (primary model first, followed by fallbacks if free tier)
+  // Build candidate model list (primary model first, followed by fallbacks)
   const candidateModels = [primaryModel];
   if (primaryModel.endsWith(":free")) {
     for (const fb of FREE_FALLBACK_MODELS) {
+      if (!candidateModels.includes(fb)) {
+        candidateModels.push(fb);
+      }
+    }
+  } else {
+    for (const fb of FAST_FALLBACK_MODELS) {
       if (!candidateModels.includes(fb)) {
         candidateModels.push(fb);
       }
@@ -208,9 +222,10 @@ Generate the JSON output now:`;
         body: JSON.stringify({
           model,
           messages,
-          temperature: 0.65,
-          max_tokens: 1800,
+          temperature: 0.4,
+          max_tokens: 700,
         }),
+        signal: AbortSignal.timeout(12000),
       });
 
       const rawData = await response.json();
@@ -237,8 +252,11 @@ Generate the JSON output now:`;
         console.warn(`[OpenRouter] Model "${model}" failed: ${lastErrorMsg}`);
       }
     } catch (err: any) {
-      lastErrorMsg = err.message;
-      console.warn(`[OpenRouter] Network error on model "${model}":`, err.message);
+      const isTimeout = err.name === "TimeoutError" || err.name === "AbortError";
+      lastErrorMsg = isTimeout
+        ? `Model "${model}" timed out after 12s, switching to fast fallback`
+        : err.message;
+      console.warn(`[OpenRouter] Error on model "${model}": ${lastErrorMsg}`);
     }
   }
 

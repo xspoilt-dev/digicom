@@ -27,7 +27,7 @@ import {
   ChevronLeft,
   Folder,
 } from "lucide-react";
-import { normalizeBanglaPhone } from "@/utils/bengali";
+import { normalizeBanglaPhone, formatBanglaPrice } from "@/utils/bengali";
 
 interface Product {
   _id: string;
@@ -348,12 +348,12 @@ export default function StoreHome() {
                 {/* Price Row (Main Price + Strikethrough + Discount Badge) */}
                 <div className="flex items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2.5 flex-wrap">
                   <span className="text-sm sm:text-lg md:text-2xl font-black text-amber-600">
-                    ৳{currentSlideProduct.price}
+                    {formatBanglaPrice(currentSlideProduct.price)}
                   </span>
                   {currentSlideProduct.compareAtPrice && currentSlideProduct.compareAtPrice > currentSlideProduct.price ? (
                     <>
                       <span className="text-xs sm:text-sm text-stone-400 line-through">
-                        ৳{currentSlideProduct.compareAtPrice}
+                        {formatBanglaPrice(currentSlideProduct.compareAtPrice)}
                       </span>
                       <span className="text-[10px] sm:text-xs bg-amber-400 text-stone-950 font-bold px-2 py-0.5 rounded-md shadow-2xs">
                         {Math.round(
@@ -367,7 +367,7 @@ export default function StoreHome() {
                   ) : (
                     <>
                       <span className="text-xs sm:text-sm text-stone-400 line-through">
-                        ৳{Math.round(currentSlideProduct.price * 1.5)}
+                        {formatBanglaPrice(Math.round(currentSlideProduct.price * 1.5))}
                       </span>
                       <span className="text-[10px] sm:text-xs bg-amber-400 text-stone-950 font-bold px-2 py-0.5 rounded-md shadow-2xs">
                         অফার
@@ -615,22 +615,6 @@ function ProductCard({
               <Package className="w-10 h-10 text-stone-300" />
             </div>
           )}
-
-          {/* Top-Left Discount Badge */}
-          {discountPercent ? (
-            <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-lg shadow-xs">
-              {discountPercent}% ছাড়
-            </span>
-          ) : (
-            <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-lg shadow-xs">
-              অফার
-            </span>
-          )}
-
-          {/* Type Badge on Top-Right */}
-          <span className="absolute top-2 right-2 bg-white/95 text-stone-800 font-bold text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-xs border border-stone-200">
-            {getLabel(product.type)}
-          </span>
         </figure>
       </Link>
 
@@ -654,18 +638,18 @@ function ProductCard({
             <span className="text-[11px] font-bold text-stone-700 ml-0.5">4.9</span>
           </div>
 
-          {/* Price Row (Own Line) */}
+          {/* Price Row (Own Line with Bengali Numerals) */}
           <div className="flex items-baseline gap-2 mt-2">
             <span className="text-base sm:text-lg font-black text-stone-900">
-              ৳{product.price}
+              {formatBanglaPrice(product.price)}
             </span>
             {product.compareAtPrice && product.compareAtPrice > product.price ? (
               <span className="text-xs text-stone-400 line-through">
-                ৳{product.compareAtPrice}
+                {formatBanglaPrice(product.compareAtPrice)}
               </span>
             ) : (
               <span className="text-xs text-stone-400 line-through">
-                ৳{Math.round(product.price * 1.5)}
+                {formatBanglaPrice(Math.round(product.price * 1.5))}
               </span>
             )}
           </div>

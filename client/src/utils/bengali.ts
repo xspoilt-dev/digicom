@@ -43,6 +43,18 @@ export function toBengaliNumber(val: number | string | undefined | null): string
 }
 
 /**
+ * Formats a currency amount with the Taka sign (৳) and Bengali numerals
+ * @example formatBanglaPrice(749) => "৳৭৪৯"
+ * @example formatBanglaPrice(1500) => "৳১৫০০"
+ */
+export function formatBanglaPrice(amount: number | string | undefined | null, includeSymbol: boolean = true): string {
+  if (amount === undefined || amount === null || isNaN(Number(amount))) return includeSymbol ? "৳০" : "০";
+  const num = Math.round(Number(amount));
+  const bnDigits = toBengaliNumber(num);
+  return includeSymbol ? `৳${bnDigits}` : bnDigits;
+}
+
+/**
  * Converts any Bengali digits (০-৯) in a string to standard English digits (0-9)
  * Essential for customer phone numbers, OTPs, amounts, and payment gateways.
  * @example toEnglishNumber("০১৭১২৩৪৫৬৭৮") => "01712345678"

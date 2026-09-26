@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart } from "@/context/CartContext";
 import { getApiUrl } from "@/lib/api";
+import { formatBanglaPrice } from "@/utils/bengali";
 
 export default function CartDrawer() {
   const {
@@ -113,11 +114,11 @@ export default function CartDrawer() {
                   </Link>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-sm font-black text-amber-600">
-                      ৳{item.price}
+                      {formatBanglaPrice(item.price)}
                     </span>
                     {item.compareAtPrice && item.compareAtPrice > item.price && (
                       <span className="text-[10px] text-stone-400 line-through">
-                        ৳{item.compareAtPrice}
+                        {formatBanglaPrice(item.compareAtPrice)}
                       </span>
                     )}
                   </div>
@@ -173,7 +174,7 @@ export default function CartDrawer() {
             {/* Total Row */}
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-stone-600">সর্বমোট প্রদেয়:</span>
-              <span className="text-2xl font-black text-amber-600">৳{cartTotal}</span>
+              <span className="text-2xl font-black text-amber-600">{formatBanglaPrice(cartTotal)}</span>
             </div>
 
             {/* Checkout Action */}
@@ -182,7 +183,7 @@ export default function CartDrawer() {
                 onClick={handleCheckoutClick}
                 className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 font-black border-none w-full rounded-2xl py-3 shadow-md text-sm transition-all hover:scale-[1.02]"
               >
-                চেকআউট করুন (৳{cartTotal})
+                চেকআউট করুন ({formatBanglaPrice(cartTotal)})
               </button>
               <button
                 onClick={closeCart}

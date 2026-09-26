@@ -6,6 +6,7 @@ import { trackEvent } from "@/lib/meta/track-event";
 import Footer from "@/components/Footer";
 import { Copy, Check, Eye, EyeOff, Key, CheckCircle2 } from "lucide-react";
 import { getApiUrl } from "@/lib/api";
+import { formatBanglaPrice } from "@/utils/bengali";
 
 interface OrderItem {
   id: string;
@@ -288,7 +289,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
             )}
             <div className="pt-2 border-t border-base-300 flex justify-between items-center">
               <span className="font-bold text-base-content">মোট ইনভয়েস মূল্য:</span>
-              <span className="text-xl md:text-2xl font-black text-primary">৳{order.total}</span>
+              <span className="text-xl md:text-2xl font-black text-primary">{formatBanglaPrice(order.total)}</span>
             </div>
           </div>
 
@@ -304,7 +305,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
                     {item.type === "course" ? "ভিডিও কোর্স" : item.type === "pdf" ? "পিডিএফ বই" : "ডিজিটাল ফাইল"}
                   </span>
                 </div>
-                <span className="font-bold text-xs md:text-sm text-base-content">৳{item.price}</span>
+                <span className="font-bold text-xs md:text-sm text-base-content">{formatBanglaPrice(item.price)}</span>
               </div>
             ))}
           </div>
@@ -329,7 +330,7 @@ export default function ReceiptPage({ params }: { params: Promise<{ orderId: str
                   href={order.paymentUrl}
                   className="btn btn-primary rounded-xl font-bold px-8 shadow-md w-full sm:w-auto text-sm"
                 >
-                  এখনই পেমেন্ট সম্পন্ন করুন (৳{order.total}) →
+                  এখনই পেমেন্ট সম্পন্ন করুন ({formatBanglaPrice(order.total)}) →
                 </a>
               )}
               <button

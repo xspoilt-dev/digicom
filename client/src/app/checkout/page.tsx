@@ -9,7 +9,7 @@ import { useCart } from "@/context/CartContext";
 import { trackEvent } from "@/lib/meta/track-event";
 import { getFbCookies } from "@/lib/meta/cookies";
 import { ShoppingCart, ShieldCheck, Zap, ArrowLeft, CheckCircle, Package } from "lucide-react";
-import { normalizeBanglaPhone } from "@/utils/bengali";
+import { normalizeBanglaPhone, formatBanglaPrice } from "@/utils/bengali";
 import { getApiUrl } from "@/lib/api";
 
 export default function CheckoutPage() {
@@ -268,7 +268,7 @@ export default function CheckoutPage() {
                         {item.title}
                       </h4>
                       <div className="text-[11px] text-stone-500 font-semibold mt-0.5">
-                        ৳{item.price} × {item.quantity} = <span className="font-black text-amber-700">৳{item.price * item.quantity}</span>
+                        {formatBanglaPrice(item.price)} × {item.quantity} = <span className="font-black text-amber-700">{formatBanglaPrice(item.price * item.quantity)}</span>
                       </div>
                     </div>
 
@@ -307,15 +307,15 @@ export default function CheckoutPage() {
               <div className="space-y-2 pt-4 border-t border-amber-100 text-xs text-stone-600">
                 <div className="flex justify-between">
                   <span>সাবটোটাল:</span>
-                  <span className="font-bold text-stone-900">৳{cartTotal}</span>
+                  <span className="font-bold text-stone-900">{formatBanglaPrice(cartTotal)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>ডিজিটাল ডেলিভারি ফি:</span>
-                  <span className="font-bold text-success">ফ্রি (৳০)</span>
+                  <span className="font-bold text-success">ফ্রি ({formatBanglaPrice(0)})</span>
                 </div>
                 <div className="flex justify-between pt-2 border-t border-amber-200/80 text-base">
                   <span className="font-black text-stone-900">সর্বমোট প্রদেয়:</span>
-                  <span className="font-black text-2xl text-amber-600">৳{cartTotal}</span>
+                  <span className="font-black text-2xl text-amber-600">{formatBanglaPrice(cartTotal)}</span>
                 </div>
               </div>
 
@@ -332,7 +332,7 @@ export default function CheckoutPage() {
                     অর্ডার প্রসেস হচ্ছে...
                   </span>
                 ) : (
-                  `অর্ডার কনফার্ম ও পেমেন্ট করুন (৳${cartTotal})`
+                  `অর্ডার কনফার্ম ও পেমেন্ট করুন (${formatBanglaPrice(cartTotal)})`
                 )}
               </button>
 

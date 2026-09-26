@@ -162,6 +162,48 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
             });
             router.push("/admin/products");
           }
+        } else if (mode === "create" && typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const upstreamId = params.get("upstreamId") || params.get("canbosoProductId");
+          if (upstreamId) {
+            const providerId = params.get("providerId") || "";
+            const name = params.get("name") || params.get("title") || "";
+            const costUsd = parseFloat(params.get("costUsd") || "0") || 0;
+            const code = params.get("code") || params.get("serviceTag") || "";
+            const prodType = (params.get("type") as any) || "account";
+            const cat = params.get("category") || "account";
+
+            const matchingProv =
+              provsData.success && Array.isArray(provsData.providers)
+                ? provsData.providers.find((p: any) => p._id === providerId) ||
+                  provsData.providers.find((p: any) => p.isDefault) ||
+                  provsData.providers[0]
+                : null;
+            const dollarRate = matchingProv?.dollarRate || 127;
+            const estCostBdt = costUsd * dollarRate;
+            const defaultPriceBdt = costUsd > 0 ? Math.ceil((estCostBdt * 1.35) / 10) * 10 : 0;
+            const defaultCompareBdt = defaultPriceBdt > 0 ? Math.ceil((defaultPriceBdt * 1.25) / 10) * 10 : 0;
+
+            setProduct((prev) => ({
+              ...prev,
+              title: name || prev.title,
+              slug: name ? generateSlug(name) : prev.slug,
+              providerId: providerId || matchingProv?._id || prev.providerId,
+              providerName: matchingProv?.name || prev.providerName,
+              canbosoProductId: upstreamId,
+              canbosoCostUsd: costUsd,
+              serviceTag: code,
+              type: prodType,
+              category: cat,
+              price: defaultPriceBdt || prev.price,
+              compareAtPrice: defaultCompareBdt || prev.compareAtPrice,
+              description:
+                prev.description ||
+                (name
+                  ? `<p>Official digital subscription and license for <strong>${name}</strong>. Instant automated activation and access delivered immediately upon payment.</p>`
+                  : ""),
+            }));
+          }
         }
       } catch (err: any) {
         console.error("Error loading product editor:", err);
@@ -355,7 +397,11 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
           message: `Product "${product.title}" has been saved successfully!`,
           type: "success",
         });
-        router.push("/admin/products");
+        const returnUrl =
+          (typeof window !== "undefined"
+            ? new URLSearchParams(window.location.search).get("returnUrl")
+            : null) || "/admin/products";
+        router.push(returnUrl);
       } else {
         await showAlert({
           title: "Save Failed",
@@ -429,18 +475,34 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
       {/* Top Navigation & Sticky Action Bar */}
       <div className="bg-white rounded-3xl border-2 border-stone-200 p-4 sm:p-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 sticky top-4 z-30">
         <div className="flex items-center gap-3">
-          <Link
-            href="/admin/products"
-            className="w-10 h-10 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center transition-colors shrink-0"
-            title="Back to products list"
+          <button
+            type="button"
+            onClick={() => {
+              const returnUrl =
+                (typeof window !== "undefined"
+                  ? new URLSearchParams(window.location.search).get("returnUrl")
+                  : null) || "/admin/products";
+              router.push(returnUrl);
+            }}
+            className="w-10 h-10 rounded-2xl bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center transition-colors shrink-0 cursor-pointer"
+            title="Go back"
           >
             <ArrowLeft className="w-5 h-5" />
-          </Link>
+          </button>
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="badge bg-amber-100 text-amber-900 border border-amber-200 text-[10px] font-black uppercase tracking-wider">
-                {mode === "create" ? "New Product" : "Edit Product"}
+                {product.canbosoProductId
+                  ? "Connect Upstream"
+                  : mode === "create"
+                  ? "New Product"
+                  : "Edit Product"}
               </span>
+              {product.canbosoProductId && (
+                <span className="badge bg-emerald-100 text-emerald-900 border border-emerald-200 text-[10px] font-bold">
+                  Upstream ID: {product.canbosoProductId}
+                </span>
+              )}
               {product.slug && (
                 <span className="text-[11px] text-stone-400 font-mono hidden sm:inline">
                   /{product.slug}
@@ -455,12 +517,19 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
 
         {/* Top Save & Cancel Actions */}
         <div className="flex items-center gap-2.5 self-end sm:self-center">
-          <Link
-            href="/admin/products"
-            className="btn btn-sm bg-stone-100 hover:bg-stone-200 text-stone-700 border-none rounded-xl font-bold px-4"
+          <button
+            type="button"
+            onClick={() => {
+              const returnUrl =
+                (typeof window !== "undefined"
+                  ? new URLSearchParams(window.location.search).get("returnUrl")
+                  : null) || "/admin/products";
+              router.push(returnUrl);
+            }}
+            className="btn btn-sm bg-stone-100 hover:bg-stone-200 text-stone-700 border-none rounded-xl font-bold px-4 cursor-pointer"
           >
             Cancel
-          </Link>
+          </button>
           <button
             type="submit"
             form="product-editor-form"

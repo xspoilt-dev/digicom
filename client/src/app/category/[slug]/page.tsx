@@ -21,6 +21,7 @@ import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
 import { getApiUrl } from "@/lib/api";
 import { trackEvent } from "@/lib/meta/track-event";
+import { formatBanglaPrice } from "@/utils/bengali";
 
 interface Product {
   _id: string;
@@ -263,21 +264,6 @@ export default function CategoryCampaignPage({
                           </div>
                         )}
 
-                        {/* Top-Left Discount Badge */}
-                        {discount ? (
-                          <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-lg shadow-xs">
-                            {discount}% ছাড়
-                          </span>
-                        ) : (
-                          <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-lg shadow-xs">
-                            অফার
-                          </span>
-                        )}
-
-                        {/* Type Badge on Top-Right */}
-                        <span className="absolute top-2 right-2 bg-white/95 text-stone-800 font-bold text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-xs border border-stone-200">
-                          {getProductTypeLabel(product.type)}
-                        </span>
                       </figure>
                     </Link>
 
@@ -301,18 +287,18 @@ export default function CategoryCampaignPage({
                           <span className="text-[11px] font-bold text-stone-700 ml-0.5">4.9</span>
                         </div>
 
-                        {/* Price Row (Own Line) */}
+                        {/* Price Row (Own Line with Bengali Numerals) */}
                         <div className="flex items-baseline gap-2 mt-2">
                           <span className="text-base sm:text-lg font-black text-stone-900">
-                            ৳{product.price}
+                            {formatBanglaPrice(product.price)}
                           </span>
                           {product.compareAtPrice && product.compareAtPrice > product.price ? (
                             <span className="text-xs text-stone-400 line-through">
-                              ৳{product.compareAtPrice}
+                              {formatBanglaPrice(product.compareAtPrice)}
                             </span>
                           ) : (
                             <span className="text-xs text-stone-400 line-through">
-                              ৳{Math.round(product.price * 1.5)}
+                              {formatBanglaPrice(Math.round(product.price * 1.5))}
                             </span>
                           )}
                         </div>

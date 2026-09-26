@@ -10,7 +10,7 @@ import Footer from "@/components/Footer";
 import { useCart } from "@/context/CartContext";
 import { useModal } from "@/context/ModalContext";
 import { ShoppingCart, ShoppingBag, Star, Package } from "lucide-react";
-import { normalizeBanglaPhone } from "@/utils/bengali";
+import { normalizeBanglaPhone, formatBanglaPrice } from "@/utils/bengali";
 import { getApiUrl } from "@/lib/api";
 
 interface Product {
@@ -340,21 +340,6 @@ function ShopContent() {
                           </div>
                         )}
 
-                        {/* Top-Left Discount Badge */}
-                        {discount ? (
-                          <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-lg shadow-xs">
-                            {discount}% ছাড়
-                          </span>
-                        ) : (
-                          <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] sm:text-xs px-2 py-0.5 rounded-lg shadow-xs">
-                            অফার
-                          </span>
-                        )}
-
-                        {/* Type Badge on Top-Right */}
-                        <span className="badge bg-white/95 text-stone-800 font-bold text-[9px] sm:text-[10px] px-2 py-0.5 rounded-md shadow-xs border border-stone-200 absolute top-2 right-2">
-                          {typeLabel}
-                        </span>
                       </figure>
                     </Link>
 
@@ -378,18 +363,18 @@ function ShopContent() {
                           <span className="text-[11px] font-bold text-stone-700 ml-0.5">4.9</span>
                         </div>
 
-                        {/* Price Row (Own Line) */}
+                        {/* Price Row (Own Line with Bengali Numerals) */}
                         <div className="flex items-baseline gap-2 mt-2">
                           <span className="text-base sm:text-lg font-black text-stone-900">
-                            ৳{product.price}
+                            {formatBanglaPrice(product.price)}
                           </span>
                           {product.compareAtPrice && product.compareAtPrice > product.price ? (
                             <span className="text-xs text-stone-400 line-through">
-                              ৳{product.compareAtPrice}
+                              {formatBanglaPrice(product.compareAtPrice)}
                             </span>
                           ) : (
                             <span className="text-xs text-stone-400 line-through">
-                              ৳{Math.round(product.price * 1.5)}
+                              {formatBanglaPrice(Math.round(product.price * 1.5))}
                             </span>
                           )}
                         </div>
@@ -561,7 +546,7 @@ function ShopContent() {
               {/* Price payment summary */}
               <div className="flex justify-between items-center bg-base-200 p-4 rounded-2xl border border-base-300 mt-6">
                 <span className="font-semibold text-sm text-base-content">পরিশোধযোগ্য টাকা:</span>
-                <span className="text-2xl font-black text-primary">৳{selectedProduct.price}</span>
+                <span className="text-2xl font-black text-primary">{formatBanglaPrice(selectedProduct.price)}</span>
               </div>
 
               <div className="modal-action">
@@ -570,7 +555,7 @@ function ShopContent() {
                   disabled={submittingCheckout}
                   className="btn btn-primary w-full rounded-xl font-bold py-3 text-base shadow-lg"
                 >
-                  {submittingCheckout ? "অর্ডার প্রসেস হচ্ছে..." : `পেমেন্ট সম্পন্ন করুন (৳${selectedProduct.price})`}
+                  {submittingCheckout ? "অর্ডার প্রসেস হচ্ছে..." : `পেমেন্ট সম্পন্ন করুন (${formatBanglaPrice(selectedProduct.price)})`}
                 </button>
               </div>
             </form>

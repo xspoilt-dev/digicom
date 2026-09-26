@@ -24,6 +24,7 @@ import { useCart } from "@/context/CartContext";
 import { trackEvent } from "@/lib/meta/track-event";
 import { getApiUrl } from "@/lib/api";
 import FormattedDescription from "@/components/FormattedDescription";
+import { formatBanglaPrice } from "@/utils/bengali";
 
 interface Product {
   _id: string;
@@ -233,23 +234,6 @@ export default function ProductDetailPage({
                     </span>
                   </div>
                 )}
-
-                {/* Discount Badge */}
-                {discountPercent && (
-                  <div className="absolute top-3 left-3">
-                    <span className="inline-flex items-center gap-1 bg-amber-500 text-white text-xs font-bold px-3 py-1 rounded-xl shadow-xs">
-                      <Tag className="w-3.5 h-3.5" />
-                      {discountPercent}% OFF
-                    </span>
-                  </div>
-                )}
-
-                {/* Type Badge */}
-                <div className="absolute top-3 right-3">
-                  <span className="inline-flex items-center gap-1 bg-white/95 text-stone-900 border border-stone-200 text-xs font-bold px-3 py-1 rounded-xl shadow-xs">
-                    {getProductTypeLabel(product.type)}
-                  </span>
-                </div>
               </div>
             </div>
           </div>
@@ -302,14 +286,14 @@ export default function ProductDetailPage({
             <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-5 bg-gradient-to-r from-amber-50/70 via-stone-50 to-white rounded-2xl border border-amber-200/80 gap-3">
               <div className="flex items-baseline gap-3">
                 <span className="text-3xl sm:text-4xl font-black text-stone-900">
-                  ৳{product.price}
+                  {formatBanglaPrice(product.price)}
                 </span>
                 <span className="text-base sm:text-lg text-stone-400 line-through font-semibold">
-                  ৳{comparePrice}
+                  {formatBanglaPrice(comparePrice)}
                 </span>
                 {discountPercent && (
                   <span className="text-xs font-bold text-emerald-700 bg-emerald-100/90 px-2.5 py-1 rounded-lg border border-emerald-200">
-                    ৳{comparePrice - product.price} সাশ্রয়
+                    {formatBanglaPrice(comparePrice - product.price)} সাশ্রয়
                   </span>
                 )}
               </div>
@@ -344,7 +328,7 @@ export default function ProductDetailPage({
                 </button>
               </div>
               <span className="text-sm text-stone-500 font-medium">
-                সর্বমোট: <strong className="text-stone-900 font-black">৳{product.price * quantity}</strong>
+                সর্বমোট: <strong className="text-stone-900 font-black">{formatBanglaPrice(product.price * quantity)}</strong>
               </span>
             </div>
 
@@ -463,18 +447,6 @@ export default function ProductDetailPage({
                             <Package className="w-10 h-10 text-stone-300" />
                           </div>
                         )}
-                        {discount ? (
-                          <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] px-2 py-0.5 rounded-md shadow-xs">
-                            {discount}% ছাড়
-                          </span>
-                        ) : (
-                          <span className="absolute top-2 left-2 bg-amber-500 text-white font-bold text-[10px] px-2 py-0.5 rounded-md shadow-xs">
-                            অফার
-                          </span>
-                        )}
-                        <span className="absolute top-2 right-2 bg-white/95 text-stone-800 font-bold text-[9px] px-2 py-0.5 rounded-md shadow-xs border border-stone-200">
-                          {getProductTypeLabel(p.type)}
-                        </span>
                       </figure>
                     </Link>
 
@@ -495,11 +467,11 @@ export default function ProductDetailPage({
                         </div>
                         <div className="flex items-baseline gap-2 mt-2">
                           <span className="text-base sm:text-lg font-black text-stone-900">
-                            ৳{p.price}
+                            {formatBanglaPrice(p.price)}
                           </span>
                           {p.compareAtPrice && p.compareAtPrice > p.price && (
                             <span className="text-xs text-stone-400 line-through">
-                              ৳{p.compareAtPrice}
+                              {formatBanglaPrice(p.compareAtPrice)}
                             </span>
                           )}
                         </div>
@@ -558,7 +530,7 @@ export default function ProductDetailPage({
         <div className="flex items-center gap-3">
           <div className="shrink-0">
             <div className="text-[10px] text-stone-500 font-bold uppercase tracking-wide">সর্বমোট</div>
-            <div className="text-lg font-black text-stone-900 leading-none">৳{product.price * quantity}</div>
+            <div className="text-lg font-black text-stone-900 leading-none">{formatBanglaPrice(product.price * quantity)}</div>
           </div>
           <div className="flex-1 grid grid-cols-2 gap-2">
             <button

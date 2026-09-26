@@ -7,6 +7,7 @@ import { useModal } from "@/context/ModalContext";
 import { getApiUrl } from "@/lib/api";
 import HtmlEditor from "@/components/admin/HtmlEditor";
 import ProviderComparisonModal, { ComparisonProductParam } from "@/components/ProviderComparisonModal";
+import MediaPickerModal from "@/components/admin/MediaPickerModal";
 import {
   ArrowLeft,
   Save,
@@ -27,6 +28,7 @@ import {
   Plus,
   Trash2,
   FileText,
+  HardDrive,
 } from "lucide-react";
 
 export interface ProductPayload {
@@ -119,6 +121,10 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
   // AI Provider Comparison Modal State
   const [isComparisonModalOpen, setIsComparisonModalOpen] = useState<boolean>(false);
   const [comparisonProduct, setComparisonProduct] = useState<ComparisonProductParam | null>(null);
+
+  // Media Picker Modal State
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState<boolean>(false);
+  const [mediaPickerTarget, setMediaPickerTarget] = useState<"thumbnail" | "file">("thumbnail");
 
   const getAuthHeaders = () => {
     const token = typeof window !== "undefined" ? localStorage.getItem("admin_token") : null;
@@ -675,6 +681,18 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMediaPickerTarget("file");
+                          setIsMediaPickerOpen(true);
+                        }}
+                        className="btn btn-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-bold flex items-center gap-1 cursor-pointer shadow-2xs"
+                        title="Change file from media storage"
+                      >
+                        <HardDrive className="w-3 h-3 text-amber-600" />
+                        <span className="hidden sm:inline">Change</span>
+                      </button>
                       <a
                         href={`${apiUrl}/${product.filePath.replace(/^\/+/, "")}`}
                         target="_blank"
@@ -697,7 +715,7 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     <div className="flex items-center gap-2">
                       <input
                         ref={fileInputRef}
@@ -705,6 +723,18 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
                         onChange={(e) => handleFileUpload(e, false)}
                         className="file-input file-input-bordered file-input-sm w-full rounded-xl bg-stone-50 text-stone-900 text-xs"
                       />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMediaPickerTarget("file");
+                          setIsMediaPickerOpen(true);
+                        }}
+                        className="btn btn-sm bg-stone-100 hover:bg-stone-200 text-stone-800 border border-stone-200 rounded-xl font-bold flex items-center gap-1.5 shrink-0 cursor-pointer"
+                        title="Pick file from media storage"
+                      >
+                        <HardDrive className="w-3.5 h-3.5 text-stone-600" />
+                        <span>Storage</span>
+                      </button>
                       {uploadingFile && <span className="loading loading-spinner loading-xs text-amber-500"></span>}
                     </div>
                     <span className="text-[10px] text-stone-400 block">
@@ -1009,10 +1039,24 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
 
           {/* Card 3: Product Thumbnail */}
           <div className="bg-white rounded-3xl border-2 border-stone-200 p-6 shadow-xs space-y-4">
-            <h3 className="text-xs font-black text-stone-500 uppercase tracking-wider flex items-center gap-2">
-              <ImageIcon className="w-4 h-4 text-amber-500" />
-              <span>Product Thumbnail</span>
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-black text-stone-500 uppercase tracking-wider flex items-center gap-2">
+                <ImageIcon className="w-4 h-4 text-amber-500" />
+                <span>Product Thumbnail</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setMediaPickerTarget("thumbnail");
+                  setIsMediaPickerOpen(true);
+                }}
+                className="btn btn-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 rounded-lg font-bold flex items-center gap-1.5 cursor-pointer transition-all"
+                title="Browse existing images in media library"
+              >
+                <HardDrive className="w-3.5 h-3.5 text-amber-600" />
+                <span>Media Storage</span>
+              </button>
+            </div>
 
             {product.thumbnailPath ? (
               <div className="relative rounded-2xl overflow-hidden border border-stone-200 bg-stone-50 p-2">
@@ -1025,32 +1069,59 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
                   alt={product.title}
                   className="w-full h-44 object-contain rounded-xl bg-white"
                 />
-                <button
-                  type="button"
-                  onClick={() => handleDeleteFile(true)}
-                  className="btn btn-xs bg-rose-100 hover:bg-rose-200 text-rose-800 border-none rounded-lg absolute top-4 right-4 font-bold shadow-xs flex items-center gap-1 cursor-pointer"
-                  title="Delete thumbnail image"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Remove</span>
-                </button>
+                <div className="absolute top-4 right-4 flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMediaPickerTarget("thumbnail");
+                      setIsMediaPickerOpen(true);
+                    }}
+                    className="btn btn-xs bg-white/95 hover:bg-white text-stone-800 border border-stone-200 rounded-lg font-bold shadow-xs flex items-center gap-1 cursor-pointer"
+                    title="Change thumbnail from Media Storage"
+                  >
+                    <HardDrive className="w-3.5 h-3.5 text-amber-600" />
+                    <span>Change</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteFile(true)}
+                    className="btn btn-xs bg-rose-100 hover:bg-rose-200 text-rose-800 border-none rounded-lg font-bold shadow-xs flex items-center gap-1 cursor-pointer"
+                    title="Delete thumbnail image"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Remove</span>
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="p-6 border-2 border-dashed border-stone-200 rounded-2xl text-center bg-stone-50">
                 <ImageIcon className="w-8 h-8 text-stone-300 mx-auto mb-2" />
-                <span className="text-xs text-stone-500 block mb-3 font-medium">Upload thumbnail image</span>
-                <label className="btn btn-sm bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-bold cursor-pointer inline-flex items-center gap-1.5">
-                  <Upload className="w-3.5 h-3.5" />
-                  <span>{uploadingThumbnail ? "Uploading..." : "Select Image"}</span>
-                  <input
-                    ref={thumbnailInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={(e) => handleFileUpload(e, true)}
-                    disabled={uploadingThumbnail}
-                  />
-                </label>
+                <span className="text-xs text-stone-500 block mb-3 font-medium">Upload new or pick from storage</span>
+                <div className="flex items-center justify-center gap-2 flex-wrap">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMediaPickerTarget("thumbnail");
+                      setIsMediaPickerOpen(true);
+                    }}
+                    className="btn btn-sm bg-amber-400 hover:bg-amber-500 text-stone-950 font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <HardDrive className="w-3.5 h-3.5" />
+                    <span>Browse Storage</span>
+                  </button>
+                  <label className="btn btn-sm bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-bold cursor-pointer inline-flex items-center gap-1.5">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>{uploadingThumbnail ? "Uploading..." : "Upload New"}</span>
+                    <input
+                      ref={thumbnailInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => handleFileUpload(e, true)}
+                      disabled={uploadingThumbnail}
+                    />
+                  </label>
+                </div>
               </div>
             )}
           </div>
@@ -1119,6 +1190,21 @@ export default function ProductFormFullPage({ mode, productId }: ProductFormFull
             canbosoProductId: upId,
             canbosoCostUsd: costUsd,
           }));
+        }}
+      />
+
+      {/* CMS Media Picker Modal */}
+      <MediaPickerModal
+        isOpen={isMediaPickerOpen}
+        onClose={() => setIsMediaPickerOpen(false)}
+        title={mediaPickerTarget === "thumbnail" ? "Select Product Thumbnail" : "Select Product Download Attachment"}
+        filterType={mediaPickerTarget === "thumbnail" ? "image" : "all"}
+        onSelect={(filePath) => {
+          if (mediaPickerTarget === "thumbnail") {
+            setProduct((prev) => ({ ...prev, thumbnailPath: filePath }));
+          } else {
+            setProduct((prev) => ({ ...prev, filePath }));
+          }
         }}
       />
     </div>

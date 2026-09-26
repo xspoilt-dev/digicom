@@ -60,6 +60,19 @@ interface CapiLogEntry {
   createdAt: string;
 }
 
+interface ResendAccountSetting {
+  id: string;
+  name: string;
+  apiKey: string;
+  fromEmail: string;
+  dailyLimit: number;
+  sentToday: number;
+  lastResetDate?: string;
+  active: boolean;
+  lastError?: string;
+  lastUsedAt?: string;
+}
+
 interface ProviderItem {
   _id: string;
   name: string;
@@ -88,7 +101,7 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState<any>({
     company_info: { name: "", address: "", email: "", whatsapp: "", bkashNumber: "" },
     meta_pixel: { pixelId: "", accessToken: "", testEventCode: "" },
-    email_settings: { resendApiKey: "", fromEmail: "" },
+    email_settings: { resendApiKey: "", fromEmail: "", accounts: [] as ResendAccountSetting[] },
     zinipay_settings: { apiKey: "" },
     canboso_settings: { apiKey: "", dollarRate: 127, autoFulfill: true },
     openrouter_settings: {
@@ -102,6 +115,11 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [showTokens, setShowTokens] = useState<Record<string, boolean>>({});
+
+  // Resend Multi-Key Test State
+  const [testingResendAccountId, setTestingResendAccountId] = useState<string | null>(null);
+  const [testResendResults, setTestResendResults] = useState<Record<string, { success: boolean; message: string }>>({});
+  const [testEmailRecipient, setTestEmailRecipient] = useState<string>("");
 
   // OpenRouter AI Test State
   const [testingAi, setTestingAi] = useState(false);
@@ -187,10 +205,47 @@ export default function SettingsPage() {
       const res = await fetch(`${apiUrl}/api/admin/settings`, { headers: getAuthHeaders() });
       const data = await res.json();
       if (data.success) {
+        const rawEmail = data.settings.email_settings || {};
+        let emailAccounts: ResendAccountSetting[] = Array.isArray(rawEmail.accounts) ? rawEmail.accounts : [];
+        if (emailAccounts.length === 0 && rawEmail.resendApiKey) {
+          emailAccounts = [
+            {
+              id: "primary",
+              name: "Primary Resend Key",
+              apiKey: rawEmail.resendApiKey,
+              fromEmail: rawEmail.fromEmail || "Kalobazar.shop <noreply@kalobazar.shop>",
+              dailyLimit: 100,
+              sentToday: Number(rawEmail.sentToday) || 0,
+              active: true,
+            },
+          ];
+        }
+        if (emailAccounts.length === 0) {
+          emailAccounts = [
+            {
+              id: "resend_1",
+              name: "Resend Account #1",
+              apiKey: "",
+              fromEmail: "Kalobazar.shop <noreply@kalobazar.shop>",
+              dailyLimit: 100,
+              sentToday: 0,
+              active: true,
+            },
+          ];
+        }
+
+        if (data.settings.company_info?.email) {
+          setTestEmailRecipient((prev) => prev || data.settings.company_info.email);
+        }
+
         setSettings({
           company_info: data.settings.company_info || { name: "", address: "", email: "", whatsapp: "", bkashNumber: "" },
           meta_pixel: data.settings.meta_pixel || { pixelId: "", accessToken: "", testEventCode: "" },
-          email_settings: data.settings.email_settings || { resendApiKey: "", fromEmail: "" },
+          email_settings: {
+            resendApiKey: emailAccounts[0]?.apiKey || rawEmail.resendApiKey || "",
+            fromEmail: emailAccounts[0]?.fromEmail || rawEmail.fromEmail || "",
+            accounts: emailAccounts,
+          },
           zinipay_settings: data.settings.zinipay_settings || { apiKey: "" },
           canboso_settings: data.settings.canboso_settings || { apiKey: "", dollarRate: 127, autoFulfill: true },
           openrouter_settings: data.settings.openrouter_settings || {
@@ -555,6 +610,144 @@ export default function SettingsPage() {
     }
   };
 
+  const handleAddResendAccount = () => {
+    const currentAccounts: ResendAccountSetting[] = settings.email_settings?.accounts || [];
+    const newAccount: ResendAccountSetting = {
+      id: `resend_${Date.now()}`,
+      name: `Resend Account #${currentAccounts.length + 1}`,
+      apiKey: "",
+      fromEmail: currentAccounts[0]?.fromEmail || "Kalobazar.shop <noreply@kalobazar.shop>",
+      dailyLimit: 100,
+      sentToday: 0,
+      active: true,
+    };
+    setSettings((prev: any) => ({
+      ...prev,
+      email_settings: {
+        ...prev.email_settings,
+        accounts: [...currentAccounts, newAccount],
+      },
+    }));
+  };
+
+  const handleRemoveResendAccount = async (id: string) => {
+    const currentAccounts: ResendAccountSetting[] = settings.email_settings?.accounts || [];
+    if (currentAccounts.length <= 1) {
+      await showAlert({
+        title: "Cannot Delete",
+        message: "You must keep at least one Resend account in your configuration.",
+        type: "warning",
+      });
+      return;
+    }
+    const confirmed = await showConfirm({
+      title: "Remove Resend Account",
+      message: "Are you sure you want to remove this Resend API key from the active pool?",
+      type: "warning",
+      confirmText: "Remove Key",
+      isDestructive: true,
+    });
+    if (!confirmed) return;
+    setSettings((prev: any) => {
+      const filtered = (prev.email_settings?.accounts || []).filter((a: ResendAccountSetting) => a.id !== id);
+      return {
+        ...prev,
+        email_settings: {
+          ...prev.email_settings,
+          accounts: filtered,
+          resendApiKey: filtered[0]?.apiKey || "",
+          fromEmail: filtered[0]?.fromEmail || prev.email_settings?.fromEmail || "",
+        },
+      };
+    });
+  };
+
+  const handleUpdateResendAccount = (id: string, updates: Partial<ResendAccountSetting>) => {
+    setSettings((prev: any) => {
+      const accounts = (prev.email_settings?.accounts || []).map((a: ResendAccountSetting) =>
+        a.id === id ? { ...a, ...updates } : a
+      );
+      return {
+        ...prev,
+        email_settings: {
+          ...prev.email_settings,
+          accounts,
+          resendApiKey: accounts[0]?.apiKey || "",
+          fromEmail: accounts[0]?.fromEmail || prev.email_settings?.fromEmail || "",
+        },
+      };
+    });
+  };
+
+  const handleTestResendAccount = async (acc: ResendAccountSetting) => {
+    if (!acc.apiKey?.trim()) {
+      await showAlert({
+        title: "API Key Required",
+        message: "Please enter the Resend API Key for this account before testing.",
+        type: "warning",
+      });
+      return;
+    }
+    if (!acc.fromEmail?.trim()) {
+      await showAlert({
+        title: "Sender Email Required",
+        message: "Please enter a verified From Email before testing.",
+        type: "warning",
+      });
+      return;
+    }
+
+    const recipient = (testEmailRecipient || settings.company_info?.email || acc.fromEmail).trim();
+
+    setTestingResendAccountId(acc.id);
+    setTestResendResults((prev) => {
+      const copy = { ...prev };
+      delete copy[acc.id];
+      return copy;
+    });
+
+    try {
+      const res = await fetch(`${apiUrl}/api/admin/email/test`, {
+        method: "POST",
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          apiKey: acc.apiKey.trim(),
+          fromEmail: acc.fromEmail.trim(),
+          toEmail: recipient,
+        }),
+      });
+      const data = await res.json();
+      setTestResendResults((prev) => ({
+        ...prev,
+        [acc.id]: {
+          success: Boolean(data.success),
+          message: data.message || (data.success ? "Test email sent successfully!" : "Failed to send test email."),
+        },
+      }));
+    } catch (err: any) {
+      setTestResendResults((prev) => ({
+        ...prev,
+        [acc.id]: {
+          success: false,
+          message: err.message || "Network error while connecting to server.",
+        },
+      }));
+    } finally {
+      setTestingResendAccountId(null);
+    }
+  };
+
+  const handleSaveEmailSettings = async () => {
+    const accounts: ResendAccountSetting[] = settings.email_settings?.accounts || [];
+    const payload = {
+      ...settings.email_settings,
+      accounts,
+      resendApiKey: accounts[0]?.apiKey || settings.email_settings?.resendApiKey || "",
+      fromEmail: accounts[0]?.fromEmail || settings.email_settings?.fromEmail || "",
+    };
+    await handleSettingsSubmit("email_settings", payload);
+  };
+
   const handleTestCapi = async () => {
     setTestingCapi(true);
     setTestCapiResult(null);
@@ -666,7 +859,12 @@ export default function SettingsPage() {
       id: "email" as SettingsTab,
       label: "Email Gateway",
       icon: Mail,
-      badge: settings.email_settings?.resendApiKey ? "Active" : undefined,
+      badge:
+        settings.email_settings?.accounts?.length > 0
+          ? `${settings.email_settings.accounts.filter((a: any) => a.active).length} Key${settings.email_settings.accounts.filter((a: any) => a.active).length === 1 ? "" : "s"}`
+          : settings.email_settings?.resendApiKey
+          ? "Active"
+          : undefined,
       badgeColor: "bg-blue-100 text-blue-900 font-bold",
     },
     {
@@ -1734,77 +1932,308 @@ export default function SettingsPage() {
       {/* 5. EMAIL GATEWAY TAB */}
       {activeTab === "email" && (
         <div className="bg-white border border-stone-200/90 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
-          <div className="flex items-center gap-3 border-b border-stone-100 pb-5">
-            <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
-              <Mail className="w-6 h-6" />
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-stone-100 pb-5">
+            <div className="flex items-center gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                <Mail className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-lg font-black text-stone-900">Resend Multi-Key Gateway &amp; Pool Manager</h2>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Combine multiple Resend API keys to multiply your free quota beyond 100 emails/day
+                </p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-lg font-black text-stone-900">Resend Email Gateway Configuration</h2>
-              <p className="text-xs text-stone-500 mt-0.5">Automated delivery receipts and digital credentials dispatching</p>
+
+            <button
+              type="button"
+              onClick={handleAddResendAccount}
+              className="btn btn-sm bg-stone-900 hover:bg-stone-800 text-white rounded-xl font-bold flex items-center gap-2 cursor-pointer shadow-xs self-start sm:self-auto"
+            >
+              <Plus className="w-4 h-4 text-amber-400" />
+              <span>Add Resend Key</span>
+            </button>
+          </div>
+
+          {/* Metric Stats Banner */}
+          {(() => {
+            const accounts: ResendAccountSetting[] = settings.email_settings?.accounts || [];
+            const totalCapacity = accounts.reduce((sum, a) => sum + (Number(a.dailyLimit) || 100), 0);
+            const totalSent = accounts.reduce((sum, a) => sum + (Number(a.sentToday) || 0), 0);
+            const activeCount = accounts.filter((a) => a.active).length;
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500 block">Total Pool Capacity</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-2xl font-black text-stone-900">{totalCapacity}</span>
+                    <span className="text-xs text-stone-500 font-medium">emails / day</span>
+                  </div>
+                </div>
+
+                <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500 block">Dispatched Today</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-2xl font-black text-amber-600">{totalSent}</span>
+                    <span className="text-xs text-stone-500 font-medium">of {totalCapacity} quota</span>
+                  </div>
+                  <div className="w-full bg-stone-200 rounded-full h-1.5 mt-2 overflow-hidden">
+                    <div
+                      className="bg-amber-500 h-1.5 rounded-full transition-all"
+                      style={{ width: `${Math.min(100, totalCapacity > 0 ? (totalSent / totalCapacity) * 100 : 0)}%` }}
+                    />
+                  </div>
+                </div>
+
+                <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200/80">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500 block">Active Key Accounts</span>
+                  <div className="flex items-baseline gap-2 mt-1">
+                    <span className="text-2xl font-black text-emerald-600">{activeCount}</span>
+                    <span className="text-xs text-stone-500 font-medium">of {accounts.length} enabled</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Smart Pooling Info Note */}
+          <div className="bg-amber-50/60 rounded-2xl p-4 border border-amber-200/80 text-xs text-stone-700 space-y-1">
+            <div className="flex items-center gap-2 font-bold text-amber-900">
+              <Zap className="w-4 h-4 text-amber-600" />
+              <span>Smart Rotation &amp; Automatic Failover</span>
+            </div>
+            <p className="text-[11px] text-stone-600 leading-relaxed">
+              Resend free tier offers 100 emails/day per key. When you add multiple keys (from different accounts or domains), the system automatically balances traffic across all active keys with available quota. If any key hits its limit or returns a 429 rate limit error, the mailer instantly fails over to the next available key so customer digital deliveries never fail.
+            </p>
+          </div>
+
+          {/* Test Recipient Input */}
+          <div className="bg-stone-50 rounded-2xl p-4 border border-stone-200 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="flex-1">
+              <label className="block text-xs font-bold text-stone-800 mb-1">
+                Recipient Email for Testing Keys
+              </label>
+              <input
+                type="email"
+                placeholder="youremail@example.com (where you want to receive test emails)"
+                className="input input-sm input-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-white w-full text-xs"
+                value={testEmailRecipient}
+                onChange={(e) => setTestEmailRecipient(e.target.value.trim())}
+              />
+            </div>
+            <div className="text-[11px] text-stone-500 self-center sm:max-w-xs">
+              Enter your email to verify that any individual key and sender domain in the pool dispatches properly.
             </div>
           </div>
 
-          <div className="space-y-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div className="space-y-1.5 w-full">
-                <label className="block text-xs font-bold text-stone-800">Resend API Key *</label>
-                <div className="relative flex items-center w-full">
-                  <input
-                    type={showTokens["resend"] ? "text" : "password"}
-                    placeholder="re_xxxxxxxxxxxxxxxxxxxxxx"
-                    className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs font-mono pr-10 block"
-                    value={settings.email_settings.resendApiKey}
-                    onChange={(e) =>
-                      setSettings({
-                        ...settings,
-                        email_settings: { ...settings.email_settings, resendApiKey: e.target.value.trim() },
-                      })
-                    }
-                  />
-                  <button
-                    type="button"
-                    onClick={() => toggleTokenVisibility("resend")}
-                    className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
-                  >
-                    {showTokens["resend"] ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
+          {/* Accounts List */}
+          <div className="space-y-4">
+            <h3 className="text-xs font-black uppercase tracking-wider text-stone-600 flex items-center justify-between">
+              <span>Configured Resend Accounts ({settings.email_settings?.accounts?.length || 0})</span>
+            </h3>
+
+            {(settings.email_settings?.accounts || []).map((account: ResendAccountSetting, index: number) => {
+              const testResult = testResendResults[account.id];
+              const isTesting = testingResendAccountId === account.id;
+              const sentCount = account.sentToday || 0;
+              const limit = account.dailyLimit || 100;
+              const percent = Math.min(100, Math.round((sentCount / limit) * 100));
+
+              return (
+                <div
+                  key={account.id}
+                  className={`rounded-2xl border-2 transition-all p-5 space-y-4 ${
+                    account.active
+                      ? "border-stone-200 bg-white shadow-xs"
+                      : "border-stone-200/60 bg-stone-50/70 opacity-75"
+                  }`}
+                >
+                  {/* Account Header */}
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-stone-100">
+                    <div className="flex items-center gap-3 flex-1">
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-700 font-black text-xs flex items-center justify-center shrink-0">
+                        #{index + 1}
+                      </div>
+                      <input
+                        type="text"
+                        value={account.name}
+                        onChange={(e) => handleUpdateResendAccount(account.id, { name: e.target.value })}
+                        placeholder="Account / Domain Name"
+                        className="input input-xs font-bold text-stone-900 bg-transparent hover:bg-stone-100 focus:bg-white rounded-lg border-transparent hover:border-stone-200 focus:border-amber-400 text-sm max-w-xs transition-all"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3 flex-wrap">
+                      {/* Daily quota pill */}
+                      <div className="flex items-center gap-2 bg-stone-100 px-3 py-1 rounded-xl text-xs font-bold text-stone-700">
+                        <span>{sentCount}/{limit} sent today</span>
+                        <div className="w-12 bg-stone-200 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-1.5 rounded-full ${percent >= 90 ? "bg-rose-500" : percent >= 60 ? "bg-amber-500" : "bg-emerald-500"}`}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Active toggle */}
+                      <label className="flex items-center gap-1.5 cursor-pointer">
+                        <span className="text-xs font-semibold text-stone-600">
+                          {account.active ? "Active" : "Paused"}
+                        </span>
+                        <input
+                          type="checkbox"
+                          className="toggle toggle-sm toggle-success"
+                          checked={account.active}
+                          onChange={(e) => handleUpdateResendAccount(account.id, { active: e.target.checked })}
+                        />
+                      </label>
+
+                      {/* Remove button */}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveResendAccount(account.id)}
+                        className="btn btn-ghost btn-xs text-rose-600 hover:bg-rose-50 rounded-lg p-1 cursor-pointer"
+                        title="Remove this account"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Account Inputs */}
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                    <div className="md:col-span-6 space-y-1">
+                      <label className="block text-[11px] font-bold text-stone-700">
+                        Resend API Key *
+                      </label>
+                      <div className="relative flex items-center">
+                        <input
+                          type={showTokens[`resend_${account.id}`] ? "text" : "password"}
+                          placeholder="re_xxxxxxxxxxxxxxxxxxxxxx"
+                          className="input input-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs font-mono pr-10"
+                          value={account.apiKey}
+                          onChange={(e) => handleUpdateResendAccount(account.id, { apiKey: e.target.value.trim() })}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => toggleTokenVisibility(`resend_${account.id}`)}
+                          className="btn btn-ghost btn-xs btn-circle absolute right-2 text-stone-500"
+                        >
+                          {showTokens[`resend_${account.id}`] ? <EyeOff size={14} /> : <Eye size={14} />}
+                        </button>
+                      </div>
+                      <span className="text-[10px] text-stone-400 block">
+                        From Resend dashboard under API Keys
+                      </span>
+                    </div>
+
+                    <div className="md:col-span-4 space-y-1">
+                      <label className="block text-[11px] font-bold text-stone-700">
+                        From Domain Email *
+                      </label>
+                      <input
+                        type="text"
+                        placeholder="Store Name <noreply@domain.com>"
+                        className="input input-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs"
+                        value={account.fromEmail}
+                        onChange={(e) => handleUpdateResendAccount(account.id, { fromEmail: e.target.value.trim() })}
+                      />
+                      <span className="text-[10px] text-stone-400 block">
+                        Must match a verified domain on Resend
+                      </span>
+                    </div>
+
+                    <div className="md:col-span-2 space-y-1">
+                      <label className="block text-[11px] font-bold text-stone-700">
+                        Daily Limit
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        max="50000"
+                        className="input input-bordered focus:border-amber-400 rounded-xl text-stone-900 bg-stone-50/80 w-full text-xs font-mono"
+                        value={account.dailyLimit || 100}
+                        onChange={(e) => handleUpdateResendAccount(account.id, { dailyLimit: parseInt(e.target.value) || 100 })}
+                      />
+                      <span className="text-[10px] text-stone-400 block">
+                        Default 100 for free tier
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Last Error or Info Notice */}
+                  {account.lastError && (
+                    <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span className="font-mono text-[11px]">{account.lastError}</span>
+                    </div>
+                  )}
+
+                  {/* Actions & Test Feedback */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2">
+                    <div className="flex-1">
+                      {testResult && (
+                        <div
+                          className={`p-2.5 rounded-xl border text-xs flex items-center gap-2 ${
+                            testResult.success
+                              ? "bg-emerald-50 border-emerald-200 text-emerald-800"
+                              : "bg-rose-50 border-rose-200 text-rose-800"
+                          }`}
+                        >
+                          {testResult.success ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                          ) : (
+                            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                          )}
+                          <span className="font-medium">{testResult.message}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => handleTestResendAccount(account)}
+                      disabled={isTesting}
+                      className="btn btn-sm bg-stone-100 hover:bg-stone-200 text-stone-900 border border-stone-200 rounded-xl font-bold flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      {isTesting ? (
+                        <>
+                          <span className="loading loading-spinner loading-xs text-amber-500"></span>
+                          <span>Testing Key...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-3.5 h-3.5 text-stone-600" />
+                          <span>Test This Key</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
-                <p className="text-[11px] text-stone-500 mt-1">
-                  From your <a href="https://resend.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-amber-600 underline font-bold">Resend Dashboard</a>
-                </p>
-              </div>
+              );
+            })}
+          </div>
 
-              <div className="space-y-1.5 w-full">
-                <label className="block text-xs font-bold text-stone-800">
-                  From Domain Email (Authorized in Resend) *
-                </label>
-                <input
-                  type="text"
-                  placeholder="Kalobazar.shop <noreply@kalobazar.shop>"
-                  className="input input-bordered focus:border-amber-400 focus:ring-2 focus:ring-amber-200 rounded-xl text-stone-900 bg-stone-50/80 w-full text-sm block"
-                  value={settings.email_settings.fromEmail}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      email_settings: { ...settings.email_settings, fromEmail: e.target.value.trim() },
-                    })
-                  }
-                />
-                <p className="text-[11px] text-stone-500 mt-1">
-                  Must use your verified domain on Resend (e.g. kalobazar.shop)
-                </p>
-              </div>
-            </div>
+          {/* Action Row */}
+          <div className="pt-4 border-t border-stone-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={handleAddResendAccount}
+              className="btn btn-sm bg-stone-100 hover:bg-stone-200 text-stone-900 border border-stone-200 rounded-xl font-bold flex items-center gap-2 cursor-pointer w-full sm:w-auto"
+            >
+              <Plus className="w-4 h-4 text-amber-600" />
+              <span>Add Another Resend Key</span>
+            </button>
 
-            <div className="pt-3 border-t border-stone-100">
-              <button
-                onClick={() => handleSettingsSubmit("email_settings", settings.email_settings)}
-                disabled={savingKey === "email_settings"}
-                className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm w-full cursor-pointer"
-              >
-                {savingKey === "email_settings" ? "Saving..." : "Save Email Gateway Settings"}
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleSaveEmailSettings}
+              disabled={savingKey === "email_settings"}
+              className="btn bg-amber-400 hover:bg-amber-500 text-stone-950 border-none rounded-xl font-bold shadow-sm cursor-pointer w-full sm:w-auto px-8"
+            >
+              {savingKey === "email_settings" ? "Saving Gateway..." : "Save Email Gateway Configuration"}
+            </button>
           </div>
         </div>
       )}

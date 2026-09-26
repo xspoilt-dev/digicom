@@ -1,7 +1,20 @@
 import Setting from "../models/Setting";
-import { getSetting } from "./settingsCache";
+import { getSetting, invalidateSettingCache } from "./settingsCache";
 
-interface MailPayload {
+export interface ResendAccount {
+  id: string;
+  name: string;
+  apiKey: string;
+  fromEmail: string;
+  dailyLimit: number;
+  sentToday: number;
+  lastResetDate: string;
+  active: boolean;
+  lastUsedAt?: string;
+  lastError?: string;
+}
+
+export interface MailPayload {
   toEmail: string;
   orderId: string;
   customerName: string;
@@ -17,16 +30,232 @@ interface MailPayload {
   }>;
 }
 
+/**
+ * Normalizes accounts array from settings or falls back to legacy single key
+ */
+export function normalizeResendAccounts(emailConfig: any): ResendAccount[] {
+  const todayStr = new Date().toISOString().split("T")[0];
+  let accounts: ResendAccount[] = [];
+
+  if (Array.isArray(emailConfig?.accounts) && emailConfig.accounts.length > 0) {
+    accounts = emailConfig.accounts.map((acc: any, idx: number) => {
+      const isToday = acc.lastResetDate === todayStr;
+      return {
+        id: acc.id || `acc_${idx}_${Date.now()}`,
+        name: acc.name || `Resend Account #${idx + 1}`,
+        apiKey: String(acc.apiKey || "").trim(),
+        fromEmail: String(acc.fromEmail || emailConfig.fromEmail || "Kalobazar.shop <noreply@kalobazar.shop>").trim(),
+        dailyLimit: Number(acc.dailyLimit) || 100,
+        sentToday: isToday ? Number(acc.sentToday) || 0 : 0,
+        lastResetDate: todayStr,
+        active: acc.active !== false,
+        lastUsedAt: acc.lastUsedAt,
+        lastError: acc.lastError,
+      };
+    });
+  } else if (emailConfig?.resendApiKey || process.env.RESEND_API_KEY) {
+    const isToday = emailConfig?.lastResetDate === todayStr;
+    accounts = [
+      {
+        id: "primary",
+        name: "Primary Resend Key",
+        apiKey: String(emailConfig?.resendApiKey || process.env.RESEND_API_KEY || "").trim(),
+        fromEmail: String(emailConfig?.fromEmail || "Kalobazar.shop <noreply@kalobazar.shop>").trim(),
+        dailyLimit: 100,
+        sentToday: isToday ? Number(emailConfig?.sentToday) || 0 : 0,
+        lastResetDate: todayStr,
+        active: true,
+      },
+    ];
+  }
+
+  return accounts;
+}
+
+/**
+ * Sends an email using the multi-account pool with automatic rotation, quota tracking, and failover
+ */
+export async function sendEmailWithMultiResendPool(options: {
+  toEmail: string;
+  subject: string;
+  htmlContent: string;
+  orderId?: string;
+}): Promise<{ success: boolean; accountUsed?: string; error?: string }> {
+  const { toEmail, subject, htmlContent, orderId } = options;
+
+  const emailConfig = (await getSetting("email_settings")) || {};
+  const accounts = normalizeResendAccounts(emailConfig);
+
+  const activeAccounts = accounts.filter((a) => a.active && a.apiKey);
+  if (activeAccounts.length === 0) {
+    console.warn("[Mailer] No active Resend accounts configured in pool.");
+    return { success: false, error: "No active Resend API keys configured." };
+  }
+
+  // Sort candidate accounts:
+  // 1. Prioritize accounts that have remaining capacity (< dailyLimit)
+  // 2. Then by least sent today (round-robin / balanced distribution)
+  const sortedAccounts = [...activeAccounts].sort((a, b) => {
+    const aUnder = a.sentToday < a.dailyLimit;
+    const bUnder = b.sentToday < b.dailyLimit;
+    if (aUnder && !bUnder) return -1;
+    if (!aUnder && bUnder) return 1;
+    return a.sentToday - b.sentToday;
+  });
+
+  let dispatched = false;
+  let usedAccountName = "";
+  let lastFailureMessage = "";
+
+  for (const account of sortedAccounts) {
+    console.log(
+      `[Mailer] Attempting send via "${account.name}" (${account.fromEmail}) - Sent today: ${account.sentToday}/${account.dailyLimit}`
+    );
+
+    try {
+      const res = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${account.apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: account.fromEmail,
+          to: [toEmail],
+          subject,
+          html: htmlContent,
+        }),
+      });
+
+      if (res.ok) {
+        account.sentToday += 1;
+        account.lastUsedAt = new Date().toISOString();
+        account.lastError = "";
+        dispatched = true;
+        usedAccountName = account.name;
+        console.log(
+          `[Mailer] ✓ Email delivered to ${toEmail}${orderId ? ` for Order #${orderId}` : ""} via ${account.name} (Count: ${account.sentToday}/${account.dailyLimit})`
+        );
+        break;
+      } else {
+        const errorText = await res.text();
+        account.lastError = `[${res.status}] ${errorText}`;
+        lastFailureMessage = `Account "${account.name}" failed: ${errorText}`;
+        console.warn(`[Mailer] ⚠ Resend API error on "${account.name}":`, errorText);
+        console.warn(`[Mailer] Failing over to next available Resend account in pool...`);
+      }
+    } catch (err: any) {
+      account.lastError = err.message || "Network request failed";
+      lastFailureMessage = `Account "${account.name}" exception: ${err.message}`;
+      console.error(`[Mailer] Network exception sending via "${account.name}":`, err);
+    }
+  }
+
+  // Update account usage stats in DB asynchronously
+  try {
+    const updatedAccounts = accounts.map((orig) => {
+      const modified = sortedAccounts.find((s) => s.id === orig.id);
+      return modified || orig;
+    });
+
+    await Setting.findOneAndUpdate(
+      { key: "email_settings" },
+      {
+        value: {
+          ...emailConfig,
+          accounts: updatedAccounts,
+          resendApiKey: updatedAccounts[0]?.apiKey || emailConfig.resendApiKey,
+          fromEmail: updatedAccounts[0]?.fromEmail || emailConfig.fromEmail,
+        },
+      },
+      { upsert: true }
+    );
+    invalidateSettingCache("email_settings");
+  } catch (syncErr) {
+    console.error("[Mailer] Failed to save updated email counts:", syncErr);
+  }
+
+  if (dispatched) {
+    return { success: true, accountUsed: usedAccountName };
+  }
+
+  return { success: false, error: lastFailureMessage || "All Resend accounts in pool failed." };
+}
+
+/**
+ * Tests a single Resend API key configuration by sending a verification email
+ */
+export async function testResendAccount(params: {
+  apiKey: string;
+  fromEmail: string;
+  toEmail: string;
+}): Promise<{ success: boolean; message: string }> {
+  const { apiKey, fromEmail, toEmail } = params;
+
+  if (!apiKey?.trim()) {
+    return { success: false, message: "API Key is required." };
+  }
+  if (!fromEmail?.trim()) {
+    return { success: false, message: "From email is required." };
+  }
+  if (!toEmail?.trim()) {
+    return { success: false, message: "Recipient email is required." };
+  }
+
+  try {
+    const res = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey.trim()}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: fromEmail.trim(),
+        to: [toEmail.trim()],
+        subject: "Resend Multi-Key Test - Kalobazar Marketplace",
+        html: `
+          <div style="font-family: sans-serif; padding: 24px; background-color: #f8fafc; border-radius: 16px; border: 1px solid #e2e8f0;">
+            <h2 style="color: #0f172a; margin-top: 0;">🎉 Resend API Key Verified Successfully!</h2>
+            <p style="color: #475569; font-size: 14px;">
+              This test email confirms that your Resend API key and sender email <strong>${fromEmail}</strong> are correctly configured and operational in your pool.
+            </p>
+            <div style="background-color: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; font-family: monospace; font-size: 12px; color: #16a34a; font-weight: bold;">
+              Timestamp: ${new Date().toISOString()}
+            </div>
+          </div>
+        `,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      return {
+        success: true,
+        message: `Test email sent successfully via Resend (ID: ${data.id})! Check inbox at ${toEmail}`,
+      };
+    } else {
+      const errText = await res.text();
+      return {
+        success: false,
+        message: `Resend API returned error [${res.status}]: ${errText}`,
+      };
+    }
+  } catch (err: any) {
+    return {
+      success: false,
+      message: `Network error connecting to Resend: ${err.message}`,
+    };
+  }
+}
+
+/**
+ * Sends order delivery email with credentials and receipt
+ */
 export async function sendOrderDeliveryEmail(payload: MailPayload) {
   try {
-    // 1. Fetch Email Settings and Company Info from cache/db
-    const emailConfig = (await getSetting("email_settings")) || {};
-    const apiKey = emailConfig.resendApiKey || process.env.RESEND_API_KEY;
-    const fromEmail = emailConfig.fromEmail || "Kalobazar.shop <noreply@kalobazar.shop>";
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || "https://kalobazar.shop";
-    const logoUrl = `${siteUrl}/horizontal.png`;
-
     const companyInfo = (await getSetting("company_info")) || {};
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || "https://kalobazar.shop";
+
     const rawWhatsapp = companyInfo.whatsapp || companyInfo.whatsappNumber || "01700000000";
     let cleanNumber = rawWhatsapp.replace(/\D/g, "");
     if (cleanNumber.length === 11 && cleanNumber.startsWith("01")) {
@@ -34,14 +263,9 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
     }
     const whatsappLink = `https://wa.me/${cleanNumber}`;
 
-    if (!apiKey) {
-      console.warn("Resend API Key is not configured. Email skipped.");
-      return;
-    }
-
     const { toEmail, orderId, customerName, totalAmount, items, downloadUrls = [], deliveryAccounts = [] } = payload;
 
-    // 2. Build items HTML
+    // Build items HTML
     const itemsHtml = items
       .map(
         (item) => `
@@ -53,7 +277,7 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
       )
       .join("");
 
-    // 3. Build Account Credentials Module (for Canboso fulfilled accounts)
+    // Build Account Credentials Module (for Canboso fulfilled accounts)
     let credentialsHtml = "";
     if (deliveryAccounts && deliveryAccounts.length > 0) {
       const accountsList = deliveryAccounts
@@ -83,7 +307,7 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
       `;
     }
 
-    // 4. Build traditional download links (if any)
+    // Build traditional download links (if any)
     let linksHtml = "";
     if (downloadUrls && downloadUrls.length > 0) {
       const urlsHtml = downloadUrls
@@ -196,27 +420,13 @@ export async function sendOrderDeliveryEmail(payload: MailPayload) {
       </html>
     `;
 
-    // 5. Send via Resend API
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: fromEmail,
-        to: [toEmail],
-        subject: `Order Confirmed: ${orderId} - ${companyInfo.name || "Kalobazar.shop"}`,
-        html: htmlContent,
-      }),
+    // Send using multi-account failover pool
+    await sendEmailWithMultiResendPool({
+      toEmail,
+      subject: `Order Confirmed: ${orderId} - ${companyInfo.name || "Kalobazar.shop"}`,
+      htmlContent,
+      orderId,
     });
-
-    if (!res.ok) {
-      const err = await res.text();
-      console.error("[Mailer] Resend API dispatch error:", err);
-    } else {
-      console.log(`[Mailer] Delivery receipt sent to ${toEmail} for Order #${orderId}`);
-    }
   } catch (error) {
     console.error("[Mailer Exception]", error);
   }

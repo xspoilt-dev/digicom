@@ -8,8 +8,9 @@ import Setting from "../models/Setting";
 import RouteRedirect from "../models/RouteRedirect";
 import CapiLog from "../models/CapiLog";
 import Provider from "../models/Provider";
+import Media from "../models/Media";
 import { sendCapiEvent } from "../utils/metaCapi";
-import { sendOrderDeliveryEmail } from "../utils/mailer";
+import { sendOrderDeliveryEmail, testResendAccount } from "../utils/mailer";
 import { invalidateSettingCache } from "../utils/settingsCache";
 import {
   fetchCanbosoBalance,
@@ -870,6 +871,37 @@ adminRouter.post("/upload", async (c) => {
       relativePath = `uploads/${uploadDirName}/${savedFilename}`;
     }
 
+    // Automatically register uploaded file in Media collection
+    try {
+      const isImg = type === "thumbnail" || /\.(webp|png|jpe?g|svg|gif)$/i.test(savedFilename);
+      let width: number | undefined;
+      let height: number | undefined;
+      if (isImg) {
+        try {
+          const meta = await sharp(fileBuffer).metadata();
+          width = meta.width;
+          height = meta.height;
+        } catch {}
+      }
+      await Media.findOneAndUpdate(
+        { filePath: relativePath },
+        {
+          filename: savedFilename,
+          originalName: file.name,
+          filePath: relativePath,
+          fileType: isImg ? "image" : "file",
+          mimeType: isImg ? "image/webp" : file.type || "application/octet-stream",
+          size: fileBuffer.length,
+          width,
+          height,
+          folder: uploadDirName,
+        },
+        { upsert: true, new: true }
+      );
+    } catch (mediaErr) {
+      console.warn("[Media Sync] Warning registering file in Media collection:", mediaErr);
+    }
+
     return c.json({
       success: true,
       filePath: relativePath,
@@ -901,9 +933,229 @@ adminRouter.post("/upload/delete", async (c) => {
     if (fs.existsSync(absoluteFilePath)) {
       fs.unlinkSync(absoluteFilePath);
     }
+    await Media.findOneAndDelete({ filePath: cleanPath });
     return c.json({ success: true, message: "File deleted successfully" });
   } catch (error: any) {
     return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 5.2 CMS Media Management Endpoints
+adminRouter.get("/media", async (c) => {
+  try {
+    const q = (c.req.query("q") || "").trim();
+    const folder = (c.req.query("folder") || "all").trim();
+
+    // Auto-discover/sync any files from disk into MongoDB so past uploads appear
+    const uploadsBaseDir = process.env.UPLOADS_DIR || path.resolve(__dirname, "../../uploads");
+    const subDirs = ["thumbnails", "products"];
+
+    for (const sub of subDirs) {
+      const fullDir = path.resolve(uploadsBaseDir, sub);
+      if (!fs.existsSync(fullDir)) continue;
+
+      try {
+        const files = fs.readdirSync(fullDir);
+        for (const file of files) {
+          if (file === ".gitkeep" || file.startsWith(".")) continue;
+
+          const relPath = `uploads/${sub}/${file}`;
+          const exists = await Media.findOne({ filePath: relPath });
+          if (!exists) {
+            const absPath = path.resolve(fullDir, file);
+            const stat = fs.statSync(absPath);
+            const ext = path.extname(file).toLowerCase();
+            const isImage = [".webp", ".png", ".jpg", ".jpeg", ".svg", ".gif", ".avif"].includes(ext);
+
+            let width: number | undefined;
+            let height: number | undefined;
+            if (isImage) {
+              try {
+                const meta = await sharp(absPath).metadata();
+                width = meta.width;
+                height = meta.height;
+              } catch {}
+            }
+
+            await Media.create({
+              filename: file,
+              originalName: file,
+              filePath: relPath,
+              fileType: isImage ? "image" : "file",
+              mimeType: isImage
+                ? ext === ".webp"
+                  ? "image/webp"
+                  : `image/${ext.replace(".", "")}`
+                : "application/octet-stream",
+              size: stat.size,
+              width,
+              height,
+              folder: sub,
+              createdAt: stat.birthtime || stat.mtime,
+            });
+          }
+        }
+      } catch (scanErr) {
+        console.warn(`[Media Scan] Warning scanning directory ${sub}:`, scanErr);
+      }
+    }
+
+    const filter: any = {};
+    if (q) {
+      filter.$or = [
+        { originalName: { $regex: q, $options: "i" } },
+        { filename: { $regex: q, $options: "i" } },
+      ];
+    }
+    if (folder && folder !== "all") {
+      filter.folder = folder;
+    }
+
+    const mediaList = await Media.find(filter).sort({ createdAt: -1 }).limit(300);
+    return c.json({ success: true, media: mediaList, total: mediaList.length });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+adminRouter.post("/media/upload", async (c) => {
+  try {
+    const body = await c.req.parseBody({ all: true });
+    const rawFiles = body["files"] || body["file"];
+    const fileList: File[] = Array.isArray(rawFiles)
+      ? (rawFiles as File[])
+      : rawFiles instanceof File
+      ? [rawFiles]
+      : [];
+
+    if (fileList.length === 0) {
+      return c.json({ success: false, message: "No valid files received" }, 400);
+    }
+
+    const uploadDirName = (body["folder"] as string) === "products" ? "products" : "thumbnails";
+    const uploadsBaseDir = process.env.UPLOADS_DIR || path.resolve(__dirname, "../../uploads");
+    const uploadPathDir = path.resolve(uploadsBaseDir, uploadDirName);
+
+    if (!fs.existsSync(uploadPathDir)) {
+      fs.mkdirSync(uploadPathDir, { recursive: true });
+    }
+
+    const savedMediaList: any[] = [];
+
+    for (const file of fileList) {
+      if (!(file instanceof File)) continue;
+
+      const arrayBuffer = await file.arrayBuffer();
+      const fileBuffer = Buffer.from(arrayBuffer);
+      const isImg = file.type.startsWith("image/") || /\.(png|jpe?g|webp|gif|svg)$/i.test(file.name);
+
+      let savedFilename: string;
+      let relativePath: string;
+      let width: number | undefined;
+      let height: number | undefined;
+      let finalMime = file.type || "application/octet-stream";
+      let finalSize = fileBuffer.length;
+
+      if (isImg) {
+        try {
+          const uniqueBase = `${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+          savedFilename = `${uniqueBase}.webp`;
+          const fullWritePath = path.join(uploadPathDir, savedFilename);
+
+          const sharpInst = sharp(fileBuffer).rotate();
+          const meta = await sharpInst.metadata();
+          width = meta.width;
+          height = meta.height;
+
+          await sharpInst
+            .resize({ width: 1400, height: 1400, fit: "inside", withoutEnlargement: true })
+            .webp({ quality: 85, effort: 4 })
+            .toFile(fullWritePath);
+
+          const stat = fs.statSync(fullWritePath);
+          finalSize = stat.size;
+          relativePath = `uploads/${uploadDirName}/${savedFilename}`;
+          finalMime = "image/webp";
+        } catch {
+          const fileExt = path.extname(file.name) || ".png";
+          savedFilename = `${Date.now()}-${Math.floor(Math.random() * 1000)}${fileExt}`;
+          const fullWritePath = path.join(uploadPathDir, savedFilename);
+          fs.writeFileSync(fullWritePath, fileBuffer);
+          relativePath = `uploads/${uploadDirName}/${savedFilename}`;
+        }
+      } else {
+        const fileExt = path.extname(file.name);
+        savedFilename = `${Date.now()}-${Math.floor(Math.random() * 1000)}${fileExt}`;
+        const fullWritePath = path.join(uploadPathDir, savedFilename);
+        fs.writeFileSync(fullWritePath, fileBuffer);
+        relativePath = `uploads/${uploadDirName}/${savedFilename}`;
+      }
+
+      const mediaDoc = await Media.create({
+        filename: savedFilename,
+        originalName: file.name,
+        filePath: relativePath,
+        fileType: isImg ? "image" : "file",
+        mimeType: finalMime,
+        size: finalSize,
+        width,
+        height,
+        folder: uploadDirName,
+      });
+
+      savedMediaList.push(mediaDoc);
+    }
+
+    return c.json({
+      success: true,
+      message: `${savedMediaList.length} file(s) saved to media storage`,
+      media: savedMediaList,
+    });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+adminRouter.delete("/media/:id", async (c) => {
+  try {
+    const id = c.req.param("id");
+    const media = await Media.findById(id);
+    if (!media) {
+      return c.json({ success: false, message: "Media not found" }, 404);
+    }
+
+    const uploadsBaseDir = process.env.UPLOADS_DIR || path.resolve(__dirname, "../../uploads");
+    const subPath = media.filePath.replace(/^uploads\//, "");
+    const absoluteFilePath = path.resolve(uploadsBaseDir, subPath);
+
+    if (absoluteFilePath.startsWith(uploadsBaseDir) && fs.existsSync(absoluteFilePath)) {
+      try {
+        fs.unlinkSync(absoluteFilePath);
+      } catch (e) {
+        console.warn("Could not delete physical file from disk:", e);
+      }
+    }
+
+    await Media.findByIdAndDelete(id);
+    return c.json({ success: true, message: "Media deleted from storage successfully" });
+  } catch (error: any) {
+    return c.json({ success: false, error: error.message }, 500);
+  }
+});
+
+// 5.3 Resend Multi-Key Email Gateway Test
+adminRouter.post("/email/test", async (c) => {
+  try {
+    const body = await c.req.json().catch(() => ({}));
+    const { apiKey, fromEmail, toEmail } = body;
+    const recipient = (toEmail || fromEmail || "").trim();
+    if (!apiKey?.trim() || !fromEmail?.trim() || !recipient) {
+      return c.json({ success: false, message: "API key and From Email are required" }, 400);
+    }
+    const result = await testResendAccount({ apiKey, fromEmail, toEmail: recipient });
+    return c.json(result, result.success ? 200 : 400);
+  } catch (error: any) {
+    return c.json({ success: false, message: error.message }, 500);
   }
 });
 
